@@ -13,4 +13,4 @@ InitState = Callable[[], jnp.ndarray]
 class Module(NamedTuple):
     init: Init
     apply: Apply
-    initial_state: InitState
+    initial_state: InitState = None
