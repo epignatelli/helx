@@ -45,10 +45,8 @@ mpl = Mpl()
 # you can call mlp.init
 output_shape, params = mlp.init(rng, input_shape)
 y_hat = mpl.apply(params, x)
-)
-
-
 ```
+
 
 
 ### Using the `inject` decorator
