@@ -4,6 +4,9 @@
 
 # Helx
 Helx is a helper library for [JAX](https://github.com/google/jax) / [stax](https://github.com/google/jax/blob/master/jax/experimental/stax.py).
+It is in continuous development, so expect changes.
+For some fuctionalities see below.
+
 
 
 ### Installation
@@ -11,7 +14,9 @@ To run the algorithm on a GPU, I suggest to [install](https://github.com/google/
 ```sh
 pip install git+https://github.com/epignatelli/helx
 ```
-Note that helx does not depend on JAX, even if it uses it. This is to allow you use your own version of JAX, built for an arbitrary accelerator.
+Note that helx does not depend on JAX, even if it uses it. This allows you to use a version of JAX built for an arbitrary accelerator.
+
+
 
 ### Using `module`
 A `module` is a simple interface for stax functions. It returns a standardised `NamedTuple` for a layer construction function with an `init` and an `apply` function. Here's an example:
