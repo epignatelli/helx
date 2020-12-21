@@ -3,12 +3,12 @@
 from distutils.core import setup
 
 setup(
-    name=NotImplemented,
+    name="Helx",
     version="0.0.1",
-    description=NotImplemented,
+    description="Helx is a helper library for JAX/stax",
     author="Eduardo Pignatelli",
     author_email="edu.pignatelli@gmail.com",
-    url=NotImplemented,
-    packages=[],
+    url="https://github.com/epignatelli/helx",
+    packages=["helx"],
     install_requires=open("requirements.txt", "r").readlines(),
 )
