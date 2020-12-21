@@ -50,6 +50,7 @@ y_hat = mpl.apply(params, x)
 
 ```
 
+
 ### Using the `inject` decorator
 The `inject` decorator allows you to define and use a pure function in a class.
 
