@@ -18,7 +18,7 @@ Note that helx does not depend on JAX, even if it uses it. This allows you to us
 
 
 
-### Using `module`
+### Using the `module` decorator
 A `module` is a simple interface for stax functions. It returns a standardised `NamedTuple` for a layer construction function with an `init` and an `apply` function. Here's an example:
 ```python
 import jax
