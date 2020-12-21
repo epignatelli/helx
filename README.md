@@ -6,14 +6,14 @@
 Helx is a helper library for [JAX](https://github.com/google/jax) / [stax](https://github.com/google/jax/blob/master/jax/experimental/stax.py).
 
 
-## Installation
+### Installation
 To run the algorithm on a GPU, I suggest to [install](https://github.com/google/jax#pip-installation) the gpu version of `jax` [[4]](https://github.com/google/jax). You can then install this repo using [Anaconda python](https://www.anaconda.com/products/individual) and [pip](https://pip.pypa.io/en/stable/installing/).
 ```sh
 pip install git+https://github.com/epignatelli/helx
 ```
 Note that helx does not depend on JAX, even if it uses it. This is to allow you use your own version of JAX, built for an arbitrary accelerator.
 
-## Using `module`
+### Using `module`
 A `module` is a simple interface for stax functions. It returns a standardised `NamedTuple` for a layer construction function with an `init` and an `apply` function. Here's an example:
 ```python
 import jax
@@ -43,7 +43,7 @@ y_hat = mpl.apply(params, x)
 
 ```
 
-## Using the `inject` decorator
+### Using the `inject` decorator
 The `inject` decorator allows you to define and use a pure function in a class.
 
 Reusing the mlp example above:
