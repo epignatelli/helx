@@ -17,6 +17,9 @@ pip install git+https://github.com/epignatelli/helx
 Note that helx does not depend on JAX, even if it uses it. 
 This allows you to use a version of JAX built for an arbitrary accelerator.
 
+### Contribute
+This library is intended as a container of shortcuts for jax and stax.
+Feel free to raise an issue, or pull request a new functionality.
 
 ### The `module` decorator
 A `module` is a simple interface for stax functions. It takes a `stax` layer construction output - a tuple of callables - and returns a `Module` object - a `NamedTuple` with an `init` and an `apply` properties.
@@ -116,6 +119,3 @@ def forward(params, x):
     return mlp.apply(params, x)
 
 ```
-
-Feel free to raise an issue, or pull request a new functionality.
-This library is intended as a container of shortcuts for jax and stax.
