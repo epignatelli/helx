@@ -14,7 +14,7 @@ For some fuctionalities see below.
 pip install git+https://github.com/epignatelli/helx
 ```
 
-Note that helx does not depend on JAX, even if it uses it. 
+Note that helx does not depend on JAX, even if it uses it.
 This allows you to use a version of JAX built for an arbitrary accelerator.
 
 ### Contribute
@@ -118,4 +118,18 @@ The `batch` decorator is nothing more than a wrapper around `jax.jit` and `jax.v
 def forward(params, x):
     return mlp.apply(params, x)
 
+```
+
+
+### The `purify` decorator
+The `purify` decorator converts a classmethod into a jax pure function and jits it.
+It allows you to define a function in a class and use it with patterns we usually use in JAX
+```python
+class Agent:
+    @purify
+    def forward(x, y):
+        return x * y
+
+agent = Agent()
+agent.forward(3, 4)
 ```

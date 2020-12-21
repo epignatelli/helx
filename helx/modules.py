@@ -20,3 +20,12 @@ def inject(fun, **kwargs):
 
 def module(fun):
     return factory(fun, Module)
+
+
+def purify(fun, **kwargs):
+    f_jit = jax.jit(fun, **kwargs)
+
+    def wrapper(*a, **k):
+        return f_jit(*a, **k)
+
+    return staticmethod(wrapper)
