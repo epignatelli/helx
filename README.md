@@ -41,6 +41,8 @@ input_shape = (128, 8)
 x = jax.random.normal(input_shape)
 
 mpl = Mpl()
+# note that the interface is standardised
+# you can call mlp.init
 output_shape, params = mlp.init(rng, input_shape)
 y_hat = mpl.apply(params, x)
 )
