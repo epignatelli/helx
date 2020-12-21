@@ -106,3 +106,14 @@ agent.sgd_step(params, x)
 agent.update(x)
 
 ```
+
+
+
+### Using the `batch` decorator
+The `batch` decorator is nothing more than a wrapper around `jax.jit` and `jax.vmap`: it re-jits a vmapped function.
+```python
+@batch(in_axes=1, out_axes=1)
+def forward(params, x):
+    return mlp.apply(params, x)
+
+```
