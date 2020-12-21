@@ -9,7 +9,7 @@ For some fuctionalities see below.
 
 
 
-### Installation
+<h3>Installation</h3>
 To run the algorithm on a GPU, I suggest to [install](https://github.com/google/jax#pip-installation) the gpu version of `jax` [[4]](https://github.com/google/jax). You can then install this repo using [Anaconda python](https://www.anaconda.com/products/individual) and [pip](https://pip.pypa.io/en/stable/installing/).
 ```sh
 pip install git+https://github.com/epignatelli/helx
@@ -18,7 +18,7 @@ Note that helx does not depend on JAX, even if it uses it. This allows you to us
 
 
 
-### Using the `module` decorator
+<h3>Using the `module` decorator</h3>
 A `module` is a simple interface for stax functions. It returns a standardised `NamedTuple` for a layer construction function with an `init` and an `apply` function. Here's an example:
 ```python
 import jax
@@ -49,7 +49,7 @@ y_hat = mpl.apply(params, x)
 
 
 
-### Using the `inject` decorator
+<h3>Using the `inject` decorator</h3>
 The `inject` decorator allows you to define and use a pure function in a class.
 
 Reusing the mlp example above:
@@ -109,7 +109,7 @@ agent.update(x)
 
 
 
-### Using the `batch` decorator
+<h3>Using the `batch` decorator</h3>
 The `batch` decorator is nothing more than a wrapper around `jax.jit` and `jax.vmap`: it re-jits a vmapped function.
 ```python
 @batch(in_axes=1, out_axes=1)
