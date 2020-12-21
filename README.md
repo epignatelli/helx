@@ -14,11 +14,13 @@ For some fuctionalities see below.
 pip install git+https://github.com/epignatelli/helx
 ```
 
-Note that helx does not depend on JAX, even if it uses it. This allows you to use a version of JAX built for an arbitrary accelerator.
+Note that helx does not depend on JAX, even if it uses it. 
+This allows you to use a version of JAX built for an arbitrary accelerator.
 
 
 ### The `module` decorator
-A `module` is a simple interface for stax functions. It returns a standardised `NamedTuple` for a layer construction function with an `init` and an `apply` function. Here's an example:
+A `module` is a simple interface for stax functions. It takes a `stax` layer construction output - a tuple of callables - and returns a `Module` object - a `NamedTuple` with an `init` and an `apply` properties.
+Here's an example:
 ```python
 import jax
 from jax.experimental.stax import Dense, Relu
@@ -47,7 +49,9 @@ y_hat = mpl.apply(params, x)
 ```
 
 ### The `inject` decorator
-The `inject` decorator allows you to define and use a pure function in a class.
+The `inject` decorator is the `jax.jit` for closures. It allows you to define and use a pure function in a class.
+It replicates the interface and functionality of `jax.jit`, you can use it in the same way.
+In addition, it grabs the class it is defined in and injects itself as a property of the class.
 
 Reusing the mlp example above:
 ```python
