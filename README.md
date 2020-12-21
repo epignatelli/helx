@@ -66,6 +66,8 @@ class Agent:
         params = network.init(rng, input_shape)
         self.optimiser_state = optimiser.init_fn(self.params)
 
+        # Note that we define the functions in the init
+        # because they have to be pure (following the jax logic), they will not call other functions
         @inject
         def forward(
             params: Params,
@@ -85,6 +87,8 @@ class Agent:
             optimiser_state = optimiser.update_fn(iteration, grads, optimiser_state)
             return outputs, optimiser_state
 
+    # update is defined using canonical python patterns
+    # note that it can call injected methods
     def update(self, trajectory):
         return self.sgd_step(self.iteration, self.optimiser_state, trajectory)
 
