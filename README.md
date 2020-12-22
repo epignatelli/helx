@@ -108,7 +108,6 @@ agent.sgd_step(params, x)
 
 # or use a class method that calls an injected function
 agent.update(x)
-
 ```
 
 ### The `batch` decorator

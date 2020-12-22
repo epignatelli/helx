@@ -1,7 +1,7 @@
 import jax
 
-from .types import Module
 from .base import factory
+from .types import Module
 
 
 def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
