@@ -1,5 +1,6 @@
 from typing import Any, Callable, Dict, NamedTuple, Tuple
 import jax.numpy as jnp
+from jax.experimental.optimizers import OptimizerState
 
 
 RNGKey = jnp.ndarray
@@ -14,3 +15,9 @@ class Module(NamedTuple):
     init: Init
     apply: Apply
     initial_state: InitState = None
+
+
+class Optimiser(NamedTuple):
+    init: Callable[[Params], OptimizerState]
+    update: Callable[[OptimizerState], OptimizerState]
+    params: Callable[[OptimizerState], Params]
