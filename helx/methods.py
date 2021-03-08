@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 
 from .base import factory
@@ -29,3 +31,24 @@ def purify(fun, **kwargs):
         return f_jit(*a, **k)
 
     return staticmethod(wrapper)
+
+
+def nn(forward_fun, **kwargs):
+    @partial(jax.jit, static_argnums=0)
+    def backward(model, params, *args, **kwargs):
+        return jax.value_and_grad(forward_fun, argnums=1, has_aux=True)(
+            model, params, *args, **kwargs
+        )
+
+    @partial(jax.jit, static_argnums=(0, 1))
+    def sgd_step(model, optimiser, iteration, optimiser_state, *args, **kwargs):
+        params = optimiser.params(optimiser_state)
+        (loss, y_hat), gradients = backward(model, params, *args, **kwargs)
+        return loss, y_hat, optimiser.update(iteration, gradients, optimiser_state)
+
+    cls = forward_fun.__globals__[forward_fun.__qualname__.split(".")[0]]
+    forward_jit = jax.jit(forward_fun, **kwargs)
+    setattr(cls, forward_fun.__name__, staticmethod(forward_jit))
+    setattr(cls, backward.__name__, staticmethod(backward))
+    setattr(cls, sgd_step.__name__, staticmethod(sgd_step))
+    return nn
