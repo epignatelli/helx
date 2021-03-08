@@ -1,9 +1,12 @@
 from functools import partial
+from typing import Tuple
 
 import jax
+import jax.numpy as jnp
+from jax.experimental.optimizers import OptimizerState
 
 from .base import factory
-from .types import Module
+from .types import Module, Optimiser, Params
 
 
 def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
@@ -35,13 +38,22 @@ def purify(fun, **kwargs):
 
 def nn(forward_fun, **kwargs):
     @partial(jax.jit, static_argnums=0)
-    def backward(model, params, *args, **kwargs):
+    def backward(
+        model: Module, params: Params, *args, **kwargs
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         return jax.value_and_grad(forward_fun, argnums=1, has_aux=True)(
             model, params, *args, **kwargs
         )
 
     @partial(jax.jit, static_argnums=(0, 1))
-    def sgd_step(model, optimiser, iteration, optimiser_state, *args, **kwargs):
+    def sgd_step(
+        model: Module,
+        optimiser: Optimiser,
+        iteration: int,
+        optimiser_state: OptimizerState,
+        *args,
+        **kwargs
+    ) -> Tuple[float, jnp.ndarray, OptimizerState]:
         params = optimiser.params(optimiser_state)
         (loss, y_hat), gradients = backward(model, params, *args, **kwargs)
         return loss, y_hat, optimiser.update(iteration, gradients, optimiser_state)
