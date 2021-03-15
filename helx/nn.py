@@ -21,11 +21,19 @@ def Rnn(cell):
 
     def apply(params, inputs, **kwargs):
         prev_state = kwargs.pop("prev_state", None)
+        if prev_state is None:
+            msg = (
+                "Recurrent layers require apply_fun to be called with a prev_state "
+                "argument. That is, instead of `apply_fun(params, inputs)`, "
+                "call it like apply_fun(params, inputs, prev_state=prev_state)` "
+                "where `prev_state` is the rnn hidden state."
+            )
+            raise ValueError(msg)
         prev_state, outputs = jax.lax.scan(
             lambda prev_state, inputs: cell.apply(
                 params, inputs, prev_state=prev_state
             )[::-1],
-            prev_state,
+            prev_state,  # None will be handled by the respective cell's apply_fun
             inputs,
         )
         return outputs, prev_state
@@ -45,25 +53,26 @@ def LSTMCell(
     b_init=normal(),
     h_initial_state_fn=zeros,
     c_initial_state_fn=zeros,
-    initial_state_seed=0,
 ):
     """Layer construction function for an LSTM cell.
     Formulation: Zaremba, W., 2015, https://arxiv.org/pdf/1409.2329.pdf"""
 
-    def initial_state():
+    def initial_state(rng):
         shape = (hidden_size,)
-        k1, k2 = jax.random.split(jax.random.PRNGKey(initial_state_seed))
+        k1, k2 = jax.random.split(rng)
         return LSTMState(h_initial_state_fn(k1, shape), c_initial_state_fn(k2, shape))
 
     def init(rng, input_shape):
+        #  init params
         in_dim, out_dim = input_shape[-1] + hidden_size, 4 * hidden_size
         output_shape = input_shape[:-1] + (hidden_size,)
-        k1, k2 = jax.random.split(rng)
+        k1, k2, k3 = jax.random.split(rng, 3)
         W, b = W_init(k1, (in_dim, out_dim)), b_init(k2, (out_dim,))
-        return (output_shape, (output_shape, output_shape)), (W, b)
+        hidden_state = initial_state(k3)
+        return (output_shape, (output_shape, output_shape)), ((W, b), hidden_state)
 
     def apply(params, inputs, **kwargs):
-        prev_state = kwargs.pop("prev_state", None) or initial_state()
+        prev_state = kwargs.get("prev_state")
         W, b = params
         xh = jnp.concatenate([inputs, prev_state.h], axis=-1)
         gated = jnp.matmul(xh, W) + b
@@ -82,7 +91,6 @@ def LSTM(
     b_init=normal(),
     h_initial_state=zeros,
     c_initial_state=zeros,
-    initial_state_seed=0,
 ):
     return Rnn(
         LSTMCell(
@@ -91,7 +99,6 @@ def LSTM(
             b_init,
             h_initial_state,
             c_initial_state,
-            initial_state_seed,
         )
     )
 
@@ -102,26 +109,25 @@ def GRUCell(
     W_init=glorot_normal(),
     b_init=normal(),
     initial_state_fn=zeros,
-    initial_state_seed=0,
 ):
     """Layer construction function for an GRU cell.
     Formulation: Chung, J., 2014, https://arxiv.org/pdf/1412.3555v1.pdf"""
 
-    def initial_state():
-        rng = jax.random.PRNGKey(initial_state_seed)
+    def initial_state(rng):
         return initial_state_fn(rng, (hidden_size,))
 
     def init(rng, input_shape):
         in_dim, out_dim = input_shape[-1] + hidden_size, 3 * hidden_size
         output_shape = input_shape[:-1] + (hidden_size,)
-        k1, k2 = jax.random.split(rng)
+        k1, k2, k3, k4 = jax.random.split(rng, 4)
         W_i = W_init(k1, (in_dim, out_dim))
-        W_h = W_init(k1, (in_dim, out_dim))
-        b = b_init(k1, (out_dim,))
-        return output_shape, (W_i, W_h, b)
+        W_h = W_init(k2, (in_dim, out_dim))
+        b = b_init(k3, (out_dim,))
+        hidden_state = initial_state(k4)
+        return output_shape, ((W_i, W_h, b), hidden_state)
 
     def apply(params, inputs, **kwargs):
-        prev_state = kwargs.pop("prev_state", initial_state())
+        prev_state = kwargs.get("prev_state")
         W_i, W_h, b = params
         W_hz, W_ha = jnp.split(W_h, indices_or_sections=(2 * hidden_size,), axis=-1)
         b_z, b_a = jnp.split(b, indices_or_sections=(2 * hidden_size,), axis=-1)
@@ -146,8 +152,5 @@ def GRU(
     W_init=glorot_normal(),
     b_init=normal(),
     initial_state_fn=zeros,
-    initial_state_seed=0,
 ):
-    return Rnn(
-        GRUCell(hidden_size, W_init, b_init, initial_state_fn, initial_state_seed)
-    )
+    return Rnn(GRUCell(hidden_size, W_init, b_init, initial_state_fn))
