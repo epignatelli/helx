@@ -2,9 +2,7 @@ import jax
 import jax.numpy as jnp
 
 
-def shuffled_batched_indices(stream_len, batch_size, rng=None, drop_spare=False):
-    if rng is None:
-        rng = jax.random.PRNGKey(0)
+def shuffled_batched_indices(rng, stream_len, batch_size, drop_last=False):
     if isinstance(stream_len, list):
         #  stream_len is a sequence of indices already, or a list of objects
         stream_len = len(stream_len)
@@ -13,6 +11,6 @@ def shuffled_batched_indices(stream_len, batch_size, rng=None, drop_spare=False)
         shuffled,
         jnp.arange(batch_size, stream_len, batch_size),
     )
-    if stream_len % batch_size and drop_spare:
+    if stream_len % batch_size and drop_last:
         shuffled_batched = shuffled_batched[:-1]
     return shuffled_batched
