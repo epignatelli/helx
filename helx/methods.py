@@ -27,7 +27,7 @@ def module(fun):
     return factory(fun, Module)
 
 
-def purify(fun, **kwargs):
+def pure(fun, **kwargs):
     f_jit = jax.jit(fun, **kwargs)
 
     def wrapper(*a, **k):
