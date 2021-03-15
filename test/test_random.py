@@ -28,7 +28,7 @@ def test_shuffled_batch_indices():
     )
 
     # test spare, no drop
-    res_no_drop = helx.utils.shuffled_batched_indices(rng, indices, 3, drop_last=False)
+    res_no_drop = helx.random.shuffled_batched_indices(rng, indices, 3, drop_last=False)
     assert all(
         [
             jnp.array_equal(res_no_drop[i], batch_indices_no_drop[i])
@@ -37,7 +37,7 @@ def test_shuffled_batch_indices():
     ), "\n{} \nnot equal to \n{}".format(res_no_drop, batch_indices_no_drop)
 
     # test spare drop
-    res_drop = helx.utils.shuffled_batched_indices(rng, indices, 3, drop_last=True)
+    res_drop = helx.random.shuffled_batched_indices(rng, indices, 3, drop_last=True)
     assert all(
         [
             jnp.array_equal(res_drop[i], batch_indices_drop[i])
@@ -46,7 +46,9 @@ def test_shuffled_batch_indices():
     ), "\n{} \nnot equal to \n{}".format(res_drop, batch_indices_drop)
 
     # test even drop
-    res_even_drop = helx.utils.shuffled_batched_indices(rng, indices, 2, drop_last=True)
+    res_even_drop = helx.random.shuffled_batched_indices(
+        rng, indices, 2, drop_last=True
+    )
     assert all(
         [
             jnp.array_equal(res_even_drop[i], batch_indices_even_drop[i])
