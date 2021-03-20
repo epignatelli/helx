@@ -21,4 +21,4 @@ def reistributed_tree(tree):
     This function sets the number of duplicates equal to the
      number returned by `jax.local_device_count()`.
     """
-    return jax.tree_map(lambda x: jnp.array([x[0]] * jax.local_device_count(), tree)
+    return jax.tree_map(lambda x: jnp.array([x[0]] * jax.local_device_count()), tree)
