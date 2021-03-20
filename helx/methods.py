@@ -37,7 +37,7 @@ def pmodule(fun):
         )
         return output_shape, params
 
-    return module._replace(init=init)
+    return Module(init, module.apply)
 
 
 def scheduler(fun):
