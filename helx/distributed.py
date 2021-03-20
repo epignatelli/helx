@@ -11,7 +11,7 @@ def distribute_tree(tree):
     return jax.tree_map(lambda x: jnp.array([x] * jax.local_device_count()), tree)
 
 
-def reistributed_tree(tree):
+def reistribute_tree(tree):
     """
     This is usually used to prepare the params for `pmap`ped functions when the params
     are coming from a machine with a different number of devices.
