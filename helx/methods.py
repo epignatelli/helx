@@ -1,4 +1,5 @@
 from functools import partial
+import functools
 from typing import Tuple
 
 import jax
@@ -6,6 +7,7 @@ import jax.numpy as jnp
 from jax.experimental.optimizers import OptimizerState
 
 from .base import factory
+from .distributed import distribute_tree
 from .types import Module, Optimiser, Params, Scheduler
 
 
@@ -28,16 +30,18 @@ def module(fun):
 
 
 def pmodule(fun):
-    module = factory(fun, Module)
+    @functools.wraps(fun)
+    def wrapper(*args, **kwargs):
+        module = Module(*fun(*args, **kwargs))
 
-    def init(input_shape, rng):
-        output_shape, params = module.init(input_shape, rng)
-        params = jax.tree_map(
-            lambda x: jnp.array([x] * jax.local_device_count()), params
-        )
-        return output_shape, params
+        def init(input_shape, rng):
+            output_shape, params = module.init(input_shape, rng)
+            params = distribute_tree(params)
+            return output_shape, params
 
-    return Module(init, module.apply)
+        return module._replace(init=init)
+
+    return wrapper
 
 
 def scheduler(fun):
