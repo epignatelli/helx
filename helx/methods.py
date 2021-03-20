@@ -27,6 +27,19 @@ def module(fun):
     return factory(fun, Module)
 
 
+def pmodule(fun):
+    module = factory(fun, Module)
+
+    def init(input_shape, rng):
+        output_shape, params = module.init(input_shape, rng)
+        params = jax.tree_map(
+            lambda x: jnp.array([x] * jax.local_device_count()), params
+        )
+        return output_shape, params
+
+    return module._replace(init=init)
+
+
 def scheduler(fun):
     return factory(fun, Scheduler)
 
