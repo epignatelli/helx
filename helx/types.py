@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, NamedTuple, Tuple
+from typing import Any, Callable, Dict, NamedTuple, Tuple, Deque
 import numpy as onp
 import jax.numpy as jnp
 from jax.experimental.optimizers import OptimizerState
@@ -15,6 +15,16 @@ InitState = Callable[[], jnp.ndarray]
 class Module(NamedTuple):
     init: Init
     apply: Apply
+
+
+class SchedulerState(NamedTuple):
+    value: float
+    metric_history: Deque[float]
+
+
+class Scheduler(NamedTuple):
+    step: Callable[[float, SchedulerState], SchedulerState]
+    state: SchedulerState
 
 
 class Optimiser(NamedTuple):

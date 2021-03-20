@@ -6,7 +6,7 @@ import jax.numpy as jnp
 from jax.experimental.optimizers import OptimizerState
 
 from .base import factory
-from .types import Module, Optimiser, Params
+from .types import Module, Optimiser, Params, Scheduler
 
 
 def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
@@ -25,6 +25,10 @@ def inject(fun, **kwargs):
 
 def module(fun):
     return factory(fun, Module)
+
+
+def scheduler(fun):
+    return factory(fun, Scheduler)
 
 
 def pure(fun, **kwargs):
