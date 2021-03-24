@@ -22,3 +22,13 @@ def redistribute_tree(tree):
      number returned by `jax.local_device_count()`.
     """
     return jax.tree_map(lambda x: jnp.array([x[0]] * jax.local_device_count()), tree)
+
+
+def gather_tree(tree):
+    """
+    This is usually used to reduce back a tree that has been distributed
+    using `distribute_tree` or `redistribute_tree`.
+    Assumes that the tree is duplicated along the axis 0 an arbitrary number of times,
+    and selects only one of the replicas of the pyTree
+    """
+    return jax.tree_map(lambda x: x[0], tree)
