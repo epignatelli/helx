@@ -4,7 +4,7 @@ from collections import deque
 import jax
 import jax.numpy as jnp
 
-from .types import Transition
+from ..types import Transition
 
 
 class ReplayBuffer:
