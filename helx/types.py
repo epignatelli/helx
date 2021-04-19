@@ -29,7 +29,7 @@ class Scheduler(NamedTuple):
 
 class Optimiser(NamedTuple):
     init: Callable[[Params], OptimizerState]
-    update: Callable[[OptimizerState], OptimizerState]
+    update: Callable[[int, jnp.ndarray, OptimizerState], OptimizerState]
     params: Callable[[OptimizerState], Params]
 
 
