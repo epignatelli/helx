@@ -120,15 +120,13 @@ class Dqn(base.Agent):
         transition: Transition,
     ):
         backward = jax.value_and_grad(Dqn.loss, argnums=1)
-        loss, gradients = backward(model, params.online, params.target, transition)
-        return loss, optimiser.update(iteration, gradients, opt_state)
+        error, gradients = backward(model, params.online, params.target, transition)
+        return error, optimiser.update(iteration, gradients, opt_state)
 
     def anneal_epsilon(self):
         x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
-        x1, y1 = (
-            self.hparams.final_exploration_frame,
-            self.hparams.final_exploration,
-        )
+        x1 = self.hparams.final_exploration_frame
+        y1 = self.hparams.final_exploration
         x = self._iteration
         y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
         return y
@@ -185,7 +183,7 @@ class Dqn(base.Agent):
 
         # update the online parameters
         transition = self.replay_buffer.sample(self.hparams.batch_size)
-        loss, self._opt_state = self.sgd_step(
+        error, self._opt_state = self.sgd_step(
             self.network,
             self.optimiser,
             self._iteration,
@@ -193,10 +191,10 @@ class Dqn(base.Agent):
             self._params,
             transition,
         )
-        online_params = self.optimiser.params(self._opt_state)
-        self._params = self._params._replace(online=online_params)
+        params = self.optimiser.params(self._opt_state)
+        self._params = self._params._replace(online=params)
 
         # update the target network parameters every n step
         if self._iteration % self.hparams.target_network_update_frequency == 0:
-            self._params = self._params._replace(target=online_params)
-        return loss
+            self._params = self._params._replace(target=params)
+        return error
