@@ -32,3 +32,22 @@ def gather_tree(tree):
     and selects only one of the replicas of the pyTree
     """
     return jax.tree_map(lambda x: x[0], tree)
+
+
+def distribute_array(array):
+    """
+    Prepares an array for `jax.pmap` by adding a leading axis
+    whose dimension are equal to `jax.local_device_count()`.
+    As a results the dimensions of the first axis pre-modification are divided by
+    `jax.local_device_count()`. Note that the first dimension needs to be
+    divisible by `jax.local_device_count()`.
+    """
+    n = jax.local_device_count()
+    s = array.shape
+    assert (
+        len(s) >= 2 and s[0] % n == 0
+    ), "Array dimension {} must be divisible for the number of local devices {}".format(
+        s[0], n
+    )
+    new_shape = (n,) + (s[0] // n,) + s[1:]
+    return array.reshape(new_shape)
