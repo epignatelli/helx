@@ -4,10 +4,10 @@ import jax.numpy as jnp
 import numpy as onp
 from jax.experimental.optimizers import OptimizerState
 
-RNGKey = jnp.ndarray
+Key = jnp.ndarray
 Shape = Tuple[int, ...]
 Params = Any
-Init = Callable[[RNGKey, Shape], Tuple[Shape, Params]]
+Init = Callable[[Key, Shape], Tuple[Shape, Params]]
 Apply = Callable[[Params, jnp.ndarray, Dict], jnp.ndarray]
 InitState = Callable[[], jnp.ndarray]
 HParams = NamedTuple
