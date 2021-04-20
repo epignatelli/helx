@@ -12,6 +12,9 @@ from .types import Module, Optimiser, Params, Scheduler
 
 
 def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
+    """
+    A utility wrapper around `jax.vmap` + `jax.jit`.
+    """
     return jax.jit(
         jax.vmap(fun, in_axes=in_axes, out_axes=out_axes, axis_name=axis_name),
         **jit_kwargs
@@ -19,17 +22,43 @@ def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
 
 
 def inject(fun, **kwargs):
+    """
+    It is a common pattern to define closures of classes with JAX.
+    `inject` adds the closure to the outer class as a static method, and jits it,
+    The function after `inject` is pure, and can be used as any other function in JAX.
+    """
     cls = fun.__globals__[fun.__qualname__.split(".")[0]]
     f_jit = jax.jit(fun, **kwargs)
     setattr(cls, fun.__name__, staticmethod(f_jit))
     return inject
 
 
+def pure(fun, **kwargs):
+    """
+    Puryfies a class function to be used as any jax function, and finally jits it.
+    """
+    f_jit = jax.jit(fun, **kwargs)
+
+    def wrapper(*a, **k):
+        return f_jit(*a, **k)
+
+    return staticmethod(wrapper)
+
+
 def module(fun):
+    """
+    Decorator method to define `Module`s.
+    The decorator wraps the desired function and returns a Module object.
+    """
     return factory(fun, Module)
 
 
 def pmodule(fun):
+    """
+    Same as `helx.methods.module` with an additional axis for the parameters
+    to be used with `jax.pmap`.
+    """
+
     @functools.wraps(fun)
     def wrapper(*args, **kwargs):
         module = Module(*fun(*args, **kwargs))
@@ -46,15 +75,6 @@ def pmodule(fun):
 
 def scheduler(fun):
     return factory(fun, Scheduler)
-
-
-def pure(fun, **kwargs):
-    f_jit = jax.jit(fun, **kwargs)
-
-    def wrapper(*a, **k):
-        return f_jit(*a, **k)
-
-    return staticmethod(wrapper)
 
 
 def nn(forward_fun, **kwargs):
