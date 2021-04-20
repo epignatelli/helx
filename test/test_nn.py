@@ -1,12 +1,11 @@
 import jax
-import jax.numpy as jnp
-from helx import nn
+from helx.nn import rnn
 
 
 def test_lstm_cell():
     rng = jax.random.PRNGKey(0)
     input_shape = (8,)
-    lstm = nn.LSTMCell(16)
+    lstm = rnn.LSTMCell(16)
     x = jax.random.normal(rng, input_shape)
     out_shape, (params, prev_state) = lstm.init(rng, input_shape)
     outputs, state = lstm.apply(params, x, prev_state=prev_state)
@@ -21,7 +20,7 @@ def test_lstm():
     INPUT_FEATURES = 8
     HIDDEN_SIZE = 16
     input_shape = (SEQ_LEN, INPUT_FEATURES)
-    lstm = nn.LSTM(HIDDEN_SIZE)
+    lstm = rnn.LSTM(HIDDEN_SIZE)
     x = jax.random.normal(rng, input_shape)
     out_shape, (params, prev_state) = lstm.init(rng, input_shape)
     outputs, prev_state = lstm.apply(params, x, prev_state=prev_state)
@@ -33,7 +32,7 @@ def test_lstm():
 def test_gru_cell():
     rng = jax.random.PRNGKey(0)
     input_shape = (8,)
-    gru = nn.LSTMCell(16)
+    gru = rnn.LSTMCell(16)
     x = jax.random.normal(rng, input_shape)
     out_shape, (params, prev_state) = gru.init(rng, input_shape)
     outputs, state = gru.apply(params, x, prev_state=prev_state)
@@ -48,7 +47,7 @@ def test_gru():
     INPUT_FEATURES = 8
     HIDDEN_SIZE = 16
     input_shape = (SEQ_LEN, INPUT_FEATURES)
-    gru = nn.LSTM(HIDDEN_SIZE)
+    gru = rnn.LSTM(HIDDEN_SIZE)
     x = jax.random.normal(rng, input_shape)
     out_shape, (params, prev_state) = gru.init(rng, input_shape)
     outputs, hidden_state = gru.apply(params, x, prev_state=prev_state)

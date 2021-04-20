@@ -1,3 +1,4 @@
 pytest
 jaxlib
 jax
+bsuite
