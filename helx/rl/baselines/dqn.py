@@ -10,8 +10,8 @@ from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 
 from ...methods import module, pure
-from ...types import Module, Optimiser, Params, Shape, Transition
-from ..buffer import ReplayBuffer
+from ...types import Module, Optimiser, Params, Shape, Size
+from ..buffer import ReplayBuffer, Transition
 
 
 class HParams(NamedTuple):
@@ -33,13 +33,8 @@ class HParams(NamedTuple):
     no_op_max: int = 30
 
 
-class DqnParams(NamedTuple):
-    online: Params
-    target: Params
-
-
 @module
-def Cnn(n_actions: int) -> Module:
+def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
     return serial(
         Conv(32, (8, 8), (4, 4), "VALID"),
         Relu,
@@ -48,7 +43,7 @@ def Cnn(n_actions: int) -> Module:
         Conv(64, (3, 3), (1, 1), "VALID"),
         Relu,
         Flatten,
-        Dense(512),
+        Dense(hidden_size),
         Relu,
         Dense(n_actions),
     )
@@ -59,7 +54,6 @@ class Dqn(base.Agent):
         self,
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
-        in_shape: Shape,
         hparams: HParams,
         seed: int = 0,
     ):
@@ -82,14 +76,13 @@ class Dqn(base.Agent):
 
         # private:
         self._iteration = 0
-        _, online_params = self.network.init(self.rng, (-1, *in_shape))
-        _, target_params = self.network.init(self.rng, (-1, *in_shape))
-        self._params = DqnParams(online_params, target_params)
-        self._opt_state = self.optimiser.init(online_params)
+        _, params_target = self.network.init(self.rng, (-1, *obs_spec.shape))
+        _, params_online = self.network.init(self.rng, (-1, *obs_spec.shape))
+        self._opt_state = self.optimiser.init(params_online)
+        self._params_target = params_target
 
-    @pure
-    def preprocess(x, size=(84, 84)):
-        # get luminance
+    @partial(pure, static_argnums=(1,))
+    def preprocess(x, size: Size = (84, 84)):
         luminance_mask = jnp.array([0.2126, 0.7152, 0.0722]).reshape(1, 1, 1, 3)
         y = jnp.sum(x * luminance_mask, axis=-1).squeeze()
         target_shape = (*x.shape[:-3], *size)
@@ -99,14 +92,14 @@ class Dqn(base.Agent):
     @partial(pure, static_argnums=(0,))
     def loss(
         model: Module,
-        params_online: Params,
         params_target: Params,
+        params_online: Params,
         transition: Transition,
     ) -> jnp.ndarray:
         q_target = model.apply(params_target, transition.x_0)
         q_behaviour = model.apply(params_online, transition.x_0)
         # get the q target
-        y = transition.r_1 + transition.gamma * jnp.max(q_target, axis=1)
+        y = transition.r_0 + transition.gamma * jnp.max(q_target, axis=1)
         y = y.reshape(-1, 1)
         return jnp.mean(jnp.power((y - q_behaviour), 2))
 
@@ -115,12 +108,13 @@ class Dqn(base.Agent):
         model: Module,
         optimiser: Optimiser,
         iteration: int,
+        params_target: Params,
         opt_state: OptimizerState,
-        params: Params,
         transition: Transition,
     ):
+        params_online = optimiser.params(opt_state)
         backward = jax.value_and_grad(Dqn.loss, argnums=1)
-        error, gradients = backward(model, params.online, params.target, transition)
+        error, gradients = backward(model, params_target, params_online, transition)
         return error, optimiser.update(iteration, gradients, opt_state)
 
     def anneal_epsilon(self):
@@ -135,16 +129,14 @@ class Dqn(base.Agent):
         self,
         timestep: dm_env.TimeStep,
     ) -> base.Action:
-        """Policy function: maps the current observation/state to an action
-        following an epsilon-greedy policy
-        """
-        # return random action with epsilon probability
+        """Selects an action using an e-greedy policy"""
+        # use random policy with epsilon probability
         if jax.random.uniform(self.rng, (1,)) < self.epsilon:
             return jax.random.randint(self.rng, (1,), 0, self.n_actions)
 
+        # otherwise, use greedy policy
         state = timestep.observation[None, ...]  # batching
         q_values = self.forward(self._online_params, state)
-        # e-greedy
         action = jnp.argmax(q_values, axis=-1)
         return action
 
@@ -157,14 +149,12 @@ class Dqn(base.Agent):
         # increment iteration
         self._iteration += 1
 
-        # env has called reset(), do nothing
-        if timestep.first():
-            return
-
         # preprocess observations
-        timestep = timestep._replace(observation=self.preprocess(timestep.observation))
+        timestep = timestep._replace(
+            observation=self.preprocess(timestep.observation),
+        )
         new_timestep = new_timestep._replace(
-            observation=self.preprocess(new_timestep.observation)
+            observation=self.preprocess(new_timestep.observation),
         )
 
         # add experience to replay buffer
@@ -187,14 +177,13 @@ class Dqn(base.Agent):
             self.network,
             self.optimiser,
             self._iteration,
+            self._params_target,
             self._opt_state,
-            self._params,
             transition,
         )
-        params = self.optimiser.params(self._opt_state)
-        self._params = self._params._replace(online=params)
 
-        # update the target network parameters every n step
+        # update the target network parameters every `target_network_update_frequency` steps
         if self._iteration % self.hparams.target_network_update_frequency == 0:
-            self._params = self._params._replace(target=params)
+            params = self.optimiser.params(self._opt_state)
+            self._params_target = self._params._replace(target=params)
         return error

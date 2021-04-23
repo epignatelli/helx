@@ -6,17 +6,13 @@ import jax
 import jax.numpy as jnp
 from bsuite.baselines.base import Action, Agent
 from dm_env import specs
-from helx.methods import module, pure
-from helx.rl import ReplayBuffer
-from helx.types import Module, Optimiser, Params, Transition
 from jax.experimental import stax
-from jax.experimental.optimizers import OptimizerState
+from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
-from . import td
-
-Logits = jnp.ndarray
-Value = jnp.ndarray
-Loss = float
+from ...methods import module, pure
+from ...types import Logits, Loss, Module, Optimiser, Params, Value
+from .. import td
+from ..buffer import ReplayBuffer, Transition
 
 
 class Hparams(NamedTuple):
@@ -27,31 +23,37 @@ class Hparams(NamedTuple):
 
 
 @module
-def MLP(n_actions: int, hidden_size: int) -> Module:
+def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
     return stax.serial(
+        stax.Conv(32, (8, 8), (4, 4), "VALID"),
+        stax.Relu,
+        stax.Conv(64, (4, 4), (2, 2), "VALID"),
+        stax.Relu,
+        stax.Conv(64, (3, 3), (1, 1), "VALID"),
+        stax.Relu,
         stax.Flatten,
         stax.Dense(hidden_size),
-        stax.Relu(),
+        stax.Relu,
         stax.FanOut(2),
         stax.parallel(
             stax.serial(
                 stax.Dense(n_actions),
-                stax.Softmax(),
+                stax.Softmax,
             ),  #  actor
             stax.serial(
-                stax.Dense(n_actions),
+                stax.Dense(1),
             ),  # critic
         ),
     )
 
 
 class A2C(Agent):
+    """Synchronous actor-critic algorithm with one-step advantage baseline"""
+
     def __init__(
         self,
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
-        network: Module,
-        optimiser: Optimiser,
         hparams: Hparams,
     ):
         # public:
@@ -60,41 +62,46 @@ class A2C(Agent):
         self.hparams = hparams
         self.rng = jax.random.PRNGKey(hparams.seed)
         self.buffer = ReplayBuffer(hparams.buffer_capacity, hparams.seed)
-        self.network = network
-        self.optimiser = optimiser
+        self.network = Cnn(action_spec.num_values)
+        self.optimiser = Optimiser(
+            *rmsprop_momentum(
+                step_size=hparams.learning_rate,
+                gamma=hparams.squared_gradient_momentum,
+                momentum=hparams.gradient_momentum,
+                eps=hparams.min_squared_gradient,
+            )
+        )
 
         # private:
         self._iteration = 0
+        _, params = self.network.init(self.rng, obs_spec.shape)
+        self._opt_state = self.optimiser.init(params)
 
-    @partial(pure, static_argnums=(0, 1))
+    @partial(pure, static_argnums=(0,))
     def loss(
         model: Module,
-        hparams: Hparams,
         params: Params,
-        trajectory: Transition,
+        transition: Transition,
     ) -> Tuple[Loss, Tuple[Logits, Value]]:
-        logits, values = model.apply(params, trajectory.s)
-        returns = td.g_lambda(
-            trajectory.r, values, hparams.discount, hparams.trace_decay
-        )
-        td = returns
+        logits, v_0 = model.apply(params, transition.x_0)
+        _, v_1 = model.apply(params, transition.x_1)
+        delta = transition.r_1 + transition.gamma * v_1 - v_0
 
     @partial(pure, static_argnums=(0, 1))
     def sgd_step(
         model: Module,
         optimiser: Optimiser,
-        hparams: Hparams,
+        iteration: int,
         opt_state: OptimizerState,
-        transition: ,
+        transition: Transition,
     ):
         params = optimiser.params(opt_state)
-        error, grads = jax.value_and_grad(A2C.loss, argnums=2)(
-            model, hparams, params, transition
-        )
-        opt_state = optimiser.update(0, grads, opt_state)
-        return error, opt_state
+        backward = jax.value_and_grad(A2C.loss, argnums=2)
+        error, grads = backward(model, params, transition)
+        return error, optimiser.update(iteration, grads, opt_state)
 
     def select_action(self, timestep: dm_env.TimeStep) -> Action:
+        """Selects an action using a softmax policy"""
         logits, _ = self._forward(self._state.params, timestep.observation)
         action = jax.random.categorical(self.rng, logits).squeeze()
         return int(action)
@@ -103,10 +110,6 @@ class A2C(Agent):
         self, timestep: dm_env.TimeStep, action: Action, new_timestep: dm_env.TimeStep
     ) -> None:
         self.buffer.add(timestep, action, new_timestep)
-
-        if self._iteration < self.hparams.min_buffer_size:
-            return
-
-        trajectory = self.buffer.sample(self.hparams.batch_size)
-        loss, opt_state = self.sgd_step(self.network, self.optimiser, trajectory)
+        transition = self.buffer.sample(self.hparams.batch_size)
+        loss, opt_state = self.sgd_step(self.network, self.optimiser, transition)
         return loss, opt_state
