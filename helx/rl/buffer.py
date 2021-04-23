@@ -1,45 +1,99 @@
 import logging
 from collections import deque
-import dm_env
+from typing import List, NamedTuple
+from dataclasses import dataclass
 
+import dm_env
 import jax
 import jax.numpy as jnp
+import numpy as onp
 
-from ..types import Transition, Key
+from ..types import Key
+
+
+@dataclass
+class Transition:
+    """
+    Fields:
+        x_0 (numpy.ndarray): Observation at t=0
+        a_0 (numpy.ndarray): Action at t=0
+        r_1 (numpy.ndarray): Reward at t=1
+        x_1 (numpy.ndarray): Observation at t=1
+        a_1 (numpy.ndarray) [Optional]: Action at t=0. This is an optional on-policy action
+        gamma (onp.ndarray) [Optional]: Discount factor
+        trace_decay (onp.ndarray) [Optional]: Eligibility trace decay for lamba returns
+    """
+
+    observations: List[onp.ndarray]  #  observation at t=0
+    actions: List[onp.ndarray]  #  action at t=0
+    rewards: List[onp.ndarray]  #  reward at t=1
+    gamma: List[onp.ndarray] = (1.0,)  #  discount factor
+    trace_decay: List[onp.ndarray] = (1.0,)  # trace decay for lamba returns
+
+    @staticmethod
+    def empty():
+        return Transition([], [], [], [], [])
 
 
 class ReplayBuffer:
-    def __init__(self, capacity, seed=0):
-        # public:
+    def __init__(
+        self,
+        capacity: int,
+        n_steps: int = 1,
+        seed: int = 0,
+    ):
+        #  public:
         self.capacity = capacity
+        self.n_steps = n_steps
         self.seed = seed
 
-        # private:
-        self._rng = jnp.random.PRNGKey(seed)
-        self._data = deque(maxlen=capacity)
+        #  private:
+        self._rng = jax.random.PRNGKey(seed)
+        self._episodes = deque(maxlen=capacity)
+        self._current_episode_idx = 0
+        self._t = 0
 
     def __len__(self):
-        return len(self._data)
+        return len(self._episodes)
 
     def __getitem__(self, idx):
-        return self._data[idx]
+        return self._episodes[idx]
 
     def add(
         self,
         timestep: dm_env.TimeStep,
         action: int,
         new_timestep: dm_env.TimeStep,
+        trace_decay: float = 1.0,
     ) -> None:
-        self._data.append(
-            Transition(
-                x_0=timestep.observation,
-                a_0=action,
-                r_1=timestep.reward,
-                x_1=new_timestep.observation,
-                gamma=timestep.discount,
+        #  start of a new episode
+        if timestep.first() or self._t == 0:
+            self._episodes.append(Transition.empty())
+
+        #  append current features
+        idx = self._current_episode_idx % self.capacity
+        self._episodes[idx].observations.append(timestep.observation)
+        self._episodes[idx].actions.append(action)
+        self._episodes[idx].rewards.append(new_timestep.reward)
+        self._episodes[idx].gamma.append(new_timestep.discount)
+        self._episodes[idx].trace_decay.append(trace_decay)
+        self._t += 1
+
+        #  if last(), pack the sequences into arrays
+        if (new_timestep.last()) or (self._t >= self.n_steps):
+            #  append final observation
+            self._episodes[idx].observations.append(new_timestep.observation)
+            #  prepare the transition for sampling
+            self._episodes[idx].observations = jnp.stack(
+                self._episodes[idx].observations
             )
-        )
-        return
+            self._episodes[idx].actions = onp.stack(self._episodes[idx].actions)
+            self._episodes[idx].rewards = onp.stack(self._episodes[idx].rewards)
+            self._episodes[idx].gamma = onp.stack(self._episodes[idx].gamma)
+            self._episodes[idx].trace_decay = onp.stack(self._episodes[idx].trace_decay)
+
+            self._current_episode_idx += 1
+            self._t = 0
 
     def sample(self, n: int, rng: Key = None) -> Transition:
         high = len(self) - n
@@ -51,7 +105,6 @@ class ReplayBuffer:
             indices = range(len(self))
         elif rng is None:
             rng, _ = jax.random.split(self._rng)
-        else:
-            indices = jnp.random.randint(rng, 0, high, size=n)
+        indices = jax.random.randint(rng, (n,), 0, high)
 
-        return Transition(zip(*(map(lambda idx: self._data[idx], indices))))
+        return [self._episodes[idx] for idx in indices]
