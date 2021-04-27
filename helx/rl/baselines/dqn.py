@@ -12,6 +12,7 @@ from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 from ...methods import module, pure
 from ...types import Module, Optimiser, Params, Shape, Size
 from ..buffer import ReplayBuffer, Transition
+from .. import td
 
 
 class HParams(NamedTuple):
@@ -96,12 +97,12 @@ class Dqn(base.Agent):
         params_online: Params,
         transition: Transition,
     ) -> jnp.ndarray:
-        q_target = model.apply(params_target, transition.x_0)
-        q_behaviour = model.apply(params_online, transition.x_0)
+        q_online = model.apply(params_online, transition.x_0)
+        q_target = model.apply(params_target, transition.x_1)
         # get the q target
-        y = transition.r_0 + transition.gamma * jnp.max(q_target, axis=1)
-        y = y.reshape(-1, 1)
-        return jnp.mean(jnp.power((y - q_behaviour), 2))
+        target = td.nstep_return(transition, jnp.max(q_target, axis=1))
+        delta = target - q_online
+        return jnp.sqrt(jnp.mean(jnp.square(delta)))
 
     @partial(pure, static_argnums=(0, 1))
     def sgd_step(

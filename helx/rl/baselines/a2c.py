@@ -48,7 +48,8 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
 
 
 class A2C(Agent):
-    """Synchronous actor-critic algorithm with one-step advantage baseline"""
+    """Synchronous on-policy, online actor-critic algorithm
+    with n-step advantage baseline"""
 
     def __init__(
         self,
@@ -84,8 +85,11 @@ class A2C(Agent):
         transition: Transition,
     ) -> Tuple[Loss, Tuple[Logits, Value]]:
         logits, v_0 = model.apply(params, transition.x_0)
+        target = td.nstep_return(transition, v_0)
         _, v_1 = model.apply(params, transition.x_1)
-        delta = transition.r_1 + transition.gamma * v_1 - v_0
+        critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
+        actor_loss = jax.nn.log_softmax(logits)
+        return critic_loss + actor_loss
 
     @partial(pure, static_argnums=(0, 1))
     def sgd_step(

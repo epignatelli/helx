@@ -16,6 +16,7 @@ HParams = NamedTuple
 Logits = jnp.ndarray
 Value = jnp.ndarray
 Loss = float
+Return = float
 
 
 class Module(NamedTuple):

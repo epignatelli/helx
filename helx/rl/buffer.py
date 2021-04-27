@@ -13,20 +13,12 @@ from ..types import Key
 
 @dataclass
 class Transition:
-    """
-    Fields:
-        x_0 (numpy.ndarray): Observation at t=0
-        a_0 (numpy.ndarray): Action at t=0
-        r_1 (numpy.ndarray): Reward at t=1
-        x_1 (numpy.ndarray): Observation at t=1
-        a_1 (numpy.ndarray) [Optional]: Action at t=0. This is an optional on-policy action
-        gamma (onp.ndarray) [Optional]: Discount factor
-        trace_decay (onp.ndarray) [Optional]: Eligibility trace decay for lamba returns
-    """
-
-    observations: List[onp.ndarray]  #  observation at t=0
-    actions: List[onp.ndarray]  #  action at t=0
-    rewards: List[onp.ndarray]  #  reward at t=1
+    observations: List[
+        onp.ndarray
+    ]  #  observations at t=0. Note that observation contains
+    #     one more item than the rest of the fields (the last observation)
+    actions: List[onp.ndarray]  #  actions at t=0
+    rewards: List[onp.ndarray]  #  rewards at t=1
     gamma: List[onp.ndarray] = (1.0,)  #  discount factor
     trace_decay: List[onp.ndarray] = (1.0,)  # trace decay for lamba returns
 
@@ -40,11 +32,13 @@ class ReplayBuffer:
         self,
         capacity: int,
         n_steps: int = 1,
+        cumulative: bool = True,
         seed: int = 0,
     ):
         #  public:
         self.capacity = capacity
         self.n_steps = n_steps
+        self.cumulative = cumulative
         self.seed = seed
 
         #  private:
