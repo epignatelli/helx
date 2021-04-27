@@ -2,3 +2,5 @@ pytest
 jaxlib
 jax
 bsuite
+gym
+gym-minigrid

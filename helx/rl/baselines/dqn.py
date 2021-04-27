@@ -133,13 +133,14 @@ class Dqn(base.Agent):
         """Selects an action using an e-greedy policy"""
         # use random policy with epsilon probability
         if jax.random.uniform(self.rng, (1,)) < self.epsilon:
-            return jax.random.randint(self.rng, (1,), 0, self.n_actions)
+            return jax.random.randint(self.rng, (1,), 0, self.action_spec.num_values)
 
         # otherwise, use greedy policy
         state = timestep.observation[None, ...]  # batching
         q_values = self.forward(self._online_params, state)
-        action = jnp.argmax(q_values, axis=-1)
-        return action
+        action = jnp.argmax(q_values)
+        print(action)
+        return int(action)
 
     def update(
         self,
