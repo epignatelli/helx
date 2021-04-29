@@ -1,7 +1,7 @@
 import os
 import jax
 from jax.experimental.stax import serial, Dense
-import helx
+import helx.nn
 
 
 def pmodule_test():
@@ -10,7 +10,7 @@ def pmodule_test():
     n_devices = jax.local_device_count()
     print(n_devices)
 
-    @helx.methods.pmodule
+    @helx.nn.module
     def m(a, b):
         return serial(Dense(a), Dense(b))
 

@@ -1,2 +1,2 @@
-from .a2c import A2C
-from .dqn import Dqn
+from . import a2c
+from . import dqn

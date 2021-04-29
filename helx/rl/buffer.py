@@ -7,24 +7,18 @@ import dm_env
 import jax
 import jax.numpy as jnp
 import numpy as onp
+from numpy.core.numerictypes import obj2sctype
 
-from ..types import Key
+from ..typing import Key
 
 
-@dataclass
-class Transition:
-    observations: List[
-        onp.ndarray
-    ]  #  observations at t=0. Note that observation contains
-    #     one more item than the rest of the fields (the last observation)
-    actions: List[onp.ndarray]  #  actions at t=0
-    rewards: List[onp.ndarray]  #  rewards at t=1
-    gamma: List[onp.ndarray] = (1.0,)  #  discount factor
-    trace_decay: List[onp.ndarray] = (1.0,)  # trace decay for lamba returns
-
-    @staticmethod
-    def empty():
-        return Transition([], [], [], [], [])
+class Transition(NamedTuple):
+    x_0: onp.ndarray  #  observation at t=0
+    a_0: onp.ndarray  #  actions at t=0
+    r_0: onp.ndarray  #  rewards at t=1
+    x_1: onp.ndarray  # observatin at t=n (note multistep)
+    gamma: onp.ndarray = 1.0  #  discount factor
+    trace_decay: onp.ndarray = 1.0  # trace decay for lamba returns
 
 
 class ReplayBuffer:
@@ -44,7 +38,7 @@ class ReplayBuffer:
         #  private:
         self._rng = jax.random.PRNGKey(seed)
         self._episodes = deque(maxlen=capacity)
-        self._current_episode_idx = 0
+        self._current_transition = None
         self._t = 0
 
     def __len__(self):
@@ -62,32 +56,25 @@ class ReplayBuffer:
     ) -> None:
         #  start of a new episode
         if timestep.first() or self._t == 0:
-            self._episodes.append(Transition.empty())
-
-        #  append current features
-        idx = self._current_episode_idx % self.capacity
-        self._episodes[idx].observations.append(timestep.observation)
-        self._episodes[idx].actions.append(action)
-        self._episodes[idx].rewards.append(new_timestep.reward)
-        self._episodes[idx].gamma.append(new_timestep.discount)
-        self._episodes[idx].trace_decay.append(trace_decay)
-        self._t += 1
-
-        #  if last(), pack the sequences into arrays
-        if (new_timestep.last()) or (self._t >= self.n_steps):
-            #  append final observation
-            self._episodes[idx].observations.append(new_timestep.observation)
-            #  prepare the transition for sampling
-            self._episodes[idx].observations = jnp.stack(
-                self._episodes[idx].observations
+            self._current_transition = Transition(
+                x_0=timestep.observation,
+                a_0=int(action),
+                r_0=float(new_timestep.reward),
+                x_1=None,
             )
-            self._episodes[idx].actions = onp.stack(self._episodes[idx].actions)
-            self._episodes[idx].rewards = onp.stack(self._episodes[idx].rewards)
-            self._episodes[idx].gamma = onp.stack(self._episodes[idx].gamma)
-            self._episodes[idx].trace_decay = onp.stack(self._episodes[idx].trace_decay)
+        elif timestep.mid():
+            # accumulate rewards
+            self._current_transition._replace(
+                r_0=self._current_transition.r_0
+                + new_timestep.reward * new_timestep.discount
+            )
 
-            self._current_episode_idx += 1
+        self._t += 1
+        if (new_timestep.last()) or (self._t >= self.n_steps):
+            self._current_transition._replace(x_1=new_timestep.observation)
+            self._episodes.append(self._current_transition)
             self._t = 0
+        return
 
     def sample(self, n: int, rng: Key = None) -> Transition:
         high = len(self) - n
@@ -101,4 +88,12 @@ class ReplayBuffer:
             rng, _ = jax.random.split(self._rng)
         indices = jax.random.randint(rng, (n,), 0, high)
 
-        return [self._episodes[idx] for idx in indices]
+        x_0 = jnp.array([self._episodes[idx].x_0 for idx in indices]).astype(
+            jnp.float32
+        )
+        a_0 = jnp.array([self._episodes[idx].a_0 for idx in indices])
+        r_0 = jnp.array([self._episodes[idx].r_0 for idx in indices])
+        x_1 = jnp.array([self._episodes[idx].x_1 for idx in indices]).astype(
+            jnp.float32
+        )
+        return Transition(x_0, a_0, r_0, x_1)

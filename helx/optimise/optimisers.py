@@ -1,12 +1,19 @@
 import pickle
-from typing import NamedTuple
+from typing import Callable, NamedTuple
 
 import jax.numpy as jnp
 from jax.experimental import optimizers
 from jax.experimental.optimizers import OptimizerState
 
-from .distributed import redistribute_tree
-from .types import HParams
+from ..typing import HParams, Params
+from ..distributed import redistribute_tree
+
+
+class Optimiser(NamedTuple):
+    init: Callable[[Params], OptimizerState]
+    update: Callable[[int, jnp.ndarray, OptimizerState], OptimizerState]
+    params: Callable[[OptimizerState], Params]
+
 
 
 class TrainState(NamedTuple):

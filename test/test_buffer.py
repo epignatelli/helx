@@ -33,6 +33,8 @@ def test_buffer():
             # prepare next
             timestep = new_timestep
 
+    transition_batched = buffer.sample(2)
+
 
 if __name__ == "__main__":
     test_buffer()

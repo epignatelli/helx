@@ -4,22 +4,30 @@ from typing import NamedTuple, Tuple
 import dm_env
 import jax
 import jax.numpy as jnp
-from bsuite.baselines.base import Action, Agent
+import wandb
 from dm_env import specs
 from jax.experimental import stax
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
-from ...methods import module, pure
-from ...types import Logits, Loss, Module, Optimiser, Params, Value
+from ...jax import pure
+from ...nn.module import Module, module
+from ...optimise.optimisers import Optimiser
+from ...typing import Loss, Params, Size
 from .. import td
 from ..buffer import ReplayBuffer, Transition
+from ..base import Agent
 
 
-class Hparams(NamedTuple):
-    seed: int
-    discount: float
-    trace_decay: float
-    n_steps: int
+class HParams(NamedTuple):
+    seed: int = 0
+    discount: float = 1.0
+    trace_decay: float = 1.0
+    n_steps: int = 1
+    beta: float = 0.001
+    learning_rate: float = 0.001
+    gradient_momentum: float = 0.95
+    squared_gradient_momentum: float = 0.95
+    min_squared_gradient: float = 0.01
 
 
 @module
@@ -49,22 +57,25 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
 
 class A2C(Agent):
     """Synchronous on-policy, online actor-critic algorithm
-    with n-step advantage baseline"""
+    with n-step advantage baseline.
+    See:
+    Mnih V., 2016, https://arxiv.org/pdf/1602.01783.pdf and
+    Sutton R., Barto. G., 2018, http://incompleteideas.net/book/RLbook2020.pdf
+    """
 
     def __init__(
         self,
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
-        hparams: Hparams,
+        hparams: HParams,
     ):
         # public:
         self.obs_spec = obs_spec
         self.action_spec = action_spec
-        self.hparams = hparams
         self.rng = jax.random.PRNGKey(hparams.seed)
-        self.buffer = ReplayBuffer(hparams.buffer_capacity, hparams.seed)
-        self.network = Cnn(action_spec.num_values)
-        self.optimiser = Optimiser(
+        self.buffer = ReplayBuffer(1, hparams.seed)
+        network = Cnn(action_spec.num_values)
+        optimiser = Optimiser(
             *rmsprop_momentum(
                 step_size=hparams.learning_rate,
                 gamma=hparams.squared_gradient_momentum,
@@ -72,48 +83,71 @@ class A2C(Agent):
                 eps=hparams.min_squared_gradient,
             )
         )
+        super().__init__(network, optimiser, hparams)
 
         # private:
-        self._iteration = 0
-        _, params = self.network.init(self.rng, obs_spec.shape)
+        _, params = self.network.init(self.rng, (-1, *obs_spec.shape))
         self._opt_state = self.optimiser.init(params)
 
-    @partial(pure, static_argnums=(0,))
+    @partial(pure, static_argnums=(1,))
+    def preprocess(x, size: Size):
+        luminance_mask = jnp.array([0.2126, 0.7152, 0.0722]).reshape(1, 1, 1, 3)
+        y = jnp.sum(x * luminance_mask, axis=-1).squeeze()
+        target_shape = (*x.shape[:-3], *size)
+        s = jax.image.resize(y, target_shape, method="bilinear")
+        return s
+
+    @pure
     def loss(
-        model: Module,
         params: Params,
         transition: Transition,
-    ) -> Tuple[Loss, Tuple[Logits, Value]]:
-        logits, v_0 = model.apply(params, transition.x_0)
-        target = td.nstep_return(transition, v_0)
-        _, v_1 = model.apply(params, transition.x_1)
-        critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
+    ) -> Loss:
+        logits, v_0 = A2C.network.apply(params, transition.x_0)
+        # Policy gradient loss (log prob of the policy)
         actor_loss = jax.nn.log_softmax(logits)
-        return critic_loss + actor_loss
+        # Policy entropy
+        entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
+        # Value loss (Regression on bellman target)
+        target = td.nstep_return(transition, v_0)
+        _, v_1 = A2C.network.apply(params, transition.x_1)
+        critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
+        return critic_loss + actor_loss - A2C.hparams.beta * entropy
 
-    @partial(pure, static_argnums=(0, 1))
+    @pure
     def sgd_step(
-        model: Module,
-        optimiser: Optimiser,
         iteration: int,
         opt_state: OptimizerState,
         transition: Transition,
-    ):
-        params = optimiser.params(opt_state)
+    ) -> Tuple[Loss, OptimizerState]:
+        params = A2C.optimiser.params(opt_state)
         backward = jax.value_and_grad(A2C.loss, argnums=2)
-        error, grads = backward(model, params, transition)
-        return error, optimiser.update(iteration, grads, opt_state)
+        error, grads = backward(A2C.network, params, transition)
+        return error, A2C.optimiser.update(iteration, grads, opt_state)
 
-    def select_action(self, timestep: dm_env.TimeStep) -> Action:
+    def select_action(self, timestep: dm_env.TimeStep) -> int:
         """Selects an action using a softmax policy"""
-        logits, _ = self._forward(self._state.params, timestep.observation)
-        action = jax.random.categorical(self.rng, logits).squeeze()
+        params = self.optimiser.params(self._opt_state)
+        logits, _ = self.network.apply(params, timestep.observation)
+        action = jax.random.categorical(self.rng, logits).squeeze()  # on-policy action
         return int(action)
 
     def update(
-        self, timestep: dm_env.TimeStep, action: Action, new_timestep: dm_env.TimeStep
+        self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
     ) -> None:
+        timestep = timestep._replace(
+            observation=self.preprocess(timestep.observation, (56, 56)),
+        )
+        new_timestep = new_timestep._replace(
+            observation=self.preprocess(new_timestep.observation, (56, 56)),
+        )
         self.buffer.add(timestep, action, new_timestep)
         transition = self.buffer.sample(self.hparams.batch_size)
         loss, opt_state = self.sgd_step(self.network, self.optimiser, transition)
         return loss, opt_state
+
+    def log(self, reward: float, loss: Loss):
+        wandb.log({"Iteration": float(self._iteration)})
+        wandb.log({"Reward": reward})
+        if loss is not None:
+            wandb.log({"Loss": float(loss)})
+        return

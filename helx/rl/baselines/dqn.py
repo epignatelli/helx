@@ -1,28 +1,28 @@
 from functools import partial
-from typing import NamedTuple
+from typing import NamedTuple, Tuple
 
 import dm_env
 import jax
 import jax.numpy as jnp
-from bsuite.baselines import base
+import wandb
 from dm_env import specs
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 
-from ...methods import module, pure
-from ...types import Module, Optimiser, Params, Shape, Size
-from ..buffer import ReplayBuffer, Transition
+from ...jax import pure
+from ...nn.module import Module, module
+from ...optimise.optimisers import Optimiser
+from ...typing import Loss, Params, Shape, Size
 from .. import td
+from ..buffer import ReplayBuffer, Transition
+from ..base import Agent
 
 
 class HParams(NamedTuple):
     batch_size: Shape = 32
-    replay_memory_size: int = 1000000
-    agent_history_len: int = 4
+    replay_memory_size: int = 1000
     target_network_update_frequency: int = 10000
     discount: float = 0.99
-    action_repeat: int = 4
-    update_frequency: int = 4
     learning_rate: float = 0.00025
     gradient_momentum: float = 0.95
     squared_gradient_momentum: float = 0.95
@@ -30,8 +30,7 @@ class HParams(NamedTuple):
     initial_exploration: float = 1.0
     final_exploration: float = 0.01
     final_exploration_frame: int = 1000000
-    replay_start: int = 50000
-    no_op_max: int = 30
+    replay_start: int = 1000
 
 
 @module
@@ -50,7 +49,7 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
     )
 
 
-class Dqn(base.Agent):
+class Dqn(Agent):
     def __init__(
         self,
         obs_spec: specs.Array,
@@ -64,9 +63,9 @@ class Dqn(base.Agent):
         self.hparams = hparams
         self.epsilon = hparams.initial_exploration
         self.replay_buffer = ReplayBuffer(hparams.replay_memory_size)
-        self.network = Cnn(action_spec.num_values)
         self.rng = jax.random.PRNGKey(seed)
-        self.optimiser = Optimiser(
+        network = Cnn(action_spec.num_values)
+        optimiser = Optimiser(
             *rmsprop_momentum(
                 step_size=hparams.learning_rate,
                 gamma=hparams.squared_gradient_momentum,
@@ -74,16 +73,16 @@ class Dqn(base.Agent):
                 eps=hparams.min_squared_gradient,
             )
         )
+        super().__init__(network, optimiser, hparams)
 
         # private:
-        self._iteration = 0
         _, params_target = self.network.init(self.rng, (-1, *obs_spec.shape))
         _, params_online = self.network.init(self.rng, (-1, *obs_spec.shape))
         self._opt_state = self.optimiser.init(params_online)
         self._params_target = params_target
 
     @partial(pure, static_argnums=(1,))
-    def preprocess(x, size: Size = (84, 84)):
+    def preprocess(x, size: Size):
         luminance_mask = jnp.array([0.2126, 0.7152, 0.0722]).reshape(1, 1, 1, 3)
         y = jnp.sum(x * luminance_mask, axis=-1).squeeze()
         target_shape = (*x.shape[:-3], *size)
@@ -96,11 +95,11 @@ class Dqn(base.Agent):
         params_target: Params,
         params_online: Params,
         transition: Transition,
-    ) -> jnp.ndarray:
+    ) -> Loss:
         q_online = model.apply(params_online, transition.x_0)
         q_target = model.apply(params_target, transition.x_1)
         # get the q target
-        target = td.nstep_return(transition, jnp.max(q_target, axis=1))
+        target = td.nstep_return(transition, jnp.max(q_target, axis=-1))
         delta = target - q_online
         return jnp.sqrt(jnp.mean(jnp.square(delta)))
 
@@ -112,7 +111,7 @@ class Dqn(base.Agent):
         params_target: Params,
         opt_state: OptimizerState,
         transition: Transition,
-    ):
+    ) -> Tuple[Loss, OptimizerState]:
         params_online = optimiser.params(opt_state)
         backward = jax.value_and_grad(Dqn.loss, argnums=1)
         error, gradients = backward(model, params_target, params_online, transition)
@@ -129,7 +128,7 @@ class Dqn(base.Agent):
     def select_action(
         self,
         timestep: dm_env.TimeStep,
-    ) -> base.Action:
+    ) -> int:
         """Selects an action using an e-greedy policy"""
         # use random policy with epsilon probability
         if jax.random.uniform(self.rng, (1,)) < self.epsilon:
@@ -145,37 +144,33 @@ class Dqn(base.Agent):
     def update(
         self,
         timestep: dm_env.TimeStep,
-        action: base.Action,
+        action: int,
         new_timestep: dm_env.TimeStep,
     ) -> float:
         # increment iteration
         self._iteration += 1
 
         # preprocess observations
-        timestep = timestep._replace(
-            observation=self.preprocess(timestep.observation),
-        )
-        new_timestep = new_timestep._replace(
-            observation=self.preprocess(new_timestep.observation),
-        )
+        # timestep = timestep._replace(
+        #     observation=self.preprocess(timestep.observation, (56, 56)),
+        # )
+        # new_timestep = new_timestep._replace(
+        #     observation=self.preprocess(new_timestep.observation, (56, 56)),
+        # )
 
         # add experience to replay buffer
         self.replay_buffer.add(timestep, action, new_timestep)
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
         if len(self.replay_buffer) < self.hparams.replay_start:
-            return
-
-        # update the online parameters only every n interations
-        if self._iteration % self.hparams.update_frequency:
-            return
+            return None
 
         # the exploration parameter is linearly interpolated to the end value
         self.epsilon = self.anneal_epsilon()
 
         # update the online parameters
         transition = self.replay_buffer.sample(self.hparams.batch_size)
-        error, self._opt_state = self.sgd_step(
+        loss, self._opt_state = self.sgd_step(
             self.network,
             self.optimiser,
             self._iteration,
@@ -188,4 +183,13 @@ class Dqn(base.Agent):
         if self._iteration % self.hparams.target_network_update_frequency == 0:
             params = self.optimiser.params(self._opt_state)
             self._params_target = self._params._replace(target=params)
-        return error
+        return loss
+
+    def log(self, reward: float, loss: Loss = None):
+        wandb.log({"Iteration": float(self._iteration)})
+        wandb.log({"Buffer size": len(self.replay_buffer)})
+        wandb.log({"Epsilon": self.epsilon})
+        wandb.log({"Reward": reward})
+        if loss is not None:
+            wandb.log({"Loss": float(loss)})
+        return

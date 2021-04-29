@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from .types import Key
+from .typing import Key
 
 
 def shuffled_batched_indices(

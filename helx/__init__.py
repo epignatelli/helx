@@ -1,9 +1,9 @@
 from . import (
-    base,
-    distributed,
-    methods,
     nn,
-    random,
     rl,
-    types,
+    optimise,
+    distributed,
+    jax,
+    random,
+    typing,
 )

@@ -1,13 +1,11 @@
-import logging
-from collections import deque
 from typing import NamedTuple
 
 import jax
 import jax.numpy as jnp
-import numpy as onp
-from ..methods import module
 from jax.nn import sigmoid
 from jax.nn.initializers import glorot_normal, normal, zeros
+
+from .module import module
 
 
 @module

@@ -1,48 +1,21 @@
-from functools import partial
 import functools
-from typing import Tuple
+from typing import Callable, NamedTuple, Tuple
 
 import jax
 import jax.numpy as jnp
 from jax.experimental.optimizers import OptimizerState
 
-from .base import factory
-from .distributed import distribute_tree
-from .types import Module, Optimiser, Params, Scheduler
+from ..typing import Apply, Init, Params, factory
+from ..distributed import distribute_tree
+from ..optimise.optimisers import Optimiser
 
 
-def batch(fun, in_axes=0, out_axes=0, axis_name=None, **jit_kwargs):
-    """
-    A utility wrapper around `jax.vmap` + `jax.jit`.
-    """
-    return jax.jit(
-        jax.vmap(fun, in_axes=in_axes, out_axes=out_axes, axis_name=axis_name),
-        **jit_kwargs
-    )
+InitState = Callable[[], jnp.ndarray]
 
 
-def inject(fun, **kwargs):
-    """
-    It is a common pattern to define closures of classes with JAX.
-    `inject` adds the closure to the outer class as a static method, and jits it,
-    The function after `inject` is pure, and can be used as any other function in JAX.
-    """
-    cls = fun.__globals__[fun.__qualname__.split(".")[0]]
-    f_jit = jax.jit(fun, **kwargs)
-    setattr(cls, fun.__name__, staticmethod(f_jit))
-    return inject
-
-
-def pure(fun, **kwargs):
-    """
-    Puryfies a class function to be used as any jax function, and finally jits it.
-    """
-    f_jit = jax.jit(fun, **kwargs)
-
-    def wrapper(*a, **k):
-        return f_jit(*a, **k)
-
-    return staticmethod(wrapper)
+class Module(NamedTuple):
+    init: Init
+    apply: Apply
 
 
 def module(fun):
@@ -73,12 +46,8 @@ def pmodule(fun):
     return wrapper
 
 
-def scheduler(fun):
-    return factory(fun, Scheduler)
-
-
 def nn(forward_fun, **kwargs):
-    @partial(jax.jit, static_argnums=0)
+    @functools.partial(jax.jit, static_argnums=0)
     def backward(
         model: Module, params: Params, *args, **kwargs
     ) -> Tuple[jnp.ndarray, jnp.ndarray]:
@@ -86,7 +55,7 @@ def nn(forward_fun, **kwargs):
             model, params, *args, **kwargs
         )
 
-    @partial(jax.jit, static_argnums=(0, 1))
+    @functools.partial(jax.jit, static_argnums=(0, 1))
     def sgd_step(
         model: Module,
         optimiser: Optimiser,
