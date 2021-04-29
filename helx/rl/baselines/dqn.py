@@ -14,7 +14,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Shape, Size
 from .. import td
-from ..buffer import ReplayBuffer, Transition
+from ..buffer import OfflineBuffer, Transition
 from ..base import Agent
 
 
@@ -62,7 +62,7 @@ class Dqn(Agent):
         self.obs_spec = obs_spec
         self.hparams = hparams
         self.epsilon = hparams.initial_exploration
-        self.replay_buffer = ReplayBuffer(hparams.replay_memory_size)
+        self.replay_buffer = OfflineBuffer(hparams.replay_memory_size)
         self.rng = jax.random.PRNGKey(seed)
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(

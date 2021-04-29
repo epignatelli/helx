@@ -61,6 +61,10 @@ class A2C(Agent):
     See:
     Mnih V., 2016, https://arxiv.org/pdf/1602.01783.pdf and
     Sutton R., Barto. G., 2018, http://incompleteideas.net/book/RLbook2020.pdf
+
+    This algorithm implements Mnih, V. 2016, that is,
+    we ran the policy for T steps, where T = batch_size << len_episode
+    and use the collected samples to update.
     """
 
     def __init__(
@@ -102,6 +106,7 @@ class A2C(Agent):
         params: Params,
         transition: Transition,
     ) -> Loss:
+        """We run the policy π for T timesteps"""
         logits, v_0 = A2C.network.apply(params, transition.x_0)
         # Policy gradient loss (log prob of the policy)
         actor_loss = jax.nn.log_softmax(logits)
@@ -141,9 +146,14 @@ class A2C(Agent):
             observation=self.preprocess(new_timestep.observation, (56, 56)),
         )
         self.buffer.add(timestep, action, new_timestep)
-        transition = self.buffer.sample(self.hparams.batch_size)
-        loss, opt_state = self.sgd_step(self.network, self.optimiser, transition)
-        return loss, opt_state
+
+        loss = None
+        if self.buffer.full():
+            transition = self.buffer.sample(self.hparams.batch_size)
+            loss, self.opt_state = self.sgd_step(
+                self.network, self.optimiser, transition
+            )
+        return loss
 
     def log(self, reward: float, loss: Loss):
         wandb.log({"Iteration": float(self._iteration)})

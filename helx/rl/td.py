@@ -28,3 +28,7 @@ def lambda_return(transition: Transition, value: Value) -> jnp.ndarray:
     values = jnp.flip(value)
     g = jax.lax.scan(body_fun, (values[0], (rewards, values)))
     return jnp.flip(g)
+
+
+def generalised_advantage():
+    pass

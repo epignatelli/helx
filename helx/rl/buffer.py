@@ -1,13 +1,12 @@
 import logging
 from collections import deque
-from typing import List, NamedTuple
-from dataclasses import dataclass
+from typing import NamedTuple, Sequence
 
 import dm_env
+from dm_env import specs
 import jax
 import jax.numpy as jnp
 import numpy as onp
-from numpy.core.numerictypes import obj2sctype
 
 from ..typing import Key
 
@@ -21,7 +20,13 @@ class Transition(NamedTuple):
     trace_decay: onp.ndarray = 1.0  # trace decay for lamba returns
 
 
-class ReplayBuffer:
+class OfflineBuffer:
+    """A replay buffer used for Experience Replay (ER):
+    Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
+    This type of buffer is usually used
+    with off-policy methods, such as DQN or ACER.
+    """
+
     def __init__(
         self,
         capacity: int,
@@ -47,6 +52,9 @@ class ReplayBuffer:
     def __getitem__(self, idx):
         return self._episodes[idx]
 
+    def full(self):
+        return len(self) == self.capacity
+
     def add(
         self,
         timestep: dm_env.TimeStep,
@@ -63,7 +71,7 @@ class ReplayBuffer:
                 x_1=None,
             )
         elif timestep.mid():
-            # accumulate rewards
+            # accumulate rewards
             self._current_transition._replace(
                 r_0=self._current_transition.r_0
                 + new_timestep.reward * new_timestep.discount
@@ -97,3 +105,61 @@ class ReplayBuffer:
             jnp.float32
         )
         return Transition(x_0, a_0, r_0, x_1)
+
+
+class OnlineBuffer(Sequence):
+    """A replay buffer that store a single n-step trajectory
+    of experience.
+    This type of buffer is usually used with online methods,
+    generally on-policy methods, such as A2C.
+    """
+
+    def __init__(
+        self,
+        capacity: int,
+        observation_spec: specs.Array,
+        n_steps: int = 1,
+    ):
+        #  public:
+        self.capacity = capacity
+        self.n_steps = n_steps
+        self.trajectory = Transition(
+            x_0=jnp.empty(n_steps, *observation_spec.shape),
+            a_0=jnp.empty(n_steps - 1, 1),
+            r_0=jnp.empty(n_steps - 1, 1),
+            x_1=jnp.empty(n_steps, *observation_spec.shape),
+        )
+
+        #  private:
+        self._t = 0
+        self._terminal = False
+
+    def full(self):
+        return (self._t == self.n_steps - 1) or (self._terminal)
+
+    def add(
+        self,
+        timestep: dm_env.TimeStep,
+        action: int,
+        new_timestep: dm_env.TimeStep,
+    ) -> None:
+        # set buffer to not result as full
+        self._terminal = new_timestep.last()
+        # collect experience
+        self.trajectory.x_0[self._t] = jnp.array(
+            timestep.observation, dtype=jnp.float32
+        )
+        self.trajectory.a_0[self._t] = int(action)
+        self.trajectory.r_0[self._t] = float(new_timestep.reward)
+        self.trajectory.x_1[self._t] = jnp.array(
+            new_timestep.observation, dtype=jnp.float32
+        )
+        # prepare to new experience
+        self._t += 1
+        # if episode is terminal or we reached T, we reset the trajectory
+        if self.full():
+            self._t = 0
+        return
+
+    def sample(self) -> Transition:
+        return self.trajectory

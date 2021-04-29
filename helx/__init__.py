@@ -1,9 +1,10 @@
 from . import (
+    typing,
+    jax,
+    distributed,
+    random,
+    image,
     nn,
     rl,
     optimise,
-    distributed,
-    jax,
-    random,
-    typing,
 )
