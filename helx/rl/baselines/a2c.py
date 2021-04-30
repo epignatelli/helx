@@ -14,7 +14,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
 from .. import td
-from ..buffer import ReplayBuffer, Transition
+from ..buffer import OnlineBuffer, Transition
 from ..base import Agent
 
 
@@ -77,7 +77,7 @@ class A2C(Agent):
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
-        self.buffer = ReplayBuffer(1, hparams.seed)
+        self.buffer = OnlineBuffer(1, hparams.seed)
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(
             *rmsprop_momentum(
@@ -93,14 +93,6 @@ class A2C(Agent):
         _, params = self.network.init(self.rng, (-1, *obs_spec.shape))
         self._opt_state = self.optimiser.init(params)
 
-    @partial(pure, static_argnums=(1,))
-    def preprocess(x, size: Size):
-        luminance_mask = jnp.array([0.2126, 0.7152, 0.0722]).reshape(1, 1, 1, 3)
-        y = jnp.sum(x * luminance_mask, axis=-1).squeeze()
-        target_shape = (*x.shape[:-3], *size)
-        s = jax.image.resize(y, target_shape, method="bilinear")
-        return s
-
     @pure
     def loss(
         params: Params,
@@ -113,7 +105,7 @@ class A2C(Agent):
         # Policy entropy
         entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
         # Value loss (Regression on bellman target)
-        target = td.nstep_return(transition, v_0)
+        targets = td.nstep_return(transition, v_0)
         _, v_1 = A2C.network.apply(params, transition.x_1)
         critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
         return critic_loss + actor_loss - A2C.hparams.beta * entropy

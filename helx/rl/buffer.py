@@ -25,19 +25,23 @@ class OfflineBuffer:
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
     This type of buffer is usually used
     with off-policy methods, such as DQN or ACER.
+    Note that, to save memory, it stores only the two extremes
+    of the trajectory and accumulates the discunted rewards
+    at each time step, to calculate the value target.
+    However, this does not allow for off-policy corrections with nstep methods
+    at consumption time. To perform off-policy corrections, please store
+    the action probabilities foreach time step in the buffer.
     """
 
     def __init__(
         self,
         capacity: int,
         n_steps: int = 1,
-        cumulative: bool = True,
         seed: int = 0,
     ):
         #  public:
         self.capacity = capacity
         self.n_steps = n_steps
-        self.cumulative = cumulative
         self.seed = seed
 
         #  private:
@@ -60,7 +64,6 @@ class OfflineBuffer:
         timestep: dm_env.TimeStep,
         action: int,
         new_timestep: dm_env.TimeStep,
-        trace_decay: float = 1.0,
     ) -> None:
         #  start of a new episode
         if timestep.first() or self._t == 0:
@@ -74,7 +77,7 @@ class OfflineBuffer:
             # accumulate rewards
             self._current_transition._replace(
                 r_0=self._current_transition.r_0
-                + new_timestep.reward * new_timestep.discount
+                + (new_timestep.discount ** self._t) * new_timestep.reward
             )
 
         self._t += 1
@@ -107,10 +110,18 @@ class OfflineBuffer:
         return Transition(x_0, a_0, r_0, x_1)
 
 
+class Trajectory(NamedTuple):
+    observations: onp.ndarray  #  observation at t=0 and t=1
+    actions: onp.ndarray  #  actions at t=0
+    rewards: onp.ndarray  #  rewards at t=1
+    gammas: onp.ndarray = 1.0  #  discount factor
+    lambdas: onp.ndarray = 1.0  #  discount factor
+
+
 class OnlineBuffer(Sequence):
-    """A replay buffer that store a single n-step trajectory
+    """A replay buffer that stores a single n-step trajectory
     of experience.
-    This type of buffer is usually used with online methods,
+    This type of buffer is most commonly used with online methods,
     generally on-policy methods, such as A2C.
     """
 
@@ -122,17 +133,11 @@ class OnlineBuffer(Sequence):
     ):
         #  public:
         self.capacity = capacity
+        self.observation_spec = observation_spec
         self.n_steps = n_steps
-        self.trajectory = Transition(
-            x_0=jnp.empty(n_steps, *observation_spec.shape),
-            a_0=jnp.empty(n_steps - 1, 1),
-            r_0=jnp.empty(n_steps - 1, 1),
-            x_1=jnp.empty(n_steps, *observation_spec.shape),
-        )
 
-        #  private:
-        self._t = 0
-        self._terminal = False
+        #  private:
+        self._reset()
 
     def full(self):
         return (self._t == self.n_steps - 1) or (self._terminal)
@@ -143,23 +148,33 @@ class OnlineBuffer(Sequence):
         action: int,
         new_timestep: dm_env.TimeStep,
     ) -> None:
-        # set buffer to not result as full
-        self._terminal = new_timestep.last()
         # collect experience
-        self.trajectory.x_0[self._t] = jnp.array(
+        self.trajectory.observations[self._t] = jnp.array(
             timestep.observation, dtype=jnp.float32
         )
-        self.trajectory.a_0[self._t] = int(action)
-        self.trajectory.r_0[self._t] = float(new_timestep.reward)
-        self.trajectory.x_1[self._t] = jnp.array(
-            new_timestep.observation, dtype=jnp.float32
-        )
-        # prepare to new experience
+        self.trajectory.actions[self._t] = int(action)
+        self.trajectory.rewards[self._t] = float(new_timestep.reward)
+        self.trajectory.gammas[self._t] = float(timestep.discount)
+
+        # update buffer state
         self._t += 1
-        # if episode is terminal or we reached T, we reset the trajectory
+        self._terminal = new_timestep.last()
+
+        # if the trajectory cannot move forwards, add the last observation
         if self.full():
-            self._t = 0
+            self._reset()
         return
 
     def sample(self) -> Transition:
         return self.trajectory
+
+    def _reset(self):
+        self._t = 0
+        self.trajectory = Trajectory(
+            observations=jnp.empty(self.n_steps + 1, *self.observation_spec.shape),
+            actions=jnp.empty(self.n_steps, 1),
+            rewards=jnp.empty(self.n_steps, 1),
+            gammas=jnp.empty(self.n_steps, 1),
+        )
+        self._terminal = False
+        return

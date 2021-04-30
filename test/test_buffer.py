@@ -1,4 +1,4 @@
-from helx.rl.buffer import ReplayBuffer, Transition
+from helx.rl.buffer import ReplayBuffer
 from gym_minigrid.wrappers import *
 from bsuite.utils.gym_wrapper import DMEnvFromGym
 
