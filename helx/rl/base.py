@@ -29,6 +29,13 @@ class Agent(base.Agent):
     def loss(params: Params, transition: Transition) -> Loss:
         """Specifies the loss function to be minimised by some flavour of SGD"""
 
+    @abc.abstractmethod
+    def policy(self, timestep: dm_env.TimeStep) -> int:
+        """The agent's policy function that maps an observation to an action"""
+
+    def select_action(self, timestep: dm_env.TimeStep) -> base.Action:
+        return self.policy(timestep)
+
     @pure
     def sgd_step(
         iteration: int,
@@ -62,7 +69,7 @@ def run(
         timestep = env.reset()
         while not timestep.last():
             # policy
-            action = agent.select_action(timestep)
+            action = agent.policy(timestep)
             # step environment
             new_timestep = env.step(action)
             # update

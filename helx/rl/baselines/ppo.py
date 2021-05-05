@@ -98,7 +98,7 @@ class Ppo(Agent):
         # Policy entropy
         entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
         # Value loss (Regression on bellman target)
-        target = td.nstep_return(transition, v_0)
+        gae = td.lambda_returns(transition, v_0)
         _, v_1 = Ppo.network.apply(params, transition.x_1)
         critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
         return critic_loss + actor_loss - Ppo.hparams.beta * entropy

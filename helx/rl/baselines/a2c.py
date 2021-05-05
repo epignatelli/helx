@@ -14,7 +14,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
 from .. import td
-from ..buffer import OnlineBuffer, Transition
+from ..buffer import OnlineBuffer, Trajectory, Transition
 from ..base import Agent
 
 
@@ -46,7 +46,6 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
         stax.parallel(
             stax.serial(
                 stax.Dense(n_actions),
-                stax.Softmax,
             ),  #  actor
             stax.serial(
                 stax.Dense(1),
@@ -96,18 +95,18 @@ class A2C(Agent):
     @pure
     def loss(
         params: Params,
-        transition: Transition,
+        trajectory: Trajectory,
     ) -> Loss:
-        """We run the policy π for T timesteps"""
-        logits, v_0 = A2C.network.apply(params, transition.x_0)
-        # Policy gradient loss (log prob of the policy)
-        actor_loss = jax.nn.log_softmax(logits)
-        # Policy entropy
+        """We run the policy π for T timesteps,
+        to calculate the advantage"""
+        #  inference
+        logits, values = A2C.network.apply(params, trajectory.observations)
+        #   Critic loss (Bellman regression)
+        advantages = td.advantages(trajectory, values[:-1], values[1:])
+        critic_loss = jnp.mean(jnp.square(advantages))
+        #  Actor loss (Policy gradient loss)
+        actor_loss = jax.nn.log_softmax(logits) * advantages
         entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
-        # Value loss (Regression on bellman target)
-        targets = td.nstep_return(transition, v_0)
-        _, v_1 = A2C.network.apply(params, transition.x_1)
-        critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
         return critic_loss + actor_loss - A2C.hparams.beta * entropy
 
     @pure
@@ -121,7 +120,7 @@ class A2C(Agent):
         error, grads = backward(A2C.network, params, transition)
         return error, A2C.optimiser.update(iteration, grads, opt_state)
 
-    def select_action(self, timestep: dm_env.TimeStep) -> int:
+    def policy(self, timestep: dm_env.TimeStep) -> int:
         """Selects an action using a softmax policy"""
         params = self.optimiser.params(self._opt_state)
         logits, _ = self.network.apply(params, timestep.observation)
