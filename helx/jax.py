@@ -49,3 +49,19 @@ def tree_vmap(f, lst):
         outer_treedef, inner_treedef, out_unstacked_transposed
     )
     return out_unstacked
+
+
+def fori_scan(start, stop, body_fun, init, reversed=False):
+    """Uses `jax.lax.scan` to return all the intermediate
+    computations of the `jax.lax.fori_loop` function
+    """
+
+    def f(carry, i):
+        y = body_fun(i, carry)
+        return y, y
+
+    indices = jnp.arange(start, stop)
+    indices = jax.lax.cond(
+        reversed, lambda _: jnp.flip(indices), lambda _: indices, operand=None
+    )
+    return jax.lax.scan(f, init, xs=indices)[1]
