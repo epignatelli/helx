@@ -1,21 +1,20 @@
-from functools import partial
-from typing import NamedTuple, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 import dm_env
 import jax
 import jax.numpy as jnp
 import wandb
-from dm_env import specs
+from dm_env import Environment, TimeStep, specs
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 
 from ...jax import pure
 from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
-from ...typing import Loss, Params, Shape, Size
+from ...typing import Loss, Observation, Params, Shape
 from .. import td
 from ..buffer import OfflineBuffer, Transition
-from ..base import Agent
+from ..agent import Agent
 
 
 class HParams(NamedTuple):
@@ -31,10 +30,11 @@ class HParams(NamedTuple):
     final_exploration: float = 0.01
     final_exploration_frame: int = 1000000
     replay_start: int = 1000
+    hidden_size: int = 512
 
 
 @module
-def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
+def Cnn(n_actions: int, hidden_size) -> Module:
     return serial(
         Conv(32, (8, 8), (4, 4), "VALID"),
         Relu,
@@ -56,15 +56,16 @@ class Dqn(Agent):
         action_spec: specs.DiscreteArray,
         hparams: HParams,
         seed: int = 0,
+        preprocess: Callable[[Observation], Observation] = lambda x: x,
     ):
         # public:
         self.action_spec = action_spec
         self.obs_spec = obs_spec
-        self.hparams = hparams
         self.epsilon = hparams.initial_exploration
         self.replay_buffer = OfflineBuffer(hparams.replay_memory_size)
         self.rng = jax.random.PRNGKey(seed)
-        network = Cnn(action_spec.num_values)
+        self.preprocess = preprocess
+        network = Cnn(action_spec.num_values, hidden_size=hparams.hidden_size)
         optimiser = Optimiser(
             *rmsprop_momentum(
                 step_size=hparams.learning_rate,
@@ -81,41 +82,32 @@ class Dqn(Agent):
         self._opt_state = self.optimiser.init(params_online)
         self._params_target = params_target
 
-    @partial(pure, static_argnums=(1,))
-    def preprocess(x, size: Size):
-        luminance_mask = jnp.array([0.2126, 0.7152, 0.0722]).reshape(1, 1, 1, 3)
-        y = jnp.sum(x * luminance_mask, axis=-1).squeeze()
-        target_shape = (*x.shape[:-3], *size)
-        s = jax.image.resize(y, target_shape, method="bilinear")
-        return s
-
-    @partial(pure, static_argnums=(0,))
+    @pure
     def loss(
-        model: Module,
         params_target: Params,
         params_online: Params,
         transition: Transition,
     ) -> Loss:
-        q_online = model.apply(params_online, transition.x_0)
-        q_target = model.apply(params_target, transition.x_1)
+        q_online = Dqn.network.apply(params_online, transition.x_0)
+        q_target = Dqn.network.apply(params_target, transition.x_1)
         # get the q target
         target = td.nstep_return(transition, jnp.max(q_target, axis=-1))
         delta = target - q_online
         return jnp.sqrt(jnp.mean(jnp.square(delta)))
 
-    @partial(pure, static_argnums=(0, 1))
+    @pure
     def sgd_step(
-        model: Module,
-        optimiser: Optimiser,
         iteration: int,
         params_target: Params,
         opt_state: OptimizerState,
         transition: Transition,
     ) -> Tuple[Loss, OptimizerState]:
-        params_online = optimiser.params(opt_state)
+        params_online = Dqn.optimiser.params(opt_state)
         backward = jax.value_and_grad(Dqn.loss, argnums=1)
-        error, gradients = backward(model, params_target, params_online, transition)
-        return error, optimiser.update(iteration, gradients, opt_state)
+        error, gradients = backward(
+            Dqn.network, params_target, params_online, transition
+        )
+        return error, Dqn.optimiser.update(iteration, gradients, opt_state)
 
     def anneal_epsilon(self):
         x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
@@ -125,7 +117,7 @@ class Dqn(Agent):
         y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
         return y
 
-    def select_action(
+    def policy(
         self,
         timestep: dm_env.TimeStep,
     ) -> int:
@@ -141,25 +133,25 @@ class Dqn(Agent):
         print(action)
         return int(action)
 
+    def observe(self, env: Environment, timestep: TimeStep, action: int) -> Transition:
+        #  get new MDP state
+        new_timestep = env.step(action)
+        #  store transition into the replay buffer
+        self.replay_buffer.add(
+            timestep, action, new_timestep, preprocess=self.preprocess
+        )
+        return new_timestep
+
     def update(
         self,
         timestep: dm_env.TimeStep,
         action: int,
         new_timestep: dm_env.TimeStep,
     ) -> float:
+        """Dqn uses a replay buffer. The three inputs
+        `timestep`, `action` and `new_timestep` are ignored."""
         # increment iteration
         self._iteration += 1
-
-        # preprocess observations
-        # timestep = timestep._replace(
-        #     observation=self.preprocess(timestep.observation, (56, 56)),
-        # )
-        # new_timestep = new_timestep._replace(
-        #     observation=self.preprocess(new_timestep.observation, (56, 56)),
-        # )
-
-        # add experience to replay buffer
-        self.replay_buffer.add(timestep, action, new_timestep)
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
         if len(self.replay_buffer) < self.hparams.replay_start:

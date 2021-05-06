@@ -53,7 +53,8 @@ def tree_vmap(f, lst):
 
 def fori_scan(start, stop, body_fun, init, reversed=False):
     """Uses `jax.lax.scan` to return all the intermediate
-    computations of the `jax.lax.fori_loop` function
+    computations of the `jax.lax.fori_loop` function.
+    This function is also backward differentiable, unlike `fori_loop`.
     """
 
     def f(carry, i):

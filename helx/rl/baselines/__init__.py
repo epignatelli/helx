@@ -1,2 +1,5 @@
-from . import a2c
-from . import dqn
+from . import (
+    a2c,
+    dqn,
+    ppo,
+)

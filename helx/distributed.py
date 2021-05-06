@@ -1,5 +1,6 @@
 import jax
 import jax.numpy as jnp
+import threading
 
 
 def distribute_tree(tree):
@@ -70,3 +71,14 @@ def redistribute_array(array):
     for more
     """
     return distribute_array(gather_array(array))
+
+
+def async(f):
+    """Decorator to run a function asynchronously"""
+
+    def run(*k, **kw):
+        t = threading.Thread(target=f, args=k, kwargs=kw, name=f.__name__)
+        t.start()
+        return
+
+    return run

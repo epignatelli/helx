@@ -1,4 +1,3 @@
-from functools import partial
 from typing import NamedTuple, Tuple
 
 import dm_env
@@ -13,9 +12,9 @@ from ...jax import pure
 from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
-from .. import td
-from ..buffer import ReplayBuffer, Transition
-from ..base import Agent
+from .. import td, pg
+from ..buffer import Traj, Trajectory, TrajectoryectoTrajectory
+from ..agent import Agent
 
 
 class HParams(NamedTuple):
@@ -24,6 +23,7 @@ class HParams(NamedTuple):
     trace_decay: float = 1.0
     n_steps: int = 1
     beta: float = 0.001
+    epsilon: float = 0.2
     learning_rate: float = 0.001
     gradient_momentum: float = 0.95
     squared_gradient_momentum: float = 0.95
@@ -67,11 +67,13 @@ class Ppo(Agent):
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
         hparams: HParams,
+        preprocess: lambda x: x,
     ):
         # public:
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
+        self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(
             *rmsprop_momentum(
@@ -86,32 +88,34 @@ class Ppo(Agent):
         # private:
         _, params = self.network.init(self.rng, (-1, *obs_spec.shape))
         self._opt_state = self.optimiser.init(params)
+        self.policy_old = params
 
     @pure
     def loss(
         params: Params,
-        transition: Transition,
+        trajectory: Trajectory,
+        policy_old: Params,
     ) -> Loss:
-        logits, v_0 = Ppo.network.apply(params, transition.x_0)
-        # Policy gradient loss (log prob of the policy)
-        actor_loss = jax.nn.log_softmax(logits)
-        # Policy entropy
-        entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
-        # Value loss (Regression on bellman target)
-        gae = td.lambda_returns(transition, v_0)
-        _, v_1 = Ppo.network.apply(params, transition.x_1)
-        critic_loss = jnp.sqrt(jnp.mean(jnp.square(target - v_1)))
-        return critic_loss + actor_loss - Ppo.hparams.beta * entropy
+        logits, values = Ppo.network.apply(params, trajectory.x_0)
+        logits_old, _ = Ppo.network.apply(policy_old, trajectory.observations)
+        #  Critic loss (Bellman regression)
+        gae = td.lambda_returns(trajectory, values)
+        critic_loss = jnp.mean(jnp.square(gae))  #  bellman mse
+        #  PPO clipped objective
+        actor_loss = pg.ppo_softmax_loss(logits, logits_old, gae, Ppo.hparams)
+        entropy = pg.softmax_entropy(logits)
+        return actor_loss + Ppo.hparams.c1 * critic_loss - Ppo.hparams.c2 * entropy
 
     @pure
     def sgd_step(
         iteration: int,
         opt_state: OptimizerState,
-        transition: Transition,
+        trajectory: Trajectory,
+        policy_old: Params,
     ) -> Tuple[Loss, OptimizerState]:
         params = Ppo.optimiser.params(opt_state)
-        backward = jax.value_and_grad(Ppo.loss, argnums=2)
-        error, grads = backward(Ppo.network, params, transition)
+        backward = jax.value_and_grad(Ppo.loss, argnums=0)
+        error, grads = backward(Ppo.network, params, trajectory, policy_old)
         return error, Ppo.optimiser.update(iteration, grads, opt_state)
 
     def select_action(self, timestep: dm_env.TimeStep) -> int:
@@ -124,15 +128,9 @@ class Ppo(Agent):
     def update(
         self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
     ) -> None:
-        timestep = timestep._replace(
-            observation=self.preprocess(timestep.observation, (56, 56)),
-        )
-        new_timestep = new_timestep._replace(
-            observation=self.preprocess(new_timestep.observation, (56, 56)),
-        )
-        self.buffer.add(timestep, action, new_timestep)
-        transition = self.buffer.sample(self.hparams.batch_size)
-        loss, opt_state = self.sgd_step(self.network, self.optimiser, transition)
+        self.buffer.add(timestep, action, new_timestep, self.preprocess)
+        trajectory = self.buffer.sample(self.hparams.batch_size)
+        loss, opt_state = self.sgd_step(self.network, self.optimiser, trajectory)
         return loss, opt_state
 
     def log(self, reward: float, loss: Loss):

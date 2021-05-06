@@ -1,11 +1,12 @@
+from typing import Any
 import jax
-from jax.api import grad
 import jax.numpy as jnp
 from bsuite.utils.gym_wrapper import DMEnvFromGym
 from gym_minigrid.wrappers import *
 
 from ..typing import Size
 from ..image import greyscale, imresize
+from ..distributed import async
 
 
 def make(name):
@@ -30,15 +31,11 @@ def preprocess_atari(x):
     x = jax.lax.reduce_window(
         x, -jnp.inf, jax.lax.max, (2, 1, 1, 1), (1, 1, 1, 1), "SAME"
     )
-    # grayscale
-    y = greyscale(x)
-    # resize, x is (n_frames, 210, 160)
-    y = imresize(y, 84, 84)
-    return y
+    return greyscale(imresize(x, (84, 84)))
 
 
 def preprocess_minigrid(x, size: Size = (56, 56)):
     """Refer to the minigrid implementation at:
     https://github.com/maximecb/gym-minigrid
     """
-    return greyscale(imresize(x, size)
+    return greyscale(imresize(x, size))

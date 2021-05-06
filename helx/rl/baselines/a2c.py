@@ -1,5 +1,4 @@
-from functools import partial
-from typing import NamedTuple, Tuple
+from typing import Callable, NamedTuple, Tuple
 
 import dm_env
 import jax
@@ -13,9 +12,9 @@ from ...jax import pure
 from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
-from .. import td
+from .. import td, pg
 from ..buffer import OnlineBuffer, Trajectory, Transition
-from ..base import Agent
+from ..agent import Agent
 
 
 class HParams(NamedTuple):
@@ -71,12 +70,14 @@ class A2C(Agent):
         obs_spec: specs.Array,
         action_spec: specs.DiscreteArray,
         hparams: HParams,
+        preprocess: Callable = lambda x: x,
     ):
         # public:
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
         self.buffer = OnlineBuffer(1, hparams.seed)
+        self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(
             *rmsprop_momentum(
@@ -103,10 +104,10 @@ class A2C(Agent):
         logits, values = A2C.network.apply(params, trajectory.observations)
         #   Critic loss (Bellman regression)
         advantages = td.advantages(trajectory, values[:-1], values[1:])
-        critic_loss = jnp.mean(jnp.square(advantages))
+        critic_loss = jnp.mean(jnp.square(advantages))  #  bellman mse
         #  Actor loss (Policy gradient loss)
-        actor_loss = jax.nn.log_softmax(logits) * advantages
-        entropy = -jnp.sum(jnp.mean(logits) * jnp.log(logits))
+        actor_loss = pg.a2c_softmax_loss(logits, advantages)
+        entropy = pg.softmax_entropy(logits)
         return critic_loss + actor_loss - A2C.hparams.beta * entropy
 
     @pure
@@ -130,13 +131,7 @@ class A2C(Agent):
     def update(
         self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
     ) -> None:
-        timestep = timestep._replace(
-            observation=self.preprocess(timestep.observation, (56, 56)),
-        )
-        new_timestep = new_timestep._replace(
-            observation=self.preprocess(new_timestep.observation, (56, 56)),
-        )
-        self.buffer.add(timestep, action, new_timestep)
+        self.buffer.add(timestep, action, new_timestep, self.preprocess)
 
         loss = None
         if self.buffer.full():

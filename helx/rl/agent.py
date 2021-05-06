@@ -1,5 +1,4 @@
 import abc
-import logging
 from typing import Tuple
 
 import dm_env
@@ -11,7 +10,7 @@ from jax.experimental.optimizers import OptimizerState
 from ..jax import pure
 from ..nn.module import Module
 from ..optimise.optimisers import Optimiser
-from ..typing import HParams, Loss, Params
+from ..typing import HParams, Loss, Params, Reward
 
 
 class Agent(base.Agent):
@@ -26,15 +25,18 @@ class Agent(base.Agent):
         self._iteration = 0
 
     @abc.abstractmethod
-    def loss(params: Params, transition: Transition) -> Loss:
+    def observe(
+        self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
+    ) -> Transition:
+        """The agent's observation function defines how  it interacts with the enviroment"""
+
+    @abc.abstractmethod
+    def loss(params: Params, transition: Transition, hparams: HParams) -> Loss:
         """Specifies the loss function to be minimised by some flavour of SGD"""
 
     @abc.abstractmethod
     def policy(self, timestep: dm_env.TimeStep) -> int:
         """The agent's policy function that maps an observation to an action"""
-
-    def select_action(self, timestep: dm_env.TimeStep) -> base.Action:
-        return self.policy(timestep)
 
     @pure
     def sgd_step(
@@ -48,35 +50,5 @@ class Agent(base.Agent):
         error, grads = backward(Agent.network, params, transition)
         return error, Agent.optimiser.update(iteration, grads, opt_state)
 
-
-def run(
-    agent: Agent,
-    env: dm_env.Environment,
-    num_episodes: int,
-    eval_mode: bool = False,
-) -> Agent:
-    logging.info(
-        "Starting {} agent {} on environment {}.\nThe scheduled number of episode is {}".format(
-            "evaluating" if eval_mode else "training", agent, env, num_episodes
-        )
-    )
-    for episode in range(num_episodes):
-        print(
-            "Starting episode number {}/{}\t\t\t".format(episode, num_episodes - 1),
-            end="\r",
-        )
-        # initialise environment
-        timestep = env.reset()
-        while not timestep.last():
-            # policy
-            action = agent.policy(timestep)
-            # step environment
-            new_timestep = env.step(action)
-            # update
-            loss = None
-            if not eval_mode:
-                loss = agent.update(timestep, action, new_timestep)
-            agent.log(new_timestep.reward, loss)
-            # prepare next
-            timestep = new_timestep
-    return agent
+    def log(self, reward: Reward, loss: Loss):
+        return

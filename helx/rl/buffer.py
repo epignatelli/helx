@@ -1,23 +1,30 @@
 import logging
 from collections import deque
-from typing import NamedTuple, Sequence
+from typing import Callable, NamedTuple, Sequence
 
 import dm_env
 from dm_env import specs
 import jax
 import jax.numpy as jnp
-import numpy as onp
 
-from ..typing import Key
+from ..typing import Action, Discount, Key, Observation, Reward, Batch, TraceDecay
 
 
 class Transition(NamedTuple):
-    x_0: onp.ndarray  #  observation at t=0
-    a_0: onp.ndarray  #  actions at t=0
-    r_0: onp.ndarray  #  rewards at t=1
-    x_1: onp.ndarray  # observatin at t=n (note multistep)
-    gamma: onp.ndarray = 1.0  #  discount factor
-    trace_decay: onp.ndarray = 1.0  # trace decay for lamba returns
+    observation: Observation  #  observation at t=0
+    action: Action  #  actions at t=0
+    reward: Reward  #  rewards at t=1
+    new_observation: Observation  # observatin at t=n (note multistep)
+    discount: Discount = 1.0  #  discount factor
+    trace_decay: TraceDecay = 1.0  # trace decay for lamba returns
+
+
+class Trajectory(NamedTuple):
+    observations: Batch[Observation]  #  observation at t=0 and t=1
+    actions: Batch[Action]  #  actions at t=0
+    rewards: Batch[Reward]  #  rewards at t=1
+    discounts: Batch[Discount] = None  #  discount factor
+    trace_decays: Batch[TraceDecay] = None  #  discount factor
 
 
 class OfflineBuffer:
@@ -64,25 +71,28 @@ class OfflineBuffer:
         timestep: dm_env.TimeStep,
         action: int,
         new_timestep: dm_env.TimeStep,
+        preprocess=lambda x: x,
     ) -> None:
         #  start of a new episode
         if timestep.first() or self._t == 0:
             self._current_transition = Transition(
-                x_0=timestep.observation,
-                a_0=int(action),
-                r_0=float(new_timestep.reward),
-                x_1=None,
+                observation=preprocess(timestep.observation),
+                action=int(action),
+                reward=float(new_timestep.reward),
+                new_observation=None,
             )
         elif timestep.mid():
             # accumulate rewards
             self._current_transition._replace(
-                r_0=self._current_transition.r_0
+                reward=self._current_transition.reward
                 + (new_timestep.discount ** self._t) * new_timestep.reward
             )
 
         self._t += 1
         if (new_timestep.last()) or (self._t >= self.n_steps):
-            self._current_transition._replace(x_1=new_timestep.observation)
+            self._current_transition._replace(
+                new_observation=preprocess(new_timestep.observation)
+            )
             self._episodes.append(self._current_transition)
             self._t = 0
         return
@@ -99,23 +109,15 @@ class OfflineBuffer:
             rng, _ = jax.random.split(self._rng)
         indices = jax.random.randint(rng, (n,), 0, high)
 
-        x_0 = jnp.array([self._episodes[idx].x_0 for idx in indices]).astype(
-            jnp.float32
-        )
-        a_0 = jnp.array([self._episodes[idx].a_0 for idx in indices])
-        r_0 = jnp.array([self._episodes[idx].r_0 for idx in indices])
-        x_1 = jnp.array([self._episodes[idx].x_1 for idx in indices]).astype(
-            jnp.float32
-        )
-        return Transition(x_0, a_0, r_0, x_1)
-
-
-class Trajectory(NamedTuple):
-    observations: onp.ndarray  #  observation at t=0 and t=1
-    actions: onp.ndarray  #  actions at t=0
-    rewards: onp.ndarray  #  rewards at t=1
-    gammas: onp.ndarray = 1.0  #  discount factor
-    lambdas: onp.ndarray = 1.0  #  discount factor
+        observation = jnp.array(
+            [self._episodes[idx].observation for idx in indices]
+        ).astype(jnp.float32)
+        action = jnp.array([self._episodes[idx].action for idx in indices])
+        reward = jnp.array([self._episodes[idx].reward for idx in indices])
+        new_observation = jnp.array(
+            [self._episodes[idx].new_observation for idx in indices]
+        ).astype(jnp.float32)
+        return Transition(observation, action, reward, new_observation)
 
 
 class OnlineBuffer(Sequence):
@@ -140,28 +142,36 @@ class OnlineBuffer(Sequence):
         self._reset()
 
     def full(self):
-        return (self._t == self.n_steps - 1) or (self._terminal)
+        return self._t == self.n_steps - 1
 
     def add(
         self,
         timestep: dm_env.TimeStep,
         action: int,
-        new_timestep: dm_env.TimeStep,
+        new_timestep: dm_env.TimeStep = None,
+        preprocess: Callable[[Observation], Observation] = lambda x: x,
     ) -> None:
-        # collect experience
-        self.trajectory.observations[self._t] = jnp.array(
-            timestep.observation, dtype=jnp.float32
+        #  if buffer is full, prepare for new trajectory
+        if self.full():
+            self._reset()
+
+        # add new transition to the trajectory
+        self.trajectory.observations[self._t] = preprocess(
+            jnp.array(timestep.observation, dtype=jnp.float32)
         )
         self.trajectory.actions[self._t] = int(action)
         self.trajectory.rewards[self._t] = float(new_timestep.reward)
-        self.trajectory.gammas[self._t] = float(timestep.discount)
-
-        # update buffer state
+        self.trajectory.gammas[self._t] = float(new_timestep.discount)
         self._t += 1
-        self._terminal = new_timestep.last()
 
-        # if the trajectory cannot move forwards, add the last observation
+        #  if we have enough transitions, add last obs and return
         if self.full():
+            self.trajectory.observations[self._t] = preprocess(
+                jnp.array(new_timestep.observation, dtype=jnp.float32)
+            )
+            return
+        #  if we do not have enough transitions, and can't sample more, retry
+        if new_timestep.last():
             self._reset()
         return
 
@@ -174,7 +184,7 @@ class OnlineBuffer(Sequence):
             observations=jnp.empty(self.n_steps + 1, *self.observation_spec.shape),
             actions=jnp.empty(self.n_steps, 1),
             rewards=jnp.empty(self.n_steps, 1),
-            gammas=jnp.empty(self.n_steps, 1),
+            discounts=jnp.empty(self.n_steps, 1),
+            trace_decays=jnp.empty(self.n_steps, 1),
         )
-        self._terminal = False
         return
