@@ -1,33 +1,71 @@
+import abc
 import logging
 from collections import deque
 from typing import Callable, NamedTuple, Sequence
 
 import dm_env
-from dm_env import specs
 import jax
 import jax.numpy as jnp
+from dm_env import specs
+from jaxlib.xla_extension import Device
 
-from ..typing import Action, Discount, Key, Observation, Reward, Batch, TraceDecay
+from ..jax import device_array
+from ..typing import Action, Batch, Discount, Key, Observation, Reward, TraceDecay
 
 
 class Transition(NamedTuple):
-    observation: Observation  #  observation at t=0
-    action: Action  #  actions at t=0
-    reward: Reward  #  rewards at t=1
-    new_observation: Observation  # observatin at t=n (note multistep)
-    discount: Discount = 1.0  #  discount factor
-    trace_decay: TraceDecay = 1.0  # trace decay for lamba returns
+    """A (s, a, r, s', a', γ, λ) transition wiht discount and lambda factors"""
+
+    s: Observation  #  observation at t=0
+    a: Action  #  actions at t=0
+    r: Reward  #  rewards at t=1
+    s1: Observation  # observatin at t=1 (note multistep)
+    a1: Action  # action at t=1
+    g: Discount = 1.0  #  discount factor
+    l: TraceDecay = 1.0  # trace decay for lamba returns
 
 
 class Trajectory(NamedTuple):
-    observations: Batch[Observation]  #  observation at t=0 and t=1
-    actions: Batch[Action]  #  actions at t=0
-    rewards: Batch[Reward]  #  rewards at t=1
-    discounts: Batch[Discount] = None  #  discount factor
-    trace_decays: Batch[TraceDecay] = None  #  discount factor
+    """A set of batched transitions"""
+
+    observations: Batch[Observation]  #  [T + 1, *obs.shape]
+    actions: Batch[Action]  #  [T, 1] if off-policy, [T + 1, 1] otherwise
+    rewards: Batch[Reward]  #  [T, 1]
+    discounts: Batch[Discount] = None  #  [T, 1]
+    trace_decays: Batch[TraceDecay] = None  #  [T, 1]
 
 
-class OfflineBuffer:
+class IBuffer(abc.ABC):
+    @abc.abstractmethod
+    def add(
+        self,
+        timestep: dm_env.TimeStep,
+        action: int,
+        new_timestep: dm_env.TimeStep,
+        preprocess=lambda x: x,
+    ) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def full(self) -> bool:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def add(
+        self,
+        timestep: dm_env.TimeStep,
+        action: int,
+        new_timestep: dm_env.TimeStep,
+        preprocess=lambda x: x,
+    ) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def sample(self, n: int, rng: Key = None) -> Trajectory:
+        raise NotImplementedError
+
+
+class OfflineBuffer(IBuffer):
     """A replay buffer used for Experience Replay (ER):
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
     This type of buffer is usually used
@@ -45,26 +83,30 @@ class OfflineBuffer:
         capacity: int,
         n_steps: int = 1,
         seed: int = 0,
+        device: Device = None,
     ):
         #  public:
         self.capacity = capacity
         self.n_steps = n_steps
         self.seed = seed
+        self.device = device
+        self.trajectories = deque(maxlen=capacity)
 
         #  private:
         self._rng = jax.random.PRNGKey(seed)
-        self._episodes = deque(maxlen=capacity)
-        self._current_transition = None
-        self._t = 0
+        self._reset()
 
     def __len__(self):
-        return len(self._episodes)
+        return len(self.trajectories)
 
     def __getitem__(self, idx):
-        return self._episodes[idx]
+        return self.trajectories[idx]
 
-    def full(self):
+    def full(self) -> bool:
         return len(self) == self.capacity
+
+    def collecting(self) -> bool:
+        return self._t < self.n_steps
 
     def add(
         self,
@@ -73,31 +115,30 @@ class OfflineBuffer:
         new_timestep: dm_env.TimeStep,
         preprocess=lambda x: x,
     ) -> None:
-        #  start of a new episode
-        if timestep.first() or self._t == 0:
-            self._current_transition = Transition(
-                observation=preprocess(timestep.observation),
-                action=int(action),
-                reward=float(new_timestep.reward),
-                new_observation=None,
-            )
-        elif timestep.mid():
-            # accumulate rewards
-            self._current_transition._replace(
-                reward=self._current_transition.reward
-                + (new_timestep.discount ** self._t) * new_timestep.reward
-            )
+        #  start of a new episode
+        if not self.collecting():
+            self.trajectories.append(self._current)
+            self._reset()
 
+        # add new transition to the trajectory
+        store = lambda x: device_array(x, device=self.device)
+        self._current.observations[self._t] = preprocess(store(timestep.observation))
+        self._current.actions[self._t] = store(int(action))
+        self._current.rewards[self._t] = store(float(new_timestep.reward))
+        self._current.discounts[self._t] = store(float(new_timestep.discount))
         self._t += 1
-        if (new_timestep.last()) or (self._t >= self.n_steps):
-            self._current_transition._replace(
-                new_observation=preprocess(new_timestep.observation)
+
+        # ready to store, just add final observation
+        if not self.collecting():
+            self._current.observations[self._t] = preprocess(
+                jnp.array(timestep.observation, dtype=jnp.float32)
             )
-            self._episodes.append(self._current_transition)
-            self._t = 0
+        # if not enough samples, and we can't sample the env anymore, reset
+        elif new_timestep.last():
+            self._reset()
         return
 
-    def sample(self, n: int, rng: Key = None) -> Transition:
+    def sample(self, n: int, rng: Key = None, device: Device = None) -> Trajectory:
         high = len(self) - n
         if high <= 0:
             logging.warning(
@@ -109,18 +150,26 @@ class OfflineBuffer:
             rng, _ = jax.random.split(self._rng)
         indices = jax.random.randint(rng, (n,), 0, high)
 
-        observation = jnp.array(
-            [self._episodes[idx].observation for idx in indices]
-        ).astype(jnp.float32)
-        action = jnp.array([self._episodes[idx].action for idx in indices])
-        reward = jnp.array([self._episodes[idx].reward for idx in indices])
-        new_observation = jnp.array(
-            [self._episodes[idx].new_observation for idx in indices]
-        ).astype(jnp.float32)
-        return Transition(observation, action, reward, new_observation)
+        collate = lambda x: device_array(x, device=device)
+        obs = collate([self.trajectories[idx].observations for idx in indices])
+        actions = collate([self.trajectories[idx].actions for idx in indices])
+        rewards = collate([self.trajectories[idx].rewards for idx in indices])
+        discounts = collate([self.trajectories[idx].discounts for idx in indices])
+        # traces = collate([self.trajectories[idx].trace_decays for idx in indices])
+        return Trajectory(obs, actions, rewards, discounts)
+
+    def _reset(self):
+        self._t = 0
+        self._current = Trajectory(
+            observations=[None] * (self.n_steps + 1),
+            actions=[None] * self.n_steps,
+            rewards=[None] * self.n_steps,
+            discounts=[None] * self.n_steps,
+            trace_decays=[None] * self.n_steps,
+        )
 
 
-class OnlineBuffer(Sequence):
+class OnlineBuffer(IBuffer):
     """A replay buffer that stores a single n-step trajectory
     of experience.
     This type of buffer is most commonly used with online methods,
@@ -141,14 +190,15 @@ class OnlineBuffer(Sequence):
         #  private:
         self._reset()
 
-    def full(self):
+    def full(self) -> bool:
         return self._t == self.n_steps - 1
 
     def add(
         self,
         timestep: dm_env.TimeStep,
         action: int,
-        new_timestep: dm_env.TimeStep = None,
+        new_timestep: dm_env.TimeStep,
+        trace_decay: TraceDecay = 1.0,
         preprocess: Callable[[Observation], Observation] = lambda x: x,
     ) -> None:
         #  if buffer is full, prepare for new trajectory
@@ -161,7 +211,8 @@ class OnlineBuffer(Sequence):
         )
         self.trajectory.actions[self._t] = int(action)
         self.trajectory.rewards[self._t] = float(new_timestep.reward)
-        self.trajectory.gammas[self._t] = float(new_timestep.discount)
+        self.trajectory.discounts[self._t] = float(new_timestep.discount)
+        self.trajectory.trace_decays[self._t] = float(trace_decay)
         self._t += 1
 
         #  if we have enough transitions, add last obs and return
@@ -171,11 +222,11 @@ class OnlineBuffer(Sequence):
             )
             return
         #  if we do not have enough transitions, and can't sample more, retry
-        if new_timestep.last():
+        elif new_timestep.last():
             self._reset()
         return
 
-    def sample(self) -> Transition:
+    def sample(self) -> Trajectory:
         return self.trajectory
 
     def _reset(self):

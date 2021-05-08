@@ -1,12 +1,11 @@
-from typing import Any
+import gym
 import jax
 import jax.numpy as jnp
 from bsuite.utils.gym_wrapper import DMEnvFromGym
 from gym_minigrid.wrappers import *
 
-from ..typing import Size
 from ..image import greyscale, imresize
-from ..distributed import async
+from ..typing import Size
 
 
 def make(name):
@@ -38,4 +37,4 @@ def preprocess_minigrid(x, size: Size = (56, 56)):
     """Refer to the minigrid implementation at:
     https://github.com/maximecb/gym-minigrid
     """
-    return greyscale(imresize(x, size))
+    return imresize(x / 255, size=size, channel_first=False)

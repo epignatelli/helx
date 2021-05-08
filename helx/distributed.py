@@ -73,7 +73,7 @@ def redistribute_array(array):
     return distribute_array(gather_array(array))
 
 
-def async(f):
+def asynchronous(f):
     """Decorator to run a function asynchronously"""
 
     def run(*k, **kw):

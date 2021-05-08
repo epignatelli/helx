@@ -13,8 +13,8 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
 from .. import td, pg
-from ..buffer import OnlineBuffer, Trajectory, Transition
-from ..agent import Agent
+from ..buffer import OnlineBuffer, Trajectory
+from ..agent import IAgent
 
 
 class HParams(NamedTuple):
@@ -53,7 +53,7 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
     )
 
 
-class A2C(Agent):
+class A2C(IAgent):
     """Synchronous on-policy, online actor-critic algorithm
     with n-step advantage baseline.
     See:
@@ -114,7 +114,7 @@ class A2C(Agent):
     def sgd_step(
         iteration: int,
         opt_state: OptimizerState,
-        transition: Transition,
+        transition: Trajectory,
     ) -> Tuple[Loss, OptimizerState]:
         params = A2C.optimiser.params(opt_state)
         backward = jax.value_and_grad(A2C.loss, argnums=2)

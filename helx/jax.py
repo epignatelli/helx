@@ -30,12 +30,11 @@ def pure(fun, **kwargs):
     """
     f_jit = jax.jit(fun, **kwargs)
 
+    #  the actual computation tu run
     def wrapper(*a, **k):
         return f_jit(*a, **k)
 
-    # set batched version
-    cls = fun.__globals__[fun.__qualname__.split(".")[0]]
-    setattr(cls, fun.__name__ + "_batch", staticmethod(jax.vmap(fun)))
+    #  staticmethod does not pass the `self` argument when wrapper is called
     return staticmethod(wrapper)
 
 
@@ -66,3 +65,8 @@ def fori_scan(start, stop, body_fun, init, reversed=False):
         reversed, lambda _: jnp.flip(indices), lambda _: indices, operand=None
     )
     return jax.lax.scan(f, init, xs=indices)[1]
+
+
+def device_array(numpy_array, device, *args, **kwargs):
+    """Creates a DeviceArray directly on a specified device"""
+    return jnp.array(jax.device_put(numpy_array, device), *args, **kwargs)

@@ -1,54 +1,44 @@
 import abc
-from typing import Tuple
 
 import dm_env
-import jax
-from bsuite.baselines import base
-from helx.rl.buffer import Transition
-from jax.experimental.optimizers import OptimizerState
 
-from ..jax import pure
 from ..nn.module import Module
 from ..optimise.optimisers import Optimiser
-from ..typing import HParams, Loss, Params, Reward
+from ..typing import Action, HParams, Loss
 
 
-class Agent(base.Agent):
+class IAgent:
     network: Module
     optimiser: Optimiser
     hparams: HParams
 
     def __init__(self, network, optimiser, hparams):
-        Agent.network = network
-        Agent.optimiser = optimiser
-        Agent.hparams = hparams
+        IAgent.network = network
+        IAgent.optimiser = optimiser
+        IAgent.hparams = hparams
         self._iteration = 0
 
     @abc.abstractmethod
     def observe(
         self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
-    ) -> Transition:
+    ) -> dm_env.TimeStep:
         """The agent's observation function defines how  it interacts with the enviroment"""
-
-    @abc.abstractmethod
-    def loss(params: Params, transition: Transition, hparams: HParams) -> Loss:
-        """Specifies the loss function to be minimised by some flavour of SGD"""
 
     @abc.abstractmethod
     def policy(self, timestep: dm_env.TimeStep) -> int:
         """The agent's policy function that maps an observation to an action"""
 
-    @pure
-    def sgd_step(
-        iteration: int,
-        opt_state: OptimizerState,
-        transition: Transition,
-    ) -> Tuple[Loss, OptimizerState]:
-        """Performs a gradient descent step"""
-        params = Agent.optimiser.params(opt_state)
-        backward = jax.value_and_grad(Agent.loss, argnums=2)
-        error, grads = backward(Agent.network, params, transition)
-        return error, Agent.optimiser.update(iteration, grads, opt_state)
+    @abc.abstractmethod
+    def update(
+        self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
+    ) -> float:
+        """The agent's policy function that maps an observation to an action"""
 
-    def log(self, reward: Reward, loss: Loss):
-        return
+    def log(
+        self,
+        timestep: dm_env.TimeStep,
+        action: Action,
+        new_timestep: dm_env.TimeStep,
+        loss: Loss = None,
+    ):
+        pass

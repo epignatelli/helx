@@ -13,8 +13,8 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Loss, Params, Size
 from .. import td, pg
-from ..buffer import Traj, Trajectory, TrajectoryectoTrajectory
-from ..agent import Agent
+from ..buffer import Trajectory
+from ..agent import IAgent
 
 
 class HParams(NamedTuple):
@@ -55,7 +55,7 @@ def Cnn(n_actions: int, hidden_size: int = 512) -> Module:
     )
 
 
-class Ppo(Agent):
+class Ppo(IAgent):
     """Proximal Policy Optiomisation algorithm.
     See:
     Schulman, J., 2017, https://arxiv.org/abs/1707.06347.

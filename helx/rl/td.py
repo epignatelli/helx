@@ -5,31 +5,39 @@ import jax.numpy as jnp
 
 from ..typing import Value, Return
 from ..jax import fori_scan
-from .buffer import Trajectory, Transition
+from .buffer import Trajectory
 
 
-def nstep_return(transition: Transition, value: Value) -> Return:
+def nstep_return(trajectory: Trajectory, value: Value) -> Return:
     """n-step return as of:
     Sutton R., Barto. G., 2018, http://incompleteideas.net/book/RLbook2020.pdf
     """
-    body_fun = lambda x, i: x * transition.gamma ** i
-    n, init = len(transition.r_0), transition.r_0[0]
-    return jax.lax.fori_loop(0, n - 1, body_fun, init) + value * transition.gamma ** n
-
-
-def nstep_returns(transition: Transition, value: Value) -> Return:
-    """n-step return as of:
-    Sutton R., Barto. G., 2018, http://incompleteideas.net/book/RLbook2020.pdf
-    """
-    body_fun = lambda x, i: x * transition.gamma ** i
-    n, init = len(transition.r_0), transition.r_0[0]
+    body_fun = (
+        lambda i, g: trajectory.rewards[-i - 1] + trajectory.discounts[-i - 1] * g
+    )
+    n, init = len(trajectory.rewards), jnp.zeros_like(trajectory.rewards)
     return (
-        jax.lax.scan(body_fun, 0, n - 1, body_fun, init) + value * transition.gamma ** n
+        jax.lax.fori_loop(0, n - 1, body_fun, init)
+        + value * trajectory.discounts[0] ** n
+    )
+
+
+def nstep_returns(trajectory: Trajectory, value: Value) -> Return:
+    """n-step return as of:
+    Sutton R., Barto. G., 2018, http://incompleteideas.net/book/RLbook2020.pdf
+    """
+    body_fun = lambda i, x: x * trajectory.discounts[i] ** i
+    n, init = len(trajectory.rewards), trajectory.rewards[-1] * 0.0
+    return (
+        fori_scan(body_fun, 0, n - 1, body_fun, init)
+        + value * trajectory.discounts[-1] ** n
     )
 
 
 def _lambda_return_t(t, v, i, g):
-    return t.rewards[i] + t.gammas[i] * (t.lambdas[i] * g + (1 - t.lambdas[i]) * v[i])
+    return t.rewards[i] + t.discounts[i] * (
+        t.trace_decays[i] * g + (1 - t.trace_decays[i]) * v[i]
+    )
 
 
 def lambda_return(trajectory: Trajectory, values: Value) -> jnp.ndarray:

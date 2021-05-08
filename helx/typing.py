@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar
+from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, Union
 
 import jax.numpy as jnp
 
@@ -14,7 +14,7 @@ Init = Callable[[Key, Shape], Tuple[Shape, Params]]
 # Error: TypeVar bound type cannot be generic.
 Apply = Callable[[Params, jnp.ndarray, Dict], jnp.ndarray]
 HParams = TypeVar("HParams", bound=NamedTuple)
-Batch = TypeVar("Batch", bound=jnp.ndarray)
+Batch = Union
 
 State = TypeVar("State", bound=jnp.ndarray)
 Observation = TypeVar("Observation", bound=jnp.ndarray)
