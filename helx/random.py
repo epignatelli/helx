@@ -23,7 +23,8 @@ def shuffled_batched_indices(
     return shuffled_batched
 
 
-def PRNGSequence(seed: int, num=1) -> Key:
+def PRNGSequence(seed: int) -> Key:
     k = jax.random.PRNGKey(seed)
     while True:
-        yield jax.random.split(k, num)[1:]
+        rng, k = jax.random.split(k)
+        yield rng

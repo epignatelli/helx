@@ -15,6 +15,7 @@ from ...typing import Action, Loss, Observation, Params, Shape
 from .. import td
 from ..buffer import OfflineBuffer, Trajectory
 from ..agent import IAgent
+from ...random import PRNGSequence
 
 
 class HParams(NamedTuple):
@@ -64,7 +65,7 @@ class Dqn(IAgent):
         self.obs_shape = obs_shape
         self.epsilon = hparams.initial_exploration
         self.replay_buffer = OfflineBuffer(hparams.replay_memory_size)
-        self.rng = jax.random.PRNGKey(seed)
+        self.rng = PRNGSequence(seed)
         self.preprocess = preprocess
         network = Cnn(n_actions, hidden_size=hparams.hidden_size)
         optimiser = Optimiser(
@@ -127,22 +128,22 @@ class Dqn(IAgent):
                 timestep, action, new_timestep, preprocess=self.preprocess
             )
             timestep = new_timestep
-        return env, timestep
+        return timestep
 
     def policy(
         self,
         timestep: dm_env.TimeStep,
     ) -> int:
         """Selects an action using an e-greedy policy"""
-        # use random policy with epsilon probability
-        if jax.random.uniform(self.rng, (1,)) < self.epsilon:
-            return jax.random.randint(self.rng, (1,), 0, self.n_actions)
+        k = next(self.rng)
+        #  use random policy with epsilon probability
+        if jax.random.uniform(k, (1,)) < self.epsilon:
+            return jax.random.randint(k, (1,), 0, self.n_actions)
 
-        # otherwise, use greedy policy
+        #  use greedy policy otherwise
         state = timestep.observation[None, ...]  # batching
         q_values = self.forward(self._online_params, state)
         action = jnp.argmax(q_values)
-        print(action)
         return int(action)
 
     def update(
@@ -152,7 +153,7 @@ class Dqn(IAgent):
         new_timestep: dm_env.TimeStep,
     ) -> float:
         """Dqn uses a replay buffer. The three inputs
-        `timestep`, `action` and `new_timestep` are ignored."""
+        `timestep`, `action` and `new_timesdtep` are ignored."""
         # increment iteration
         self._iteration += 1
 

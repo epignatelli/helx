@@ -18,16 +18,17 @@ def run(
     )
     for episode in range(num_episodes):
         print(
-            "Starting episode number {}/{}\t\t\t".format(episode, num_episodes - 1),
+            "Episode {}/{}\t\t\t".format(episode, num_episodes - 1),
             end="\r",
         )
         #  initialise environment
         timestep = env.reset()
+        i = 0
         while not timestep.last():
             #  apply policy
             action = agent.policy(timestep)
             #  observe new state
-            env, new_timestep = agent.observe(env, timestep, action)
+            new_timestep = agent.observe(env, timestep, action)
             #  update policy
             loss = None
             if not eval:
@@ -36,4 +37,7 @@ def run(
             agent.log(timestep, action, new_timestep, loss)
             # prepare next iteration
             timestep = new_timestep
+            if timestep.last():
+                print("Episode terminated after {} timesteps".format(i))
+            i += 1
     return agent
