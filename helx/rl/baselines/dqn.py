@@ -4,8 +4,8 @@ import dm_env
 import jax
 import jax.numpy as jnp
 import wandb
-from dm_env import Environment, TimeStep, specs
-from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
+from dm_env import Environment, TimeStep
+from jax.experimental.optimizers import OptimizerState, rmsprop_momentum, sgd
 from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 
 from ...jax import pure
@@ -63,8 +63,7 @@ class Dqn(IAgent):
         # public:
         self.n_actions = n_actions
         self.obs_shape = obs_shape
-        self.epsilon = hparams.initial_exploration
-        self.replay_buffer = OfflineBuffer(hparams.replay_memory_size)
+        self.memory = OfflineBuffer(hparams.replay_memory_size)
         self.rng = PRNGSequence(seed)
         self.preprocess = preprocess
         network = Cnn(n_actions, hidden_size=hparams.hidden_size)
@@ -79,8 +78,9 @@ class Dqn(IAgent):
         super().__init__(network, optimiser, hparams)
 
         # private:
-        _, params_target = self.network.init(self.rng, (-1, *obs_shape))
-        _, params_online = self.network.init(self.rng, (-1, *obs_shape))
+        k = next(self.rng)
+        _, params_target = self.network.init(k, (-1, *obs_shape))
+        _, params_online = self.network.init(k, (-1, *obs_shape))
         self._opt_state = self.optimiser.init(params_online)
         self._params_target = params_target
 
@@ -110,13 +110,15 @@ class Dqn(IAgent):
         error, gradients = backward(params_target, params_online, transition)
         return error, Dqn.optimiser.update(iteration, gradients, opt_state)
 
-    def anneal_epsilon(self):
+    def epsilon(self):
         x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
         x1 = self.hparams.final_exploration_frame
         y1 = self.hparams.final_exploration
         x = self._iteration
         y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
-        return y
+        return jnp.clip(
+            y, self.hparams.final_exploration, self.hparams.initial_exploration
+        )
 
     def observe(self, env: Environment, timestep: TimeStep, action: int) -> Trajectory:
         #  iterate over the number of steps
@@ -124,9 +126,7 @@ class Dqn(IAgent):
             #  get new MDP state
             new_timestep = env.step(action)
             #  store transition into the replay buffer
-            self.replay_buffer.add(
-                timestep, action, new_timestep, preprocess=self.preprocess
-            )
+            self.memory.add(timestep, action, new_timestep, preprocess=self.preprocess)
             timestep = new_timestep
         return timestep
 
@@ -137,12 +137,13 @@ class Dqn(IAgent):
         """Selects an action using an e-greedy policy"""
         k = next(self.rng)
         #  use random policy with epsilon probability
-        if jax.random.uniform(k, (1,)) < self.epsilon:
+        if jax.random.uniform(k, (1,)) < self.epsilon():
             return jax.random.randint(k, (1,), 0, self.n_actions)
 
         #  use greedy policy otherwise
-        state = timestep.observation[None, ...]  # batching
-        q_values = self.forward(self._online_params, state)
+        params = self.optimiser.params(self._opt_state)
+        obs = self.preprocess(timestep.observation)[None, ...]  # batching
+        q_values = self.network.apply(params, obs)
         action = jnp.argmax(q_values)
         return int(action)
 
@@ -158,14 +159,11 @@ class Dqn(IAgent):
         self._iteration += 1
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
-        if len(self.replay_buffer) < self.hparams.replay_start:
+        if len(self.memory) < self.hparams.replay_start:
             return None
 
-        # the exploration parameter is linearly interpolated to the end value
-        self.epsilon = self.anneal_epsilon()
-
         # update the online parameters
-        transition = self.replay_buffer.sample(self.hparams.batch_size)
+        transition = self.memory.sample(self.hparams.batch_size)
         loss, opt_state = self.sgd_step(
             self._iteration,
             self._params_target,
@@ -186,13 +184,18 @@ class Dqn(IAgent):
         action: Action,
         new_timestep: TimeStep,
         loss: Loss = None,
+        log_frequency: int = 1,
     ):
+        if self._iteration % log_frequency:
+            return
         wandb.log({"Iteration": float(self._iteration)})
-        wandb.log({"Buffer size": len(self.replay_buffer)})
-        wandb.log({"Epsilon": self.epsilon})
-        wandb.log({"Observation": wandb.Image(timestep.observation)})
         wandb.log({"Action": int(action)})
         wandb.log({"Reward": float(new_timestep.reward)})
+        if self._iteration % 100 == 0:
+            wandb.log({"Observation": wandb.Image(timestep.observation)})
         if loss is not None:
             wandb.log({"Loss": float(loss)})
+
+        wandb.log({"Buffer size": len(self.memory)})
+        wandb.log({"Epsilon": float(self.epsilon())})
         return

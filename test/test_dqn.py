@@ -18,8 +18,8 @@ def test_dqn():
     hparams = baselines.dqn.HParams(
         replay_memory_size=5000, replay_start=5000, batch_size=32
     )
-    wandb.init()
     dqn = baselines.dqn.Dqn((56, 56, 3), env.action_spec().num_values, hparams)
+    dqn.log = lambda x, y, z, u, v: None
     helx.rl.run.run(dqn, env, 1000000)
 
 

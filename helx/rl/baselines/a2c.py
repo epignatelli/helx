@@ -4,14 +4,14 @@ import dm_env
 import jax
 import jax.numpy as jnp
 import wandb
-from dm_env import specs
+from dm_env import TimeStep, specs
 from jax.experimental import stax
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
 from ...jax import pure
 from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
-from ...typing import Loss, Params, Size
+from ...typing import Action, Loss, Params, Size
 from .. import td, pg
 from ..buffer import OnlineBuffer, Trajectory
 from ..agent import IAgent
@@ -76,7 +76,7 @@ class A2C(IAgent):
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
-        self.buffer = OnlineBuffer(1, hparams.seed)
+        self.memory = OnlineBuffer(1, hparams.seed)
         self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(
@@ -121,6 +121,18 @@ class A2C(IAgent):
         error, grads = backward(A2C.network, params, transition)
         return error, A2C.optimiser.update(iteration, grads, opt_state)
 
+    def observe(
+        self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
+    ) -> dm_env.TimeStep:
+        #  iterate over the number of steps
+        for t in range(self.hparams.n_steps):
+            #  get new MDP state
+            new_timestep = env.step(action)
+            #  store transition into the replay buffer
+            self.memory.add(timestep, action, new_timestep, preprocess=self.preprocess)
+            timestep = new_timestep
+        return timestep
+
     def policy(self, timestep: dm_env.TimeStep) -> int:
         """Selects an action using a softmax policy"""
         params = self.optimiser.params(self._opt_state)
@@ -131,19 +143,28 @@ class A2C(IAgent):
     def update(
         self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
     ) -> None:
-        self.buffer.add(timestep, action, new_timestep, self.preprocess)
 
         loss = None
-        if self.buffer.full():
-            transition = self.buffer.sample(self.hparams.batch_size)
+        if self.memory.full():
+            transition = self.memory.sample(self.hparams.batch_size)
             loss, self.opt_state = self.sgd_step(
                 self.network, self.optimiser, transition
             )
         return loss
 
-    def log(self, reward: float, loss: Loss):
+    def log(
+        self,
+        timestep: TimeStep,
+        action: Action,
+        new_timestep: TimeStep,
+        loss: Loss = None,
+        log_frequency: int = 1,
+    ):
         wandb.log({"Iteration": float(self._iteration)})
-        wandb.log({"Reward": reward})
+        wandb.log({"Action": int(action)})
+        wandb.log({"Reward": float(new_timestep.reward)})
+        if self._iteration % 100 == 0:
+            wandb.log({"Observation": wandb.Image(timestep.observation)})
         if loss is not None:
             wandb.log({"Loss": float(loss)})
         return

@@ -1,10 +1,12 @@
+import jax
+from helx.jax import batch
 import helx
 from helx.rl import baselines, environment
 import wandb
-from absl import flags
+from absl import app, flags
 
 
-if __name__ == "__main__":
+def main(argv):
     flags.DEFINE_string(
         "env",
         "MiniGrid-Empty-6x6-v0",
@@ -32,12 +34,12 @@ if __name__ == "__main__":
     )
     flags.DEFINE_integer(
         "replay_memory_size",
-        1000000,
+        5000,
         "SGD updates are sampled from this number of most recent frames",
     )
     flags.DEFINE_integer(
         "agent_history_length",
-        4,
+        1,
         "The number of most recent frames experienced by the agent that are given as  input to the Q network",
     )
     flags.DEFINE_integer(
@@ -97,7 +99,7 @@ if __name__ == "__main__":
     )
     flags.DEFINE_integer(
         "replay_start",
-        50000,
+        5000,
         "A uniform random policy is run for this number of frames before learning starts and the resulting experience is used to populate the replay memory",
     )
     flags.DEFINE_integer(
@@ -117,14 +119,21 @@ if __name__ == "__main__":
     )
 
     FLAGS = flags.FLAGS
-    hparams = baselines.dqn.HParams(**FLAGS)
-
-    env = environment.make_minigrid("MiniGrid-Empty-6x6-v0")
     hparams = baselines.dqn.HParams(
-        replay_memory_size=FLAGS.replay_memory_size,
-        replay_start=FLAGS.replay_start,
-        batch_size=FLAGS.batch_size,
+        replay_memory_size=5000,
+        replay_start=5000,
+        batch_size=32,
+        final_exploration_frame=100000,
     )
+
     wandb.init()
-    dqn = baselines.dqn.Dqn((56, 56, 3), env.action_spec().num_values, hparams)
-    helx.rl.run.run(dqn, env, 1000000)
+    env = environment.make_minigrid("MiniGrid-Empty-6x6-v0")
+    preprocess = jax.jit(lambda x: x / 255, backend="cpu")
+    dqn = baselines.dqn.Dqn(
+        (56, 56, 3), env.action_spec().num_values, hparams, preprocess=preprocess
+    )
+    return dqn.run(env, 1000000)
+
+
+if __name__ == "__main__":
+    app.run(main)

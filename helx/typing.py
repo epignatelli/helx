@@ -13,8 +13,8 @@ Init = Callable[[Key, Shape], Tuple[Shape, Params]]
 # Apply = TypeVar("Apply", Callable[[Params, jnp.ndarray, Dict], jnp.ndarray])
 # Error: TypeVar bound type cannot be generic.
 Apply = Callable[[Params, jnp.ndarray, Dict], jnp.ndarray]
-HParams = TypeVar("HParams", bound=NamedTuple)
 Batch = Union
+HParams = NamedTuple
 
 State = TypeVar("State", bound=jnp.ndarray)
 Observation = TypeVar("Observation", bound=jnp.ndarray)
