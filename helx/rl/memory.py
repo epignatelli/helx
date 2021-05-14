@@ -1,7 +1,7 @@
 import abc
 import logging
 from collections import deque
-from typing import Callable, NamedTuple, Sequence
+from typing import Callable, NamedTuple,
 
 import dm_env
 import jax
@@ -14,7 +14,7 @@ from ..typing import Action, Batch, Discount, Key, Observation, Reward, TraceDec
 
 
 class Transition(NamedTuple):
-    """A (s, a, r, s', a', γ, λ) transition wiht discount and lambda factors"""
+    """A (s, a, r, s', a', γ, λ) transition with discount and lambda factors"""
 
     s: Observation  #  observation at t=0
     a: Action  #  actions at t=0
