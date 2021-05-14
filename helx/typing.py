@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, _SpecialForm
+from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar
 
 import jax.numpy as jnp
 
@@ -15,7 +15,7 @@ Init = Callable[[Key, Shape], Tuple[Shape, Params]]
 Apply = Callable[[Params, jnp.ndarray, Dict], jnp.ndarray]
 
 HParams = TypeVar("HParams", bound=NamedTuple)
-Batch = _SpecialForm("Batch")
+Batch = Union
 
 State = TypeVar("State", bound=jnp.ndarray)
 Observation = TypeVar("Observation", bound=jnp.ndarray)
