@@ -1,7 +1,7 @@
 import abc
 import logging
 from collections import deque
-from typing import Callable, NamedTuple,
+from typing import Callable, NamedTuple
 
 import dm_env
 import jax
@@ -12,6 +12,7 @@ from jaxlib.xla_extension import Device
 from ..jax import device_array
 from ..typing import Action, Batch, Discount, Key, Observation, Reward, TraceDecay
 from ..random import PRNGSequence
+
 
 class Transition(NamedTuple):
     """A (s, a, r, s', a', γ, λ) transition with discount and lambda factors"""
@@ -241,11 +242,11 @@ class OnlineBuffer(IBuffer):
 
 
 class EpisodicMemory(IBuffer):
-    def __init__(self, seed: int=0):
+    def __init__(self, seed: int = 0):
         #  public:
         self.states = []
 
-        # private:
+        #  private:
         self._terminal = False
         self._rng = PRNGSequence(seed)
         self._reset()
@@ -259,16 +260,22 @@ class EpisodicMemory(IBuffer):
     def full(self) -> bool:
         return self._terminal
 
-    def add(self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep, preprocess: Callable = lambda x: x) -> None:
+    def add(
+        self,
+        timestep: dm_env.TimeStep,
+        action: int,
+        new_timestep: dm_env.TimeStep,
+        preprocess: Callable = lambda x: x,
+    ) -> None:
         #  if buffer is full, prepare for new trajectory
         if self.full():
             self._reset()
 
-        # collect experience
+        #  collect experience
         self.states.append(preprocess(timestep.observation))
         self._terminal = new_timestep.last()
 
-        #  if transition is terminal, append last state
+        #   if transition is terminal, append last state
         if self.full():
             self.states.append(preprocess(new_timestep.observation))
         return
