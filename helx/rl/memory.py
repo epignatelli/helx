@@ -11,7 +11,7 @@ from jaxlib.xla_extension import Device
 
 from ..jax import device_array
 from ..typing import Action, Batch, Discount, Key, Observation, Reward, TraceDecay
-
+from ..random import PRNGSequence
 
 class Transition(NamedTuple):
     """A (s, a, r, s', a', γ, λ) transition with discount and lambda factors"""
@@ -220,7 +220,6 @@ class OnlineBuffer(IBuffer):
             self.trajectory.observations[self._t] = preprocess(
                 jnp.array(new_timestep.observation, dtype=jnp.float32)
             )
-            return
         #  if we do not have enough transitions, and can't sample more, retry
         elif new_timestep.last():
             self._reset()
@@ -239,3 +238,46 @@ class OnlineBuffer(IBuffer):
             trace_decays=jnp.empty(self.n_steps, 1),
         )
         return
+
+
+class EpisodicMemory(IBuffer):
+    def __init__(self, seed: int=0):
+        #  public:
+        self.states = []
+
+        # private:
+        self._terminal = False
+        self._rng = PRNGSequence(seed)
+        self._reset()
+
+    def __len__(self):
+        return len(self.states)
+
+    def __getitem__(self, idx):
+        return self.states[idx]
+
+    def full(self) -> bool:
+        return self._terminal
+
+    def add(self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep, preprocess: Callable = lambda x: x) -> None:
+        #  if buffer is full, prepare for new trajectory
+        if self.full():
+            self._reset()
+
+        # collect experience
+        self.states.append(preprocess(timestep.observation))
+        self._terminal = new_timestep.last()
+
+        #  if transition is terminal, append last state
+        if self.full():
+            self.states.append(preprocess(new_timestep.observation))
+        return
+
+    def sample(self, n: int, rng: Key) -> Trajectory:
+        key = next(self._rng)
+        indices = jax.random.randint(key, (n,), 0, len(self))
+        return [self.states[idx] for idx in indices]
+
+    def _reset(self):
+        self._terminal = False
+        self.states = []
