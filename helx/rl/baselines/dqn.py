@@ -13,7 +13,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Action, Loss, Observation, Params, Shape
 from .. import td
-from ..buffer import OfflineBuffer, Trajectory
+from ..memory import OfflineBuffer, Trajectory
 from ..agent import IAgent
 from ...random import PRNGSequence
 

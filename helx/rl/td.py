@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 from ..typing import Value, Return
 from ..jax import fori_scan
-from .buffer import Trajectory
+from .memory import Trajectory
 
 
 def nstep_return(trajectory: Trajectory, value: Value) -> Return:

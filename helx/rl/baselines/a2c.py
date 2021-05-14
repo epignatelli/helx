@@ -13,7 +13,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Action, Loss, Params, Size
 from .. import td, pg
-from ..buffer import OnlineBuffer, Trajectory
+from ..memory import OnlineBuffer, Trajectory
 from ..agent import IAgent
 
 
