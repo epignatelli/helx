@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, _SpecialForm
 
 import jax.numpy as jnp
 
@@ -8,13 +8,14 @@ Shape = TypeVar("Shape", bound=Tuple[int, ...])
 Size = TypeVar("Size", bound=Tuple[int, int])
 Params = TypeVar("Params", bound=Any)
 # Init = TypeVar("Init", Callable[[Key, Shape], Tuple[Shape, Params]])
-# Error: TypeVar bound type cannot be generic. TODO(ep): add when generics are supported
+# TODO(ep) Error: TypeVar bound type cannot be generic. TODO(ep): add when generics are supported
 Init = Callable[[Key, Shape], Tuple[Shape, Params]]
 # Apply = TypeVar("Apply", Callable[[Params, jnp.ndarray, Dict], jnp.ndarray])
-# Error: TypeVar bound type cannot be generic.
+# TODO(ep) Error: TypeVar bound type cannot be generic.
 Apply = Callable[[Params, jnp.ndarray, Dict], jnp.ndarray]
-Batch = Union
-HParams = NamedTuple
+
+HParams = TypeVar("HParams", bound=NamedTuple)
+Batch = _SpecialForm("Batch")
 
 State = TypeVar("State", bound=jnp.ndarray)
 Observation = TypeVar("Observation", bound=jnp.ndarray)
