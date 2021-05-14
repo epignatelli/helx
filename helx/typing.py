@@ -1,5 +1,5 @@
 import functools
-from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar
+from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, Union
 
 import jax.numpy as jnp
 
