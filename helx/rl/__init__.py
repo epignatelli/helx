@@ -1,6 +1,6 @@
 from . import (
     agent,
-    buffer,
+    memory,
     environment,
     pg,
     td,
