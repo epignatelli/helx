@@ -1,9 +1,7 @@
-import helx
 from helx.rl import baselines
 import gym
 from gym_minigrid.wrappers import RGBImgPartialObsWrapper, ImgObsWrapper
 from bsuite.utils.gym_wrapper import DMEnvFromGym
-import wandb
 
 
 def test_dqn():
@@ -20,7 +18,7 @@ def test_dqn():
     )
     dqn = baselines.dqn.Dqn((56, 56, 3), env.action_spec().num_values, hparams)
     dqn.log = lambda x, y, z, u, v: None
-    helx.rl.run.run(dqn, env, 1000000)
+    dqn.run(env, 1000000)
 
 
 if __name__ == "__main__":

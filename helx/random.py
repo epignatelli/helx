@@ -13,7 +13,7 @@ def shuffled_batched_indices(
     if isinstance(stream_len, list):
         #  stream_len is a sequence of indices already, or a list of objects
         stream_len = len(stream_len)
-    shuffled = jax.random.shuffle(rng, jnp.arange(0, stream_len))
+    shuffled = jax.random.permutation(rng, jnp.arange(0, stream_len))
     shuffled_batched = jnp.array_split(
         shuffled,
         jnp.arange(batch_size, stream_len, batch_size),
