@@ -226,7 +226,7 @@ class OnlineBuffer(IBuffer):
             self._reset()
         return
 
-    def sample(self) -> Trajectory:
+    def sample(self, n: int = 1, rng: Key = None) -> Trajectory:
         return self.trajectory
 
     def _reset(self):
@@ -280,7 +280,7 @@ class EpisodicMemory(IBuffer):
             self.states.append(preprocess(new_timestep.observation))
         return
 
-    def sample(self, n: int, rng: Key) -> Trajectory:
+    def sample(self, n: int, rng: Key = None) -> Trajectory:
         key = next(self._rng)
         indices = jax.random.randint(key, (n,), 0, len(self))
         return [self.states[idx] for idx in indices]
