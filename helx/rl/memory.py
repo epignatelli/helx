@@ -66,7 +66,7 @@ class IBuffer(abc.ABC):
         raise NotImplementedError
 
 
-class OfflineBuffer(IBuffer):
+class ReplayBuffer(IBuffer):
     """A replay buffer used for Experience Replay (ER):
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
     This type of buffer is usually used

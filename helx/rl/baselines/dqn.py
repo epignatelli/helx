@@ -13,7 +13,7 @@ from ...nn.module import Module, module
 from ...optimise.optimisers import Optimiser
 from ...typing import Action, Loss, Observation, Params, Shape
 from .. import td
-from ..memory import OfflineBuffer, Trajectory
+from ..memory import ReplayBuffer, Trajectory
 from ..agent import IAgent
 from ...random import PRNGSequence
 
@@ -63,7 +63,7 @@ class Dqn(IAgent):
         # public:
         self.n_actions = n_actions
         self.obs_shape = obs_shape
-        self.memory = OfflineBuffer(hparams.replay_memory_size)
+        self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.rng = PRNGSequence(seed)
         self.preprocess = preprocess
         network = Cnn(n_actions, hidden_size=hparams.hidden_size)
