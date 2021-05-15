@@ -13,10 +13,17 @@ class IAgent:
     optimiser: Optimiser
     hparams: HParams
 
-    def __init__(self, network, optimiser, hparams):
+    def __init__(
+        self,
+        network: Module,
+        optimiser: Optimiser,
+        hparams: HParams,
+        logging: bool = False,
+    ):
         IAgent.network = network
         IAgent.optimiser = optimiser
         IAgent.hparams = hparams
+        self.logging = logging
         self._iteration = 0
 
     @abc.abstractmethod
@@ -35,14 +42,16 @@ class IAgent:
     ) -> float:
         """The agent's policy function that maps an observation to an action"""
 
+    @abc.abstractmethod
     def log(
         self,
         timestep: dm_env.TimeStep,
         action: Action,
         new_timestep: dm_env.TimeStep,
         loss: Loss = None,
+        log_frequency: int = 1,
     ):
-        pass
+        """Logging function """
 
     def run(
         self,
@@ -66,20 +75,25 @@ class IAgent:
                 end="\r",
             )
             #  initialise environment
-            timestep = env.reset()
             episode_reward = 0.0
+            timestep = env.reset()
             while not timestep.last():
                 #  apply policy
                 action = self.policy(timestep)
                 #  observe new state
                 new_timestep = self.observe(env, timestep, action)
                 episode_reward += new_timestep.reward
+                print(
+                    "Episode reward {}\t\t".format(episode_reward),
+                    end="\r",
+                )
                 #  update policy
                 loss = None
                 if not eval:
                     loss = self.update(timestep, action, new_timestep)
                 #  log update
-                self.log(timestep, action, new_timestep, loss)
+                if self.logging:
+                    self.log(timestep, action, new_timestep, loss)
                 # prepare next iteration
                 timestep = new_timestep
         return loss

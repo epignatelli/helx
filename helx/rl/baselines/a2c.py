@@ -71,6 +71,7 @@ class A2C(IAgent):
         action_spec: specs.DiscreteArray,
         hparams: HParams,
         preprocess: Callable = lambda x: x,
+        logging: bool = False,
     ):
         # public:
         self.obs_spec = obs_spec
@@ -87,7 +88,7 @@ class A2C(IAgent):
                 eps=hparams.min_squared_gradient,
             )
         )
-        super().__init__(network, optimiser, hparams)
+        super().__init__(network, optimiser, hparams, logging)
 
         # private:
         _, params = self.network.init(self.rng, (-1, *obs_spec.shape))

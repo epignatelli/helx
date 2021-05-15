@@ -59,6 +59,7 @@ class Dqn(IAgent):
         hparams: HParams,
         seed: int = 0,
         preprocess: Callable[[Observation], Observation] = lambda x: x,
+        logging: bool = False,
     ):
         # public:
         self.n_actions = n_actions
@@ -75,7 +76,7 @@ class Dqn(IAgent):
                 eps=hparams.min_squared_gradient,
             )
         )
-        super().__init__(network, optimiser, hparams)
+        super().__init__(network, optimiser, hparams, logging)
 
         # private:
         k = next(self.rng)
