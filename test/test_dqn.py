@@ -1,7 +1,8 @@
-from helx.rl import baselines
 import gym
-from gym_minigrid.wrappers import RGBImgPartialObsWrapper, ImgObsWrapper
+import jax
 from bsuite.utils.gym_wrapper import DMEnvFromGym
+from gym_minigrid.wrappers import ImgObsWrapper, RGBImgPartialObsWrapper
+from helx.rl import baselines, environment
 
 
 def test_dqn():
@@ -12,12 +13,14 @@ def test_dqn():
         env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
         return env
 
-    env = make("MiniGrid-Empty-6x6-v0")
     hparams = baselines.dqn.HParams(
         replay_memory_size=5000, replay_start=5000, batch_size=32
     )
-    dqn = baselines.dqn.Dqn((56, 56, 3), env.action_spec().num_values, hparams)
-    dqn.run(env, 1000000)
+    env = environment.make_minigrid("MiniGrid-Empty-6x6-v0")
+    preprocess = jax.jit(lambda x: x / 255, backend="cpu")
+    dqn = baselines.dqn.Dqn(
+        (56, 56, 3), env.action_spec().num_values, hparams, preprocess=preprocess
+    )
 
 
 if __name__ == "__main__":
