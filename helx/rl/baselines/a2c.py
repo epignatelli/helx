@@ -5,16 +5,16 @@ import jax
 import jax.numpy as jnp
 import wandb
 from dm_env import TimeStep, specs
+from helx.jax import pure
+from helx.nn.module import Module, module
+from helx.optimise.optimisers import Optimiser
+from helx.typing import Action, Loss, Params, Size
 from jax.experimental import stax
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
-from ...jax import pure
-from ...nn.module import Module, module
-from ...optimise.optimisers import Optimiser
-from ...typing import Action, Loss, Params, Size
-from .. import td, pg
-from ..memory import OnlineBuffer, Trajectory
+from .. import pg, td
 from ..agent import IAgent
+from ..memory import OnlineBuffer, Trajectory
 
 
 class HParams(NamedTuple):
