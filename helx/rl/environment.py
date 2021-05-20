@@ -4,8 +4,8 @@ import jax.numpy as jnp
 from bsuite.utils.gym_wrapper import DMEnvFromGym
 from gym_minigrid.wrappers import *
 
-from ..image import greyscale, imresize
-from ..typing import Size
+from helx.image import greyscale, imresize
+from helx.typing import Size
 
 
 def make(name):

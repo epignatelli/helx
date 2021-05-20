@@ -3,8 +3,8 @@ from typing import Sequence
 import jax
 import jax.numpy as jnp
 
-from ..typing import Value, Return
-from ..jax import fori_scan
+from helx.typing import Value, Return
+from helx.jax import fori_scan
 from .memory import Trajectory
 
 

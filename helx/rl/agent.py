@@ -3,9 +3,9 @@ import logging
 
 import dm_env
 
-from ..nn.module import Module
-from ..optimise.optimisers import Optimiser
-from ..typing import Action, HParams, Loss
+from helx.nn.module import Module
+from helx.optimise.optimisers import Optimiser
+from helx.typing import Action, HParams, Loss
 
 
 class IAgent:

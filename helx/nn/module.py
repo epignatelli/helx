@@ -1,11 +1,10 @@
 import functools
-from typing import Callable, NamedTuple, Tuple
+from typing import Callable, NamedTuple
 
-import jax
 import jax.numpy as jnp
 
-from ..typing import Apply, Init, factory
-from ..distributed import distribute_tree
+from helx.typing import Apply, Init, factory
+from helx.distributed import distribute_tree
 
 
 InitState = Callable[[], jnp.ndarray]
