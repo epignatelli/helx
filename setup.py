@@ -10,12 +10,12 @@ def parse_requirements(filename):
 
 setup(
     name="Helx",
-    version="0.0.3.4",
+    version="0.0.3.5",
     description="Helx is a helper library for JAX/stax to implement \
                  Reinforcement Learning and Deep Learning algorithms",
     author="Eduardo Pignatelli",
     author_email="edu.pignatelli@gmail.com",
     url="https://github.com/epignatelli/helx",
-    packages=["helx"],
+    packages=["helx", "helx.nn", "helx.rl", "helx.optimise"],
     install_requires=parse_requirements("requirements.txt"),
 )
