@@ -16,6 +16,6 @@ setup(
     author="Eduardo Pignatelli",
     author_email="edu.pignatelli@gmail.com",
     url="https://github.com/epignatelli/helx",
-    packages=["helx", "helx.nn", "helx.rl", "helx.rl.baselinse", "helx.optimise"],
+    packages=["helx", "helx.nn", "helx.rl", "helx.rl.baselines", "helx.optimise"],
     install_requires=parse_requirements("requirements.txt"),
 )
