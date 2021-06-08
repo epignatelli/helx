@@ -1,6 +1,5 @@
 import functools
 from typing import Callable, NamedTuple
-from jax._src.numpy.lax_numpy import ndarray
 
 from jax.experimental.stax import serial, elementwise
 import jax.numpy as jnp
