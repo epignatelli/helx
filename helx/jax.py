@@ -1,3 +1,5 @@
+from functools import wraps
+
 import jax
 import jax.numpy as jnp
 
@@ -31,6 +33,7 @@ def pure(fun, **kwargs):
     f_jit = jax.jit(fun, **kwargs)
 
     #  the actual computation tu run
+    @wraps(fun)
     def wrapper(*a, **k):
         return f_jit(*a, **k)
 
