@@ -181,10 +181,12 @@ class OnlineBuffer(IBuffer):
         self,
         observation_spec: specs.Array,
         n_steps: int = 1,
+        batch_size: int = 1,
     ):
         #  public:
         self.observation_spec = observation_spec
         self.n_steps = n_steps
+        self.batch_size = batch_size
 
         #  private:
         self._reset()
@@ -208,10 +210,10 @@ class OnlineBuffer(IBuffer):
         self.trajectory.observations[self._t] = preprocess(
             jnp.array(timestep.observation, dtype=jnp.float32)
         )
-        self.trajectory.actions[self._t] = int(action)
-        self.trajectory.rewards[self._t] = float(new_timestep.reward)
-        self.trajectory.discounts[self._t] = float(new_timestep.discount)
-        self.trajectory.trace_decays[self._t] = float(trace_decay)
+        self.trajectory.actions[self._t] = action
+        self.trajectory.rewards[self._t] = new_timestep.reward
+        self.trajectory.discounts[self._t] = new_timestep.discount
+        self.trajectory.trace_decays[self._t] = trace_decay
         self._t += 1
 
         #  if we have enough transitions, add last obs and return
@@ -230,11 +232,13 @@ class OnlineBuffer(IBuffer):
     def _reset(self):
         self._t = 0
         self.trajectory = Trajectory(
-            observations=jnp.empty(self.n_steps + 1, *self.observation_spec.shape),
-            actions=jnp.empty(self.n_steps, 1),
-            rewards=jnp.empty(self.n_steps, 1),
-            discounts=jnp.empty(self.n_steps, 1),
-            trace_decays=jnp.empty(self.n_steps, 1),
+            observations=jnp.empty(
+                self.n_steps + 1, self.batch_size, *self.observation_spec.shape
+            ),
+            actions=jnp.empty(self.n_steps, self.batch_size, 1),
+            rewards=jnp.empty(self.n_steps, self.batch_size, 1),
+            discounts=jnp.empty(self.n_steps, self.batch_size, 1),
+            trace_decays=jnp.empty(self.n_steps, self.batch_size, 1),
         )
         return
 

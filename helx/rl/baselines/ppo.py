@@ -5,16 +5,16 @@ import jax
 import jax.numpy as jnp
 import wandb
 from dm_env import specs
+from helx.jax import pure
+from helx.nn.module import Module, module
+from helx.optimise.optimisers import Optimiser
+from helx.typing import Loss, Params, Size
 from jax.experimental import stax
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
-from ...jax import pure
-from ...nn.module import Module, module
-from ...optimise.optimisers import Optimiser
-from ...typing import Loss, Params, Size
-from .. import td, pg
-from ..memory import Trajectory
+from .. import pg, td
 from ..agent import IAgent
+from ..memory import OnlineBuffer, Trajectory
 
 
 class HParams(NamedTuple):
@@ -22,6 +22,7 @@ class HParams(NamedTuple):
     discount: float = 1.0
     trace_decay: float = 1.0
     n_steps: int = 1
+    n_actors: int = 32
     beta: float = 0.001
     epsilon: float = 0.2
     learning_rate: float = 0.001
@@ -73,6 +74,7 @@ class Ppo(IAgent):
         # public:
         self.obs_spec = obs_spec
         self.action_spec = action_spec
+        self.memory = OnlineBuffer(obs_spec, hparams.n_steps, hparams.n_actors)
         self.rng = jax.random.PRNGKey(hparams.seed)
         self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
@@ -119,18 +121,31 @@ class Ppo(IAgent):
         error, grads = backward(Ppo.network, params, trajectory, policy_old)
         return error, Ppo.optimiser.update(iteration, grads, opt_state)
 
-    def select_action(self, timestep: dm_env.TimeStep) -> int:
+    def params(self):
+        return self.optimiser.params(self._opt_state)
+
+    def observe(
+        self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
+    ) -> dm_env.TimeStep:
+        #  iterate over the number of steps
+        for t in range(self.hparams.n_steps):
+            #  get new MDP state
+            new_timestep = env.step(action)
+            #  store transition into the replay buffer
+            self.memory.add(timestep, action, new_timestep, preprocess=self.preprocess)
+            timestep = new_timestep
+        return timestep
+
+    def policy(self, timestep: dm_env.TimeStep) -> int:
         """Selects an action using a softmax policy"""
-        params = self.optimiser.params(self._opt_state)
-        logits, _ = self.network.apply(params, timestep.observation)
+        logits, _ = self.network.apply(self.params(), timestep.observation)
         action = jax.random.categorical(self.rng, logits).squeeze()  # on-policy action
         return int(action)
 
     def update(
         self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
     ) -> None:
-        self.buffer.add(timestep, action, new_timestep, self.preprocess)
-        trajectory = self.buffer.sample(self.hparams.batch_size)
+        trajectory = self.buffer.sample()
         loss, opt_state = self.sgd_step(self.network, self.optimiser, trajectory)
         return loss, opt_state
 

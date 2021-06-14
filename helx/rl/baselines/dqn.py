@@ -5,17 +5,17 @@ import jax
 import jax.numpy as jnp
 import wandb
 from dm_env import Environment, TimeStep
+from helx.jax import pure
+from helx.nn.module import Module, module
+from helx.optimise.optimisers import Optimiser
+from helx.random import PRNGSequence
+from helx.typing import Action, Loss, Observation, Params, Shape
 from jax.experimental.optimizers import OptimizerState, rmsprop_momentum, sgd
 from jax.experimental.stax import Conv, Dense, Flatten, Relu, serial
 
-from ...jax import pure
-from ...nn.module import Module, module
-from ...optimise.optimisers import Optimiser
-from ...typing import Action, Loss, Observation, Params, Shape
 from .. import td
-from ..memory import ReplayBuffer, Trajectory
 from ..agent import IAgent
-from ...random import PRNGSequence
+from ..memory import ReplayBuffer, Trajectory
 
 
 class HParams(NamedTuple):

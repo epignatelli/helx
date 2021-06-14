@@ -3,6 +3,7 @@ import logging
 from typing import Callable
 
 import dm_env
+from jax.experimental.optimizers import OptimizerState
 from helx.nn.module import Module
 from helx.optimise.optimisers import Optimiser
 from helx.typing import Action, HParams, Loss
@@ -14,6 +15,7 @@ class IAgent:
     network: Module
     optimiser: Optimiser
     hparams: HParams
+    opt_state: OptimizerState
 
     def __init__(
         self,
@@ -27,6 +29,9 @@ class IAgent:
         IAgent.hparams = hparams
         self.logging = logging
         self._iteration = 0
+
+    def params(self):
+        return self.optimiser()
 
     @abc.abstractmethod
     def observe(
