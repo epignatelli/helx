@@ -1,6 +1,7 @@
 import abc
 import logging
-from typing import Callable, Sequence
+from typing import Callable, NamedTuple, Sequence
+from multiprocessing import Process
 
 import dm_env
 import jax
@@ -56,7 +57,7 @@ class IAgent:
         loss: Loss = None,
         log_frequency: int = 1,
     ):
-        """Logging function """
+        """Logging function"""
 
     def run(
         self,
@@ -103,6 +104,45 @@ class IAgent:
                 timestep = new_timestep
         return loss
 
+    def run_distributed(
+        self,
+        env: dm_env.Environment,
+        n_actors: int = 1,
+        n_learners: int = 1,
+        num_episodes: int = 1000,
+        eval: bool = False,
+    ):
+        """Start the training routine of a Reinforcement Learning agent
+        using multiple instances of the environment to increase throughput"""
+
+        envs = ParallelEnv(env, n=n_actors)
+
+        def act(experience_buffer, policy_buffer):
+            pass
+
+        def learn(experience_buffer, policy_buffer):
+            pass
+
+        experience_buffer = None
+        policy_buffer = PolicyBuffer()
+
+        actors = Process(
+            target=act,
+            args=(experience_buffer, policy_buffer),
+            daemon=True,
+            name="actors",
+        )
+
+
+class PolicyBuffer(NamedTuple):
+    policy: Params = None
+
+    def get(self):
+        return self.policy
+
+    def put(self, policy):
+        self.policy = policy
+
 
 class Actor:
     def __init__(
@@ -133,8 +173,8 @@ class Actor:
         return self._device
 
     @property
-    def policy_distribution(self):
-        return self._policy_distribution
+    def probs(self):
+        return self._probs
 
     def update(self, params: Params):
         self.params = params
@@ -144,9 +184,9 @@ class Actor:
 
     def step(self, policy):
         #  apply policy
-        policy_distribution = policy(self.trajectory[-1].observation)
-        self._policy_distribution.append(policy_distribution)
-        action = jnp.argmax(policy_distribution, axis=-1)
+        probs = policy(self.trajectory[-1].observation)
+        self._probs.append(probs)
+        action = jnp.argmax(probs, axis=-1)
         #  step in the environment
         new_timestep = self.env.step(action)
         #  store experience
@@ -155,10 +195,3 @@ class Actor:
 
     def reset(self):
         return self.env.reset()
-
-
-class Learner:
-    def __init__(self) -> None:
-        self.experience_queue =
-
-    def update(self, trajectories: Batch[Sequence[dm_env.TimeStep]]):

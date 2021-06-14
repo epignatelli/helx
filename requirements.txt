@@ -5,3 +5,5 @@ bsuite
 gym
 gym-minigrid
 wandb
+jupyterlab
+black
