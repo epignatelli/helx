@@ -179,12 +179,10 @@ class OnlineBuffer(IBuffer):
 
     def __init__(
         self,
-        capacity: int,
         observation_spec: specs.Array,
         n_steps: int = 1,
     ):
         #  public:
-        self.capacity = capacity
         self.observation_spec = observation_spec
         self.n_steps = n_steps
 
