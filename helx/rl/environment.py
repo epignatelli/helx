@@ -79,7 +79,7 @@ def actor(server: Connection, client: Connection, env: dm_env.Environment):
         env.close()
 
 
-class ParallelEnv(dm_env.Environment):
+class MultiprocessEnv(dm_env.Environment):
     """
     This class adapts and simplifies openai's SubprocEnv to dm_env.Environment.
     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
@@ -188,7 +188,7 @@ if __name__ == "__main__":
     import gym
 
     env = make_minigrid("MiniGrid-Empty-5x5-v0")
-    env = ParallelEnv(env, 3)
+    env = MultiprocessEnv(env, 3)
     print(env.reset())
     for i in range(100):
         print(env.step([0, 0]))
