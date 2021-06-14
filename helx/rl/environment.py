@@ -1,4 +1,3 @@
-import contextlib
 from copy import deepcopy
 import multiprocessing as mp
 from multiprocessing.connection import Connection
@@ -49,27 +48,29 @@ def preprocess_minigrid(x, size: Size = (56, 56)):
 
 
 def actor(server: Connection, client: Connection, env: dm_env.Environment):
-    # close copy of server connection from client
+    def _step(env, data):
+        timestep = env.step(data)
+        if timestep.last():
+            timestep = env.reset()
+        return timestep
+
+    #  close copy of server connection from client process
+    #  see: https://stackoverflow.com/q/8594909/6655465
     server.close()
+    #  switch case command
     try:
         while True:
             if not client.poll():
                 continue
             cmd, data = client.recv()
             if cmd == "step":
-                timestep = env.step(data)
-                if timestep.last():
-                    timestep = env.reset()
-                client.send(timestep)
+                return _step(env, data)
             elif cmd == "reset":
-                timestep = env.reset()
-                client.send(timestep)
+                client.send(env.reset())
             elif cmd == "render":
-                img = env.render(mode="rgb_array")
-                client.send(img)
+                client.send(env.render(data))
             elif cmd == "close":
-                results = env.close()
-                client.send(results)
+                client.send(env.close())
                 break
             else:
                 raise NotImplementedError("Command {} is not implemented".format(cmd))
@@ -81,12 +82,12 @@ def actor(server: Connection, client: Connection, env: dm_env.Environment):
 
 class MultiprocessEnv(dm_env.Environment):
     """
-    This class adapts and simplifies openai's SubprocEnv to dm_env.Environment.
+    This class is inspired by openai's SubprocEnv.
     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
 
-    An environment that allows concurrent interactions to improve experience collection throughput.
+    An environment that allows concurrent interactions to improve experience collection throughput, as used in:
+    https://arxiv.org/abs/1602.01783, https://arxiv.org/abs/1802.01561 and https://arxiv.org/abs/1707.06347
     The class runs multiple subproceses and communicates with them via pipes.
-    Recommended to use when num_envs > 1 and step() can be a bottleneck.
     """
 
     def __init__(
@@ -122,11 +123,11 @@ class MultiprocessEnv(dm_env.Environment):
         for i, p in enumerate(self.processes):
             print("Starting actor {} on process {}".format(i, p))
             p.start()
-            #  close copy of client connection from servers
+            #  close copy of client connection from server process
+            #  see: https://stackoverflow.com/q/8594909/6655465
             self.clients[i].close()
 
     def __del__(self):
-        #  join processes
         for p in self.processes:
             p.join()
 
@@ -164,9 +165,9 @@ class MultiprocessEnv(dm_env.Environment):
             server.send(("close", None))
         return self._receive()
 
-    def render(self, mode="human"):
+    def render(self, mode="rgb_array"):
         for server in self.servers:
-            server.send(("render", None))
+            server.send(("render", mode))
         return self._receive()
 
     def is_waiting(self):
@@ -182,13 +183,3 @@ class MultiprocessEnv(dm_env.Environment):
             \nReceived {} actions for {} environments. ".format(
             len(actions), self.n
         )
-
-
-if __name__ == "__main__":
-    import gym
-
-    env = make_minigrid("MiniGrid-Empty-5x5-v0")
-    env = MultiprocessEnv(env, 3)
-    print(env.reset())
-    for i in range(100):
-        print(env.step([0, 0]))
