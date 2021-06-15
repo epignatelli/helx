@@ -5,14 +5,12 @@ import dm_env
 from helx.nn.module import Module
 from helx.optimise.optimisers import Optimiser
 from helx.typing import Action, HParams, Loss
-from jax.experimental.optimizers import OptimizerState
 
 
 class IAgent:
     network: Module
     optimiser: Optimiser
     hparams: HParams
-    opt_state: OptimizerState
 
     def __init__(
         self,
