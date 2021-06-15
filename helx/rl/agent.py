@@ -55,7 +55,7 @@ class IAgent:
         loss: Loss = None,
         log_frequency: int = 1,
     ):
-        """Logging function"""
+        """Empty by default, can be overriden to record learning statistics"""
 
     def run(
         self,
