@@ -1,7 +1,7 @@
-from copy import deepcopy
+import logging
 import multiprocessing as mp
+from copy import deepcopy
 from multiprocessing.connection import Connection
-import os
 from typing import Sequence
 
 import dm_env
@@ -11,8 +11,8 @@ import jax.numpy as jnp
 from bsuite.utils.gym_wrapper import DMEnvFromGym
 from gym_minigrid.wrappers import *
 from helx.image import greyscale, imresize
-from helx.typing import Size
 from helx.random import PRNGSequence
+from helx.typing import Size
 
 
 def make(name):
@@ -48,11 +48,18 @@ def preprocess_minigrid(x, size: Size = (56, 56)):
 
 
 def actor(server: Connection, client: Connection, env: dm_env.Environment):
-    def _step(env, data):
-        timestep = env.step(data)
+    def _step(env, a: int):
+        timestep = env.step(a)
         if timestep.last():
-            timestep = env.reset()
+            env.reset()
         return timestep
+
+    def _step_async(env, a: int, queue: mp.Queue):
+        timestep = env.step(a)
+        queue.put(timestep)
+        if timestep.last():
+            env.reset()
+        return
 
     #  close copy of server connection from client process
     #  see: https://stackoverflow.com/q/8594909/6655465
@@ -60,11 +67,11 @@ def actor(server: Connection, client: Connection, env: dm_env.Environment):
     #  switch case command
     try:
         while True:
-            if not client.poll():
-                continue
             cmd, data = client.recv()
             if cmd == "step":
-                return _step(env, data)
+                client.send(_step(env, data))
+            elif cmd == "step_async":
+                client.send(_step_async(env, *data))
             elif cmd == "reset":
                 client.send(env.reset())
             elif cmd == "render":
@@ -75,7 +82,7 @@ def actor(server: Connection, client: Connection, env: dm_env.Environment):
             else:
                 raise NotImplementedError("Command {} is not implemented".format(cmd))
     except KeyboardInterrupt:
-        print("SubprocVecEnv actor: got KeyboardInterrupt")
+        logging.info("SubprocVecEnv actor: got KeyboardInterrupt")
     finally:
         env.close()
 
@@ -88,6 +95,7 @@ class MultiprocessEnv(dm_env.Environment):
     An environment that allows concurrent interactions to improve experience collection throughput, as used in:
     https://arxiv.org/abs/1602.01783, https://arxiv.org/abs/1802.01561 and https://arxiv.org/abs/1707.06347
     The class runs multiple subproceses and communicates with them via pipes.
+    IMPORTANT: you must call `close()` at the end of your routine, or subprocesses will not be joined.
     """
 
     def __init__(
@@ -121,13 +129,14 @@ class MultiprocessEnv(dm_env.Environment):
             )
 
         for i, p in enumerate(self.processes):
-            print("Starting actor {} on process {}".format(i, p))
+            logging.info("Starting actor {} on process {}".format(i, p))
             p.start()
             #  close copy of client connection from server process
             #  see: https://stackoverflow.com/q/8594909/6655465
             self.clients[i].close()
 
     def __del__(self):
+        self.close()
         for p in self.processes:
             p.join()
 
@@ -148,16 +157,16 @@ class MultiprocessEnv(dm_env.Environment):
             server.send(("reset", None))
         return self._receive()
 
-    def step(self, actions) -> dm_env.TimeStep:
+    def step(self, actions: Sequence[int]) -> dm_env.TimeStep:
         self._check_actions(actions)
         for a, server in zip(actions, self.servers):
             server.send(("step", a))
         return self._receive()
 
-    def step_async(self, actions) -> None:
+    def step_async(self, actions: Sequence[int], queue: mp.Queue) -> None:
         self._check_actions(actions)
         for a, server in zip(actions, self.servers):
-            server.send(("step", a))
+            server.send(("step_async", a, queue))
         return
 
     def close(self) -> None:
@@ -165,7 +174,7 @@ class MultiprocessEnv(dm_env.Environment):
             server.send(("close", None))
         return self._receive()
 
-    def render(self, mode="rgb_array"):
+    def render(self, mode: str = "rgb_array"):
         for server in self.servers:
             server.send(("render", mode))
         return self._receive()
@@ -176,7 +185,7 @@ class MultiprocessEnv(dm_env.Environment):
     def _receive(self):
         return [server.recv() for server in self.servers]
 
-    def _check_actions(self, actions):
+    def _check_actions(self, actions: Sequence[int]):
         assert (
             len(actions) == self.n
         ), "The number of actions must be equal to the number of parallel environments.\
