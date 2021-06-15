@@ -1,14 +1,11 @@
 import abc
 import logging
-from typing import Callable
 
 import dm_env
 from helx.nn.module import Module
 from helx.optimise.optimisers import Optimiser
 from helx.typing import Action, HParams, Loss
 from jax.experimental.optimizers import OptimizerState
-
-Policy = Callable
 
 
 class IAgent:
@@ -104,13 +101,3 @@ class IAgent:
                 # prepare next iteration
                 timestep = new_timestep
         return loss
-
-    def run_async(
-        self,
-        env: dm_env.Environment,
-        num_episodes: int = 1000,
-        eval: bool = False,
-    ):
-        """Start the training routine of a Reinforcement Learning agent
-        using multiple instances of the environment to increase throughput"""
-        raise NotImplementedError("Asynchronous actors are not implemented.")
