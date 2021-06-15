@@ -121,9 +121,6 @@ class Ppo(IAgent):
         error, grads = backward(Ppo.network, params, trajectory, policy_old)
         return error, Ppo.optimiser.update(iteration, grads, opt_state)
 
-    def params(self):
-        return self.optimiser.params(self._opt_state)
-
     def observe(
         self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
     ) -> dm_env.TimeStep:
@@ -138,7 +135,8 @@ class Ppo(IAgent):
 
     def policy(self, timestep: dm_env.TimeStep) -> int:
         """Selects an action using a softmax policy"""
-        logits, _ = self.network.apply(self.params(), timestep.observation)
+        params = self.optimiser.params(self._opt_state)
+        logits, _ = self.network.apply(params, timestep.observation)
         action = jax.random.categorical(self.rng, logits).squeeze()  # on-policy action
         return int(action)
 
