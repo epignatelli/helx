@@ -7,11 +7,10 @@ import dm_env
 import jax
 import jax.numpy as jnp
 from dm_env import specs
-from jaxlib.xla_extension import Device
-
 from helx.jax import device_array
-from helx.typing import Action, Batch, Discount, Key, Observation, Reward, TraceDecay
 from helx.random import PRNGSequence
+from helx.typing import Action, Batch, Discount, Key, Observation, Reward, TraceDecay
+from jaxlib.xla_extension import Device
 
 
 class Transition(NamedTuple):

@@ -3,10 +3,10 @@ import logging
 from typing import Callable
 
 import dm_env
-from jax.experimental.optimizers import OptimizerState
 from helx.nn.module import Module
 from helx.optimise.optimisers import Optimiser
 from helx.typing import Action, HParams, Loss
+from jax.experimental.optimizers import OptimizerState
 
 Policy = Callable
 
