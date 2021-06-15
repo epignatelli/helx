@@ -51,14 +51,15 @@ def actor(server: Connection, client: Connection, env: dm_env.Environment):
     def _step(env, a: int):
         timestep = env.step(a)
         if timestep.last():
-            env.reset()
+            timestep = env.reset()
         return timestep
 
-    def _step_async(env, a: int, queue: mp.Queue):
+    def _step_async(env, a: int, buffer: mp.Queue):
         timestep = env.step(a)
-        queue.put(timestep)
+        buffer.put(timestep)
+        print(buffer.qsize())
         if timestep.last():
-            env.reset()
+            timestep = env.reset()
         return
 
     #  close copy of server connection from client process
@@ -95,28 +96,33 @@ class MultiprocessEnv(dm_env.Environment):
     An environment that allows concurrent interactions to improve experience collection throughput, as used in:
     https://arxiv.org/abs/1602.01783, https://arxiv.org/abs/1802.01561 and https://arxiv.org/abs/1707.06347
     The class runs multiple subproceses and communicates with them via pipes.
-    IMPORTANT: you must call `close()` at the end of your routine, or subprocesses will not be joined.
     """
 
     def __init__(
         self,
         env: dm_env.Environment,
-        n: int,
+        n_actors: int,
         context: str = "spawn",
         seed: int = 0,
     ):
+        assert isinstance(
+            env, dm_env.Environment
+        ), "The environment to parallelise but be a dm_env.Environment, got {}".format(
+            type(env)
+        )
         #  public:
-        self.n: int = n
-        self.waiting: bool = False
+        self.n_actors: int = n_actors
         self.clients: Sequence[Connection] = None
         self.servers: Sequence[Connection] = None
-        self.envs: Sequence[dm_env.Environment] = [deepcopy(env) for _ in range(n)]
+        self.envs: Sequence[dm_env.Environment] = [
+            deepcopy(env) for _ in range(n_actors)
+        ]
         self.processes = []
 
         #  setup parallel workers
         rng = PRNGSequence(seed)
         ctx = mp.get_context(context)
-        pipes = zip(*[ctx.Pipe() for _ in range(self.n)])
+        pipes = zip(*[ctx.Pipe() for _ in range(self.n_actors)])
         self.clients, self.servers = pipes
         for server, client, env in zip(self.servers, self.clients, self.envs):
             env.gym_env.seed(int(next(rng)[0]))
@@ -166,7 +172,7 @@ class MultiprocessEnv(dm_env.Environment):
     def step_async(self, actions: Sequence[int], queue: mp.Queue) -> None:
         self._check_actions(actions)
         for a, server in zip(actions, self.servers):
-            server.send(("step_async", a, queue))
+            server.send(("step_async", (a, queue)))
         return
 
     def close(self) -> None:
@@ -187,8 +193,8 @@ class MultiprocessEnv(dm_env.Environment):
 
     def _check_actions(self, actions: Sequence[int]):
         assert (
-            len(actions) == self.n
+            len(actions) == self.n_actors
         ), "The number of actions must be equal to the number of parallel environments.\
             \nReceived {} actions for {} environments. ".format(
-            len(actions), self.n
+            len(actions), self.n_actors
         )

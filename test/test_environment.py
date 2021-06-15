@@ -1,3 +1,5 @@
+import logging
+import time
 import multiprocessing as mp
 from helx.rl.environment import make_minigrid, MultiprocessEnv
 
@@ -7,11 +9,10 @@ def test_multiprocess_env():
     env = make_minigrid("MiniGrid-Empty-5x5-v0")
     env = MultiprocessEnv(env, n)
     env.reset()
-    print("resetted env")
+    logging.debug("resetted env")
     for i in range(5):
         env.step((0,) * n)
-        print("env stepped")
-    # env.close()
+        logging.debug("env stepped")
 
 
 def test_multiprocess_env_async():
@@ -19,14 +20,19 @@ def test_multiprocess_env_async():
     env = make_minigrid("MiniGrid-Empty-5x5-v0")
     env = MultiprocessEnv(env, n)
     m = mp.Manager()
-    queue = m.Queue()
-    print(env.reset())
+    buffer = m.Queue(10)
+    logging.debug(type(buffer))
+    env.reset()
+    logging.debug("environment reset")
     for i in range(5):
-        print(env.step_async([0] * n, queue))
-        print("Queue size is:", queue.qsize())
-    env.close()
+        env.step_async([0] * n, buffer)
+    #  give the time to the env to compute the step
+    time.sleep(5)
+    for i in range(10):
+        buffer.get()
+    print("Queue size is:", buffer.qsize())
 
 
 if __name__ == "__main__":
     test_multiprocess_env()
-    # test_multiprocess_env_async()
+    test_multiprocess_env_async()
