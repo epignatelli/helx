@@ -27,9 +27,6 @@ class IAgent:
         self.logging = logging
         self._iteration = 0
 
-    def params(self):
-        return self.optimiser()
-
     @abc.abstractmethod
     def observe(
         self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
