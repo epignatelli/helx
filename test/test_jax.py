@@ -5,11 +5,6 @@ from helx.nn.module import module
 import jax
 import jax.numpy as jnp
 from jax.experimental.stax import Dense, serial
-import jax.experimental.stax as nn
-from jax.experimental.optimizers import adam
-from functools import partial
-
-jax.config.update("jax_log_compiles", True)
 
 
 def test_pmodule():
