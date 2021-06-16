@@ -27,17 +27,17 @@ class IAgent:
 
     @abc.abstractmethod
     def observe(
-        self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int
+        self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: Action
     ) -> dm_env.TimeStep:
         """The agent's observation function defines how  it interacts with the enviroment"""
 
     @abc.abstractmethod
-    def policy(self, timestep: dm_env.TimeStep) -> int:
+    def policy(self, timestep: dm_env.TimeStep) -> Action:
         """The agent's policy function that maps an observation to an action"""
 
     @abc.abstractmethod
     def update(
-        self, timestep: dm_env.TimeStep, action: int, new_timestep: dm_env.TimeStep
+        self, timestep: dm_env.TimeStep, action: Action, new_timestep: dm_env.TimeStep
     ) -> float:
         """The agent's policy function that maps an observation to an action"""
 
