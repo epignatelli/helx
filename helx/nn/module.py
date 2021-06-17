@@ -19,7 +19,15 @@ operator = lambda op, y: elementwise(functools.partial(op, y=y))
 class Module(NamedTuple):
     init: Init
     apply: Apply
-
+    
+    def __call__(self, y):
+        if not isinstance(y, Module):
+            try:
+                y = Module(*y)
+            except:
+                raise ValueError("y must be an instance of type {}, got {} instead".format(Module, type(y)))
+        return serial(self, y)
+    
     def __add__(self, y):
         return serial(self, operator(lax.add, y))
 
