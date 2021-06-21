@@ -1,5 +1,10 @@
+from helx.typing import Array
 import jax
 import jax.numpy as jnp
+
+
+def importance_sampling(logits_mu: Array, logits_pi: Array):
+    ...
 
 
 def softmax_entropy(logits):

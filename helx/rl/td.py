@@ -3,7 +3,7 @@ from typing import Sequence
 import jax
 import jax.numpy as jnp
 
-from helx.typing import Value, Return
+from helx.typing import Array, Value, Return
 from helx.jax import fori_scan
 from .memory import Trajectory
 
@@ -62,8 +62,7 @@ def lambda_returns(trajectory: Trajectory, values: Value) -> jnp.ndarray:
 
 lambda_returns.__doc__ = (
     lambda_return.__doc__
-    + """This function returns all the λ-returns for each time step.
-"""
+    + "This function returns all the λ-returns for each time step."
 )
 
 generalised_advantage = lambda_returns
@@ -73,6 +72,21 @@ generalised_advantage.__doc__ = (
     + lambda_returns.__doc__
 )
 
+
+def vtrace(
+    trajectory: Trajectory,
+    values: Value,
+    logits_mu: Array,
+    logits_pi: Array,
+    rho_bar: float,
+    c_bar: float,
+    lambda_: float = 1.0,
+):
+    """v-trace target used in the IMPALA algorithm as in:
+    http://proceedings.mlr.press/v80/espeholt18a/espeholt18a.pdf
+    """
+    rho_t = jnp.min(rho_bar, logits_pi / logits_mu)
+    c =
 
 def advantages(trajectory: Trajectory, v_t: Value, v_tk: Value):
     """Advantage function used for actor-critic methods as in:
