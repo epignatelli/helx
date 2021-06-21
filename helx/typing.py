@@ -3,6 +3,7 @@ from typing import Any, Callable, Dict, NamedTuple, Tuple, TypeVar, Union
 
 import jax.numpy as jnp
 
+Array = TypeVar("Array", bound=jnp.array)
 Key = TypeVar("Key", bound=jnp.ndarray)
 Shape = TypeVar("Shape", bound=Tuple[int, ...])
 Size = TypeVar("Size", bound=Tuple[int, int])
