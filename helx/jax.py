@@ -28,35 +28,17 @@ def inject(fun, **kwargs):
 
 def pure(fun, **kwargs):
     """
-    Puryfies a class function from the class instance parameter
-    in order to be used as any jax function, and finally `jit`s it.
+    Puryfies a class function to be used as any jax function, and finally jits it.
     """
     f_jit = jax.jit(fun, **kwargs)
 
     #  the actual computation tu run
     @wraps(fun)
-    def wrapped(*a, **k):
+    def wrapper(*a, **k):
         return f_jit(*a, **k)
 
     #  staticmethod does not pass the `self` argument when wrapper is called
-    return staticmethod(wrapped)
-
-
-def ppure(fun, **kwargs):
-    """
-    Parallelised version of `pure`.
-    Puryfies a class function from the class instance parameter
-    in order to be used as any jax function, and finally `pmap`s it.
-    """
-    f_pmap = jax.pmap(fun, **kwargs)
-
-    #  the actual computation tu run
-    @wraps(fun)
-    def wrapped(*a, **k):
-        return f_pmap(*a, **k)
-
-    #  staticmethod does not pass the `self` argument when wrapper is called
-    return staticmethod(wrapped)
+    return staticmethod(wrapper)
 
 
 def tree_vmap(f, lst):
