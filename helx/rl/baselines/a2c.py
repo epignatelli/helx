@@ -14,7 +14,7 @@ from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
 from .. import pg, td
 from ..agent import IAgent
-from ..memory import OnlineBuffer, Trajectory
+from ..memory import Queue, Trajectory
 
 
 class HParams(NamedTuple):
@@ -77,7 +77,7 @@ class A2C(IAgent):
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
-        self.memory = OnlineBuffer(1, hparams.seed)
+        self.memory = Queue(1, hparams.seed)
         self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(

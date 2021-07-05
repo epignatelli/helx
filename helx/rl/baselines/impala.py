@@ -7,7 +7,7 @@ from dm_env import specs
 from helx.jax import pure
 from helx.nn.module import Module, module
 from helx.optimise.optimisers import Optimiser
-from helx.rl.memory import OnlineBuffer
+from helx.rl.memory import Queue
 from helx.typing import Action, Loss
 from jax.experimental import stax
 from jax.experimental.optimizers import rmsprop_momentum
@@ -65,7 +65,7 @@ class Impala(IAgent):
         self.obs_spec = obs_spec
         self.action_spec = action_spec
         self.rng = jax.random.PRNGKey(hparams.seed)
-        self.memory = OnlineBuffer(obs_spec, 1, hparams.batch_size)
+        self.memory = Queue(obs_spec, 1, hparams.batch_size)
         self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
         optimiser = Optimiser(
