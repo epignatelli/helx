@@ -1,3 +1,4 @@
+from functools import partial
 from typing import NamedTuple, Tuple
 
 import dm_env
@@ -14,7 +15,7 @@ from jax.experimental.optimizers import OptimizerState, rmsprop_momentum
 
 from .. import pg, td
 from ..agent import IAgent
-from ..memory import OnlineBuffer, Trajectory
+from ..memory import Queue, Trajectory
 
 
 class HParams(NamedTuple):
@@ -74,7 +75,7 @@ class Ppo(IAgent):
         # public:
         self.obs_spec = obs_spec
         self.action_spec = action_spec
-        self.memory = OnlineBuffer(obs_spec, hparams.n_steps, hparams.n_actors)
+        self.memory = Queue(obs_spec, hparams.n_steps, hparams.n_actors)
         self.rng = jax.random.PRNGKey(hparams.seed)
         self.preprocess = preprocess
         network = Cnn(action_spec.num_values)
@@ -93,33 +94,35 @@ class Ppo(IAgent):
         self._opt_state = self.optimiser.init(params)
         self.policy_old = params
 
-    @pure
+    @partial(jax.jit, static_argnums=0)
     def loss(
+        self,
         params: Params,
         trajectory: Trajectory,
         policy_old: Params,
     ) -> Loss:
-        logits, values = Ppo.network.apply(params, trajectory.x_0)
-        logits_old, _ = Ppo.network.apply(policy_old, trajectory.observations)
+        logits, values = self.network.apply(params, trajectory.x_0)
+        logits_old, _ = self.network.apply(policy_old, trajectory.observations)
         #  Critic loss (Bellman regression)
         gae = td.lambda_returns(trajectory, values)
         critic_loss = jnp.mean(jnp.square(gae))  #  bellman mse
         #  PPO clipped objective
-        actor_loss = pg.ppo_softmax_loss(logits, logits_old, gae, Ppo.hparams)
+        actor_loss = pg.ppo_softmax_loss(logits, logits_old, gae, self.hparams)
         entropy = pg.softmax_entropy(logits)
-        return actor_loss + Ppo.hparams.c1 * critic_loss - Ppo.hparams.c2 * entropy
+        return actor_loss + self.hparams.c1 * critic_loss - self.hparams.c2 * entropy
 
-    @pure
+    @partial(jax.jit, static_argnums=0)
     def sgd_step(
+        self,
         iteration: int,
         opt_state: OptimizerState,
         trajectory: Trajectory,
         policy_old: Params,
     ) -> Tuple[Loss, OptimizerState]:
-        params = Ppo.optimiser.params(opt_state)
-        backward = jax.value_and_grad(Ppo.loss, argnums=0)
-        error, grads = backward(Ppo.network, params, trajectory, policy_old)
-        return error, Ppo.optimiser.update(iteration, grads, opt_state)
+        params = self.optimiser.params(opt_state)
+        backward = jax.value_and_grad(self.loss, argnums=0)
+        error, grads = backward(self.network, params, trajectory, policy_old)
+        return error, self.optimiser.update(iteration, grads, opt_state)
 
     def observe(
         self, env: dm_env.Environment, timestep: dm_env.TimeStep, action: int

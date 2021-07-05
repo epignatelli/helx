@@ -58,6 +58,7 @@ class IAgent:
         num_episodes: int,
         eval: bool = False,
     ) -> Loss:
+        """Learner and actors run synchronously."""
         logging.info(
             "Starting {} agent {} on environment {}.\nThe scheduled number of episode is {}".format(
                 "evaluating" if eval else "training", self, env, num_episodes
@@ -96,3 +97,48 @@ class IAgent:
                 # prepare next iteration
                 timestep = new_timestep
         return loss
+
+    def run_async_cpu(
+        self,
+        env: dm_env.Environment,
+        num_episodes: int,
+        n_actors: int,
+        eval: bool = False,
+    ) -> Loss:
+        """Implements an IMPALA-like architecture where learners and actors run asynchronously.
+        See: https://arxiv.org/abs/1802.01561
+        Actors are distributed on the CPU, whilst learners are distributed on the GPU.
+        Note that the communication between processes happens using UNIX pipes,
+        and is limited to a single host."""
+        params_buffer: mp.Queue = mp.Queue(1)
+        exp_buffer: Queue = Queue(
+            env.observation_spec, self.hparams.n_steps, self.hparams.batch_size
+        )
+
+        def producer(params, q):
+            #  perform env.step perpetually
+            timestep = env.reset()
+            while True:
+                action = self.policy(timestep, params)
+                new_timestep = env.step(action)
+                q.put(new_timestep)
+                timestep = new_timestep
+
+        def consumer():
+            while True:
+                trajectories = exp_buffer.sample()
+                self.update(None, None, None)
+
+    def run_async_gpu(
+        self,
+        env: dm_env.Environment,
+        num_episodes: int,
+        n_actors: int,
+        eval: bool = False,
+    ) -> Loss:
+        """Implements a SEED RL-like architecture where learners and actors run asynchronously.
+        See: https://arxiv.org/abs/1910.06591
+        In contrast to an IMPALA-like architecture, both actors and learners are distributed on the GPU.
+        Note that the communication between processes happens using UNIX pipes,
+        and is limited to a single host."""
+        raise NotImplementedError
