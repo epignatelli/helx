@@ -169,19 +169,11 @@ class ReplayBuffer(IBuffer):
         )
 
 
-class Trajectory:
+class OnlineBuffer(IBuffer):
     """A replay buffer that stores a single n-step trajectory
     of experience.
     This type of buffer is most commonly used with online methods,
     generally on-policy methods, such as A2C.
-    Stores a batch of trajectories of experience of shape:
-    ```
-    observations: f32[T + 1, B, ...]
-    actions: i32[T, B, 1]
-    rewards: f32[T, B, 1]
-    discounts: f32[T, B, 1]
-    trace_decays: f32[T, B, 1]
-    ```
     """
 
     def __init__(
@@ -189,33 +181,19 @@ class Trajectory:
         observation_spec: specs.Array,
         n_steps: int = 1,
         batch_size: int = 1,
-        device: Device = None,
     ):
         #  public:
-        self.observation_spec: specs.Array = observation_spec
-        self.n_steps: int = n_steps
-        self.batch_size: int = batch_size
-        self.device: Device = device
+        self.observation_spec = observation_spec
+        self.n_steps = n_steps
+        self.batch_size = batch_size
 
         #  private:
         self._reset()
 
     def full(self) -> bool:
-        return self._t == self.n_steps
+        return self._t == self.n_steps - 1
 
-    def poll(self) -> bool:
-        return self.full()
-
-    def qsize(self):
-        return self._t
-
-    def get(self, reset: bool = True) -> Trajectory:
-        tau = self.trajectory
-        if reset:
-            self._reset()
-        return tau
-
-    def put(
+    def add(
         self,
         timestep: dm_env.TimeStep,
         action: int,
@@ -228,8 +206,9 @@ class Trajectory:
             self._reset()
 
         # add new transition to the trajectory
-        f = lambda x: preprocess(jnp.array(x, jnp.float32))
-        self.trajectory.observations[self._t] = f(timestep.observation)
+        self.trajectory.observations[self._t] = preprocess(
+            jnp.array(timestep.observation, dtype=jnp.float32)
+        )
         self.trajectory.actions[self._t] = action
         self.trajectory.rewards[self._t] = new_timestep.reward
         self.trajectory.discounts[self._t] = new_timestep.discount
@@ -238,23 +217,27 @@ class Trajectory:
 
         #  if we have enough transitions, add last obs and return
         if self.full():
-            self.trajectory.observations[self._t] = f(new_timestep.observation)
+            self.trajectory.observations[self._t] = preprocess(
+                jnp.array(new_timestep.observation, dtype=jnp.float32)
+            )
         #  if we do not have enough transitions, and can't sample more, retry
-        #  TODO(ep) consider different strategies here, such as zero padding
         elif new_timestep.last():
             self._reset()
         return
 
-    def _reset(self) -> None:
+    def sample(self, n: int = 1, rng: Key = None) -> Trajectory:
+        return self.trajectory
+
+    def _reset(self):
         self._t = 0
         self.trajectory = Trajectory(
-            observations=jnp.zeros(
+            observations=jnp.empty(
                 self.n_steps + 1, self.batch_size, *self.observation_spec.shape
             ),
-            actions=jnp.zeros(self.n_steps, self.batch_size, 1),
-            rewards=jnp.zeros(self.n_steps, self.batch_size, 1),
-            discounts=jnp.zeros(self.n_steps, self.batch_size, 1),
-            trace_decays=jnp.zeros(self.n_steps, self.batch_size, 1),
+            actions=jnp.empty(self.n_steps, self.batch_size, 1),
+            rewards=jnp.empty(self.n_steps, self.batch_size, 1),
+            discounts=jnp.empty(self.n_steps, self.batch_size, 1),
+            trace_decays=jnp.empty(self.n_steps, self.batch_size, 1),
         )
         return
 
