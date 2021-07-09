@@ -17,37 +17,29 @@
 import threading
 from typing import List
 
+import haiku as hk
+import jax
+import optax
 from absl import app, flags
+import wandb
+
+
+import environments
 import impala.actor as actor_lib
 import impala.agent as agent_lib
 import impala.learner as learner_lib
 import impala.util as util
-import environments
-import models
-import jax
-import optax
 
-
+flags.DEFINE_bool("DEBUG", False, "")
 flags.DEFINE_integer("ACTION_REPEAT", 1, "")
 flags.DEFINE_integer("BATCH_SIZE", 2, "")
 flags.DEFINE_float("DISCOUNT_FACTOR", 0.99, "")
 flags.DEFINE_integer("MAX_ENV_FRAMES", 20000, "")
 flags.DEFINE_integer("NUM_ACTORS", 2, "")
 flags.DEFINE_integer("UNROLL_LENGTH", 20, "")
-flags.DEFINE_enum("MODEL", "impala", ("impala", "sr", "new"), "")
-flags.DEFINE_enum("EXPERIMENT", "catch", ("catch",), "")
-
-FLAGS = flags.FLAGS
-
-ACTION_REPEAT = FLAGS.ACTION_REPEAT
-BATCH_SIZE = FLAGS.BATCH_SIZE
-DISCOUNT_FACTOR = FLAGS.DISCOUNT_FACTOR
-MAX_ENV_FRAMES = FLAGS.MAX_ENV_FRAMES
-NUM_ACTORS = FLAGS.NUM_ACTORS
-UNROLL_LENGTH = FLAGS.UNROLL_LENGTH
-FRAMES_PER_ITER = ACTION_REPEAT * BATCH_SIZE * UNROLL_LENGTH
-MODEL = FLAGS.MODEL
-EXPERIMENT = FLAGS.EXPERIMENT
+flags.DEFINE_integer("SEED", 0, "")
+flags.DEFINE_enum("MODEL", "Impala", ("Impala", "Sr", "Sa"), "")
+flags.DEFINE_enum("EXPERIMENT", "Catch", ("Catch",), "")
 
 
 def run_actor(actor: actor_lib.Actor, stop_signal: List[bool]):
@@ -58,18 +50,39 @@ def run_actor(actor: actor_lib.Actor, stop_signal: List[bool]):
 
 
 def main(_):
+    FLAGS = flags.FLAGS
+
+    DEBUG = FLAGS.DEBUG
+    ACTION_REPEAT = FLAGS.ACTION_REPEAT
+    BATCH_SIZE = FLAGS.BATCH_SIZE
+    DISCOUNT_FACTOR = FLAGS.DISCOUNT_FACTOR
+    MAX_ENV_FRAMES = FLAGS.MAX_ENV_FRAMES
+    NUM_ACTORS = FLAGS.NUM_ACTORS
+    UNROLL_LENGTH = FLAGS.UNROLL_LENGTH
+    SEED = FLAGS.SEED
+    FRAMES_PER_ITER = ACTION_REPEAT * BATCH_SIZE * UNROLL_LENGTH
+    MODEL = FLAGS.MODEL
+    EXPERIMENT = FLAGS.EXPERIMENT
+
     # A thunk that builds a new environment.
     # Substitute your environment here!
     build_env = getattr(environments, EXPERIMENT)
 
     # Construct the agent. We need a sample environment for its spec.
-    env_for_spec = build_env()
+    seed = SEED
+    env_for_spec = build_env(seed)
     num_actions = env_for_spec.action_spec().num_values
 
     #  get the experiment model: (impala, sr, new)
-    model = getattr(models, MODEL)
-
+    model = getattr(models, EXPERIMENT + "Net")
     agent = agent_lib.Agent(num_actions, env_for_spec.observation_spec(), model)
+
+    # Logger
+    logger = (
+        util.AbslLogger()
+        if DEBUG
+        else util.WandbLogger("_".join([str(EXPERIMENT), str(MODEL)])),
+    )
 
     # Construct the optimizer.
     max_updates = MAX_ENV_FRAMES / FRAMES_PER_ITER
@@ -84,7 +97,7 @@ def main(_):
         DISCOUNT_FACTOR,
         FRAMES_PER_ITER,
         max_abs_reward=1.0,
-        logger=util.AbslLogger(),  # Provide your own logger here.
+        logger=logger,
     )
 
     # Construct the actors on different threads.
@@ -92,13 +105,14 @@ def main(_):
     actor_threads = []
     stop_signal = [False]
     for i in range(NUM_ACTORS):
+        seed += 1
         actor = actor_lib.Actor(
             agent,
-            build_env(),
+            build_env(SEED),
             UNROLL_LENGTH,
             learner,
             rng_seed=i,
-            logger=util.AbslLogger(),  # Provide your own logger here.
+            logger=logger,
         )
         args = (actor, stop_signal)
         actor_threads.append(threading.Thread(target=run_actor, args=args))

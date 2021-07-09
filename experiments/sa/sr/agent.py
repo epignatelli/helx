@@ -1,22 +1,5 @@
-# Copyright 2020 DeepMind Technologies Limited. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
 """A stateless agent interface."""
 import collections
-
-from jax._src.lax.lax import Array
-from experiments.sa.sr.models import EmState, SrOutput, SrState
 import functools
 from typing import Any, Callable, Optional, Tuple
 
@@ -26,6 +9,8 @@ from examples.impala import util
 import jax
 import jax.numpy as jnp
 import numpy as np
+import impala.agent as impala_agent_lib
+from models import SyntheticReturnsCoreWrapper as SR
 
 AgentOutput = collections.namedtuple(
     "AgentOutput", ["policy_logits", "values", "action"]
@@ -36,7 +21,7 @@ Nest = Any
 NetFactory = Callable[[int], hk.RNNCore]
 
 
-class Agent:
+class Agent(impala_agent_lib.Agent):
     """A stateless agent interface."""
 
     def __init__(self, num_actions: int, obs_spec: Nest, net_factory: NetFactory):
@@ -50,16 +35,37 @@ class Agent:
             the agent. This module should have an initial_state() function and an
             unroll function.
         """
+        #  rl algorithm
         self._obs_spec = obs_spec
-        net_factory = functools.partial(net_factory, num_actions)
+        rl_net_factory = functools.partial(net_factory, num_actions)
         # Instantiate two hk.transforms() - one for getting the initial state of the
         # agent, another for actually initializing and running the agent.
-        _, self._initial_state_apply_fn = hk.without_apply_rng(
-            hk.transform(lambda batch_size: net_factory().initial_state(batch_size))
+        _, self._rl_initial_state_apply_fn = hk.without_apply_rng(
+            hk.transform(lambda batch_size: rl_net_factory().initial_state(batch_size))
         )
 
-        self._init_fn, self._apply_fn = hk.without_apply_rng(
-            hk.transform(lambda obs, state: net_factory().unroll(obs, state))
+        self._rl_init_fn, self._rl_apply_fn = hk.without_apply_rng(
+            hk.transform(lambda obs, state: rl_net_factory().unroll(obs, state))
+        )
+
+        #  sr algorithm
+        memory_size = 128
+        capacity = 300
+        hidden_layers = (128, 128)
+        alpha = 0.3
+        beta = 1.0
+        sr_core = hk.LSTM(memory_size)
+        sr_net_factory = hk.ResetCore(
+            SR(sr_core, memory_size, capacity, hidden_layers, alpha, beta)
+        )
+        # Instantiate two hk.transforms() - one for getting the initial state of the
+        # agent, another for actually initializing and running the agent.
+        _, self._sr_initial_state_apply_fn = hk.without_apply_rng(
+            hk.transform(lambda batch_size: sr_net_factory().initial_state(batch_size))
+        )
+
+        self._sr_init_fn, self._sr_apply_fn = hk.without_apply_rng(
+            hk.transform(lambda obs, state: sr_net_factory().unroll(obs, state))
         )
 
     @functools.partial(jax.jit, static_argnums=0)
@@ -103,25 +109,9 @@ class Agent:
     def unroll(
         self,
         params: hk.Params,
-        timestep: dm_env.TimeStep,
+        trajectory: dm_env.TimeStep,
         state: Nest,
     ) -> AgentOutput:
         """Unroll the agent along trajectory."""
-        vision_output: Array = self._vision_net(params, timestep.observation)
-
-        return_targets: Array = timestep.reward[1:]
-        sr_core_inputs: Tuple[Array, Array] = (vision_output, return_targets)
-
-        should_reset: Array = jnp.equal(
-            timestep.step_type[:-1], int(dm_env.StepType.FIRST)
-        )
-        core_inputs: Tuple[Tuple[Array, Array], Array] = (sr_core_inputs, should_reset)
-
-        state: object = jax.tree_map(lambda t: t[0], state)
-        sr = hk.dynamic_unroll(self._sr_net, core_inputs, state)
-        sr_output: SrOutput = sr[0]
-        sr_state: SrState = sr[1]
-
-        agent_output = self._policy_net(sr_output.output)
-        # agent_output = AgentOutput(net_out.policy_logits, net_out.value, action=[])
-        return SrOutput(agent_output, sr_output)
+        net_out, _ = self._apply_fn(params, trajectory, state)
+        return AgentOutput(net_out.policy_logits, net_out.value, action=[])

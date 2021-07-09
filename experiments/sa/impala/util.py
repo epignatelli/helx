@@ -15,45 +15,60 @@
 """Util."""
 import collections
 
-from absl import logging
 import dm_env
 import numpy as np
 import tree
+import wandb
+from absl import logging
 
 # Can represent either a single transition, a trajectory, or a batch of
 # trajectories.
-Transition = collections.namedtuple('Transition',
-                                    ['timestep', 'agent_out', 'agent_state'])
+Transition = collections.namedtuple(
+    "Transition", ["timestep", "agent_out", "agent_state"]
+)
 
 
 def _preprocess_none(t) -> np.ndarray:
-  if t is None:
-    return np.array(0., dtype=np.float32)
-  else:
-    return np.asarray(t)
+    if t is None:
+        return np.array(0.0, dtype=np.float32)
+    else:
+        return np.asarray(t)
 
 
 def preprocess_step(timestep: dm_env.TimeStep) -> dm_env.TimeStep:
-  if timestep.discount is None:
-    timestep = timestep._replace(discount=1.)
-  return tree.map_structure(_preprocess_none, timestep)
+    if timestep.discount is None:
+        timestep = timestep._replace(discount=1.0)
+    return tree.map_structure(_preprocess_none, timestep)
 
 
 class NullLogger:
-  """Logger that does nothing."""
+    """Logger that does nothing."""
 
-  def write(self, _):
-    pass
+    def write(self, _):
+        pass
 
-  def close(self):
-    pass
+    def close(self):
+        pass
 
 
 class AbslLogger:
-  """Writes to logging.info."""
+    """Writes to logging.info."""
 
-  def write(self, d):
-    logging.info(d)
+    def write(self, d):
+        logging.info(d)
 
-  def close(self):
-    pass
+    def close(self):
+        pass
+
+
+class WandbLogger:
+    """Writes to logging.info."""
+
+    def __init__(self, experiment=None):
+        wandb.init(project=experiment or "sr")
+
+    def write(self, d):
+        wandb.log(d)
+
+    def close(self):
+        pass
