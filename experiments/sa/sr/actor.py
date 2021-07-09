@@ -1,1 +1,0 @@
-from impala.actor import Actor
