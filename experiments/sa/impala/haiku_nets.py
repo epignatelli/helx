@@ -193,6 +193,7 @@ class CatchConvNet(hk.RNNCore):
                     jax.nn.relu,
                     hk.Conv2D(64, (2, 2), (1, 1)),
                     jax.nn.relu,
+                    hk.Flatten(),
                     hk.Linear(256),
                     jax.nn.relu,
                 ]
