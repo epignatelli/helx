@@ -20,8 +20,8 @@ import dm_env
 import haiku as hk
 import jax.nn
 import jax.numpy as jnp
-import sr as sr_models_lib
-from jax.lax import Array
+from impala import sr as sr_models_lib
+from jax._src.lax.lax import Array
 
 NetOutput = collections.namedtuple("NetOutput", ["policy_logits", "value"])
 
@@ -182,7 +182,7 @@ class AtariNet(hk.RNNCore):
 
 
 class CatchConvNet(hk.RNNCore):
-    def initial_state(self):
+    def initial_state(self, *args, **kwargs):
         return ()
 
     def __call__(self, x: dm_env.TimeStep, state):
@@ -190,7 +190,7 @@ class CatchConvNet(hk.RNNCore):
             hk.Sequential(
                 [
                     hk.Conv2D(32, (2, 2), (1, 1)),
-                    hk.jax.nn.relu,
+                    jax.nn.relu,
                     hk.Conv2D(64, (2, 2), (1, 1)),
                     jax.nn.relu,
                     hk.Linear(256),
@@ -233,7 +233,7 @@ class PolicyNetwork(hk.RNNCore):
         super().__init__(name=name)
         self.num_actions = num_actions
 
-    def initial_state(self):
+    def initial_state(self, *args, **kwargs):
         return ()
 
     def __call__(self, x: Array, state):
@@ -243,35 +243,26 @@ class PolicyNetwork(hk.RNNCore):
         return (logits, value), state
 
 
-class SrNet(hk.RNNCore):
-    def __init__(self, num_actions, vision_net_fn, name=None, **sr_config):
+class _SR(hk.RNNCore):
+    def __init__(self, num_actions, name=None, **sr_config):
+        super().__init__(name=name)
         self.num_actions = num_actions
-        self.name = name
-        #  make sure the rnn computes the sr model
-        sr_config.update(
-            {
-                "apply_core_to_input": False,
-                "memory_size": 256,
-            }
-        )
-
-        self.conv_net = vision_net_fn()
+        self.conv_net = CatchConvNet()
         self.sr_net = SyntheticReturns(name, **sr_config)
         self.policy_net = PolicyNetwork(num_actions)
-        super().__init__(name)
 
-    def initial_state(self):
+    def initial_state(self, *args, **kwargs):
         return (
-            self.conv_net.initial_state(),
-            self.sr_net.initial_state(),
-            self.policy_net.initial_state(),
+            self.conv_net.initial_state(*args, **kwargs),
+            self.sr_net.initial_state(*args, **kwargs),
+            self.policy_net.initial_state(*args, **kwargs),
         )
 
     def __call__(self, timestep: dm_env.TimeStep, state: Any):
         c_state, sr_state, p_state = state
 
         # features net
-        features, c_state = self.conv_net(timestep.observation, c_state)
+        features, c_state = self.conv_net(timestep, c_state)
 
         #  sr net
         return_targets = timestep.reward[1:]
@@ -279,18 +270,32 @@ class SrNet(hk.RNNCore):
         should_reset = jnp.equal(timestep.step_type[:-1], int(dm_env.StepType.FIRST))
         core_inputs = (sr_core_inputs, should_reset)
         sr_state = jax.tree_map(lambda t: t[0], sr_state)
-        sr_output, sr_state = hk.dynamic_unroll(self._sr_net, core_inputs, sr_state)
+        sr_output, sr_state = hk.dynamic_unroll(self.sr_net, core_inputs, sr_state)
 
         #  policy net
         em_state, cell_state = sr_state
         agent_output = self._policy_net(sr_output.output, p_state)
         return sr_models_lib.SrOutput(agent_output, sr_output)
 
+    def unroll(self, timestep: dm_env.TimeStep, state: Any):
+        return hk.BatchApply(self)(timestep, state)
 
-class ImpalaNet(SrNet):
-    def __init__(self, num_actions, vision_net_fn, name=None):
-        self.num_actions = num_actions
-        self.name = name
+
+class SrNet(_SR):
+    def __init__(self, num_actions, **sr_config):
+        #  make sure the rnn computes the sr model
+        sr_config.update(
+            {
+                "apply_core_to_input": False,
+                "memory_size": 256,
+                "name": "sr",
+            }
+        )
+        super().__init__(num_actions, **sr_config)
+
+
+class ImpalaNet(_SR):
+    def __init__(self, num_actions):
         #  make sure the rnn skips the sr model
         sr_config = {
             "apply_core_to_input": True,
@@ -301,7 +306,4 @@ class ImpalaNet(SrNet):
             "loss_func": lambda x, y: 0.0,
             "name": "sr_ablated",
         }
-        self.conv_net = vision_net_fn()
-        self.sr_net = SyntheticReturns(name, **sr_config)
-        self.policy_net = PolicyNetwork(num_actions)
-        super().__init__(name)
+        super().__init__(num_actions, **sr_config)

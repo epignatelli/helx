@@ -14,7 +14,7 @@
 # ==============================================================================
 """IMPALA learner class."""
 
-from sr import SrOutput
+from impala import sr
 import functools
 import itertools
 import queue
@@ -24,8 +24,8 @@ import warnings
 
 import dm_env
 import haiku as hk
-from examples.impala import agent as agent_lib
-from examples.impala import util
+from impala import agent as agent_lib
+from impala import util
 import jax
 from jax.experimental import optimizers
 import jax.numpy as jnp
@@ -100,7 +100,7 @@ class Learner:
     ) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
         """Compute vtrace-based actor-critic loss."""
         initial_state = jax.tree_map(lambda t: t[0], trajectories.agent_state)
-        output: SrOutput = self._agent.unroll(
+        output: sr.SrOutput = self._agent.unroll(
             theta, trajectories.timestep, initial_state
         )
 

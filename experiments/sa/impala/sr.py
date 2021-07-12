@@ -17,7 +17,7 @@ import collections
 from typing import Tuple
 
 import haiku as hk
-from jax.lax import Array
+from jax._src.lax.lax import Array
 import jax
 import jax.numpy as jnp
 
@@ -90,7 +90,7 @@ class EpisodicMemory(hk.RNNCore):
         return (counter, memories)
 
 
-class SyntheticReturns(hk.RNNCore):
+class SyntheticReturnsCoreWrapper(hk.RNNCore):
     """Synthetic Returns core wrapper."""
 
     def __init__(
@@ -131,12 +131,12 @@ class SyntheticReturns(hk.RNNCore):
         super().__init__(name=name)
         self._em = EpisodicMemory(memory_size, capacity)
         self._capacity = capacity
-        hidden_layers = (256, 256)
+        hidden_layers = [256, 256]
         self._synthetic_return = hk.nets.MLP(hidden_layers + [1])
         self._bias = hk.nets.MLP(hidden_layers + [1])
         self._gate = hk.Sequential(
             [
-                hk.nets.MLP(hidden_layers[0] + [1]),
+                hk.nets.MLP(hidden_layers + [1]),
                 jax.nn.sigmoid,
             ]
         )

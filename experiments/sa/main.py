@@ -75,9 +75,9 @@ def main(_):
     num_actions = env_for_spec.action_spec().num_values
 
     #  get the experiment model: (impala, sr, new)
-    vision_net = getattr(models_lib, EXPERIMENT + "ConvNet")
+    # vision_net = getattr(models_lib, EXPERIMENT + "ConvNet")
     model = getattr(models_lib, MODEL + "Net")
-    model = partial(model, name=MODEL, vision_net_fn=vision_net)
+    # model = lambda n: model(n, vision_net_fn=vision_net)
     agent = agent_lib.Agent(num_actions, env_for_spec.observation_spec(), model)
 
     # Logger

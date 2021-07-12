@@ -15,8 +15,6 @@
 """A stateless agent interface."""
 import collections
 
-from jax._src.lax.lax import Array
-from sr import EmState, SrOutput, SrState
 import functools
 from typing import Any, Callable, Optional, Tuple
 
