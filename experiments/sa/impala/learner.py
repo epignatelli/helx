@@ -14,8 +14,7 @@
 # ==============================================================================
 """IMPALA learner class."""
 
-import collections
-from experiments.sa.sr.models import SrOutput
+from sr import SrOutput
 import functools
 import itertools
 import queue
@@ -117,6 +116,7 @@ class Learner:
         timestep = jax.tree_map(lambda t: t[1:], trajectories.timestep)
         discounts = timestep.discount * self._discount_factor
         rewards = timestep.reward
+        #  if using the sr model, reward is the compound reward
         if self._use_synthetic_returns:
             rewards = output.augmented_return
 
