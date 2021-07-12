@@ -264,7 +264,7 @@ class _SR(hk.RNNCore):
         features, c_state = self.conv_net(timestep, c_state)
 
         #  sr net
-        return_targets = timestep.reward[1:]
+        return_targets = timestep.reward
         sr_core_inputs = (features, return_targets)
         should_reset = jnp.equal(timestep.step_type[:-1], int(dm_env.StepType.FIRST))
         core_inputs = (sr_core_inputs, should_reset)
