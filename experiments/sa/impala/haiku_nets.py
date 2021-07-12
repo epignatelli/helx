@@ -225,10 +225,6 @@ class SyntheticReturns(hk.RNNCore):
     def __call__(self, x: dm_env.TimeStep, state) -> sr_models_lib.SrOutput:
         return self._sr_net(x, state)
 
-    def unroll(self, x, state):
-        """Unrolls more efficiently than dynamic_unroll."""
-        return self.BatchApply(self.sr_net)(x, state)
-
 
 class PolicyNetwork(hk.RNNCore):
     def __init__(self, num_actions, name=None):
