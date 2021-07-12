@@ -16,7 +16,7 @@
 import collections
 
 from jax._src.lax.lax import Array
-from experiments.sa.sr.models import EmState, SrOutput, SrState
+from sr import EmState, SrOutput, SrState
 import functools
 from typing import Any, Callable, Optional, Tuple
 
@@ -107,21 +107,5 @@ class Agent:
         state: Nest,
     ) -> AgentOutput:
         """Unroll the agent along trajectory."""
-        vision_output: Array = self._vision_net(params, timestep.observation)
-
-        return_targets: Array = timestep.reward[1:]
-        sr_core_inputs: Tuple[Array, Array] = (vision_output, return_targets)
-
-        should_reset: Array = jnp.equal(
-            timestep.step_type[:-1], int(dm_env.StepType.FIRST)
-        )
-        core_inputs: Tuple[Tuple[Array, Array], Array] = (sr_core_inputs, should_reset)
-
-        state: object = jax.tree_map(lambda t: t[0], state)
-        sr = hk.dynamic_unroll(self._sr_net, core_inputs, state)
-        sr_output: SrOutput = sr[0]
-        sr_state: SrState = sr[1]
-
-        agent_output = self._policy_net(sr_output.output)
-        # agent_output = AgentOutput(net_out.policy_logits, net_out.value, action=[])
-        return SrOutput(agent_output, sr_output)
+        net_out, _ = self._apply_fn(params, timestep, state)
+        return AgentOutput(net_out.policy_logits, net_out.value, action=[])
