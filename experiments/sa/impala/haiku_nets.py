@@ -211,7 +211,8 @@ class SyntheticReturns(hk.RNNCore):
 
     def __init__(self, name=None, **sr_config):
         super().__init__(name=name)
-        core = hk.LSTM(256)
+        hidden_units = 256
+        core = hk.LSTM(hidden_units)
         self._sr_net = sr_models_lib.SyntheticReturnsCoreWrapper(core, **sr_config)
 
     def initial_state(self, batch_size):
@@ -238,7 +239,8 @@ class PolicyNetwork(hk.RNNCore):
         return ()
 
     def __call__(self, x: Array, state):
-        features = hk.Sequential([hk.Linear(256), jax.nn.relu])(x)
+        hidden_units = 256
+        features = hk.Sequential([hk.Linear(hidden_units), jax.nn.relu])(x)
         logits = hk.Linear(self.num_actions)(features)
         value = jnp.squeeze(hk.Linear(1)(features), axis=-1)
         return (logits, value), state
