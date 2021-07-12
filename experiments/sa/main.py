@@ -14,6 +14,7 @@
 # ==============================================================================
 """Single-process IMPALA wiring."""
 
+from functools import partial
 import threading
 from typing import List
 
@@ -21,7 +22,6 @@ import haiku as hk
 import jax
 import optax
 from absl import app, flags
-import wandb
 
 
 import environments
@@ -29,6 +29,7 @@ import impala.actor as actor_lib
 import impala.agent as agent_lib
 import impala.learner as learner_lib
 import impala.util as util
+import impala.haiku_nets as models_lib
 
 flags.DEFINE_bool("DEBUG", False, "")
 flags.DEFINE_integer("ACTION_REPEAT", 1, "")
@@ -39,7 +40,7 @@ flags.DEFINE_integer("NUM_ACTORS", 2, "")
 flags.DEFINE_integer("UNROLL_LENGTH", 20, "")
 flags.DEFINE_integer("SEED", 0, "")
 flags.DEFINE_enum("MODEL", "Impala", ("Impala", "Sr", "Sa"), "")
-flags.DEFINE_enum("EXPERIMENT", "Catch", ("Catch",), "")
+flags.DEFINE_enum("EXPERIMENT", "Catch", ("Catch", "KeyToDoor"), "")
 
 
 def run_actor(actor: actor_lib.Actor, stop_signal: List[bool]):
@@ -74,7 +75,9 @@ def main(_):
     num_actions = env_for_spec.action_spec().num_values
 
     #  get the experiment model: (impala, sr, new)
-    model = getattr(models, EXPERIMENT + "Net")
+    vision_net = getattr(models_lib, EXPERIMENT + "ConvNet")
+    model = getattr(models_lib, MODEL + "Net")
+    model = partial(model, name=MODEL, vision_net_fn=vision_net)
     agent = agent_lib.Agent(num_actions, env_for_spec.observation_spec(), model)
 
     # Logger
