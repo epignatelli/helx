@@ -287,6 +287,9 @@ class SrNet(_SR):
             {
                 "apply_core_to_input": False,
                 "memory_size": 256,
+                "alpha": 0.3,
+                "beta": 1.0,
+                "capacity": 140,  # max_steps
                 "name": "sr",
             }
         )
@@ -301,7 +304,7 @@ class ImpalaNet(_SR):
             "alpha": 0.0,
             "beta": 1.0,
             "memory_size": 256,
-            "capacity": 0,
+            "capacity": 140,  # 0
             "loss_func": lambda x, y: 0.0,
             "name": "sr_ablated",
         }
