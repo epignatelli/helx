@@ -33,10 +33,10 @@ import impala.haiku_nets as models_lib
 
 flags.DEFINE_bool("DEBUG", False, "")
 flags.DEFINE_integer("ACTION_REPEAT", 1, "")
-flags.DEFINE_integer("BATCH_SIZE", 2, "")
+flags.DEFINE_integer("BATCH_SIZE", 32, "")
 flags.DEFINE_float("DISCOUNT_FACTOR", 0.99, "")
 flags.DEFINE_integer("MAX_ENV_FRAMES", 20000, "")
-flags.DEFINE_integer("NUM_ACTORS", 2, "")
+flags.DEFINE_integer("NUM_ACTORS", 128, "")
 flags.DEFINE_integer("UNROLL_LENGTH", 20, "")
 flags.DEFINE_integer("SEED", 0, "")
 flags.DEFINE_enum("MODEL", "Impala", ("Impala", "Sr", "Sa"), "")
@@ -66,6 +66,7 @@ def main(_):
     UNROLL_LENGTH = FLAGS.UNROLL_LENGTH
     SEED = FLAGS.SEED
     FRAMES_PER_ITER = ACTION_REPEAT * BATCH_SIZE * UNROLL_LENGTH
+    MAX_UPDATES = MAX_ENV_FRAMES / FRAMES_PER_ITER
     MODEL = FLAGS.MODEL
     EXPERIMENT = FLAGS.EXPERIMENT
 
@@ -92,7 +93,6 @@ def main(_):
     logger = util.AbslLogger() if DEBUG else util.WandbLogger(project_name)
 
     # Construct the optimizer.
-    max_updates = MAX_ENV_FRAMES / FRAMES_PER_ITER
     opt = optax.rmsprop(5e-3, decay=0.99, eps=1e-7)
 
     # Construct the learner.
@@ -128,7 +128,7 @@ def main(_):
     # Start the actors and learner.
     for t in actor_threads:
         t.start()
-    learner.run(int(max_updates))
+    learner.run(int(MAX_UPDATES))
 
     # Stop.
     stop_signal[0] = True
