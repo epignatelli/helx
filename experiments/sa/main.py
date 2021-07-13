@@ -16,7 +16,7 @@
 
 from functools import partial
 import threading
-from typing import List
+from typing import List, NamedTuple
 
 import haiku as hk
 import jax
@@ -41,6 +41,10 @@ flags.DEFINE_integer("UNROLL_LENGTH", 20, "")
 flags.DEFINE_integer("SEED", 0, "")
 flags.DEFINE_enum("MODEL", "Impala", ("Impala", "Sr", "Sa"), "")
 flags.DEFINE_enum("EXPERIMENT", "Catch", ("Catch", "KeyToDoor"), "")
+
+
+class MemoryCapacity(NamedTuple):
+    Catch: int = 140
 
 
 def run_actor(actor: actor_lib.Actor, stop_signal: List[bool]):
@@ -75,17 +79,17 @@ def main(_):
     num_actions = env_for_spec.action_spec().num_values
 
     #  get the experiment model: (impala, sr, new)
-    # vision_net = getattr(models_lib, EXPERIMENT + "ConvNet")
-    model = getattr(models_lib, MODEL + "Net")
+    def model(n):
+        vision_net = getattr(models_lib, EXPERIMENT + "ConvNet")
+        f = getattr(models_lib, MODEL + "Net")
+        return f(n, vision_net_fn=vision_net)
+
     # model = lambda n: model(n, vision_net_fn=vision_net)
     agent = agent_lib.Agent(num_actions, env_for_spec.observation_spec(), model)
 
     # Logger
-    logger = (
-        util.AbslLogger()
-        if DEBUG
-        else util.WandbLogger("_".join([str(EXPERIMENT), str(MODEL)])),
-    )
+    project_name = "_".join([str(EXPERIMENT), str(MODEL)])
+    logger = util.AbslLogger() if DEBUG else util.WandbLogger(project_name)
 
     # Construct the optimizer.
     max_updates = MAX_ENV_FRAMES / FRAMES_PER_ITER
@@ -101,6 +105,7 @@ def main(_):
         FRAMES_PER_ITER,
         max_abs_reward=1.0,
         logger=logger,
+        use_synthetic_returns=(MODEL.lower() != "impala"),
     )
 
     # Construct the actors on different threads.
