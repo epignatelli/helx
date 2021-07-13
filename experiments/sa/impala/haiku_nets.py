@@ -245,73 +245,87 @@ class PolicyNetwork(hk.RNNCore):
         features = hk.Sequential([hk.Linear(hidden_units), jax.nn.relu])(x)
         logits = hk.Linear(self.num_actions)(features)
         value = jnp.squeeze(hk.Linear(1)(features), axis=-1)
-        return (logits, value), state
+        return NetOutput(logits, value), state
 
 
 class _SR(hk.RNNCore):
-    def __init__(self, num_actions, name=None, **sr_config):
+    def __init__(
+        self,
+        num_actions,
+        vision_net_fn,
+        name=None,
+        **sr_config,
+    ):
         super().__init__(name=name)
         self.num_actions = num_actions
-        self.conv_net = CatchConvNet()
+        self.conv_net = vision_net_fn()
         self.sr_net = SyntheticReturns(name, **sr_config)
         self.policy_net = PolicyNetwork(num_actions)
 
-    def initial_state(self, *args, **kwargs):
+    def initial_state(self, batch_size):
         return (
-            self.conv_net.initial_state(*args, **kwargs),
-            self.sr_net.initial_state(*args, **kwargs),
-            self.policy_net.initial_state(*args, **kwargs),
+            self.conv_net.initial_state(batch_size),
+            self.sr_net.initial_state(batch_size),
+            self.policy_net.initial_state(batch_size),
         )
 
-    def __call__(self, timestep: dm_env.TimeStep, state: Any):
+    def unroll(
+        self, timestep: dm_env.TimeStep, state: Any
+    ) -> Tuple[sr_models_lib.SrOutput, Any]:
         c_state, sr_state, p_state = state
 
-        # features net
-        features, c_state = self.conv_net(timestep, c_state)
+        #  features net
+        features, c_state = hk.BatchApply(self.conv_net)(timestep, c_state)
 
         #  sr net
-        return_targets = timestep.reward
-        sr_core_inputs = (features, return_targets)
-        should_reset = jnp.equal(timestep.step_type[:-1], int(dm_env.StepType.FIRST))
-        core_inputs = (sr_core_inputs, should_reset)
-        sr_state = jax.tree_map(lambda t: t[0], sr_state)
-        sr_output, sr_state = hk.dynamic_unroll(self.sr_net, core_inputs, sr_state)
+        sr_inputs = (features, timestep)
+        sr_output, sr_state = self.sr_net(sr_inputs, sr_state)
 
         #  policy net
-        em_state, cell_state = sr_state
-        agent_output = self._policy_net(sr_output.output, p_state)
-        return sr_models_lib.SrOutput(agent_output, sr_output)
+        core_output, p_state = hk.BatchApply(self.policy_net)(sr_output.output, p_state)
 
-    def unroll(self, timestep: dm_env.TimeStep, state: Any):
-        return hk.BatchApply(self)(timestep, state)
+        #  wrap up and return
+        outputs = sr_output._replace(output=core_output)
+        state = (c_state, sr_state, p_state)
+        return outputs, state
+
+    def __call__(self, timestep: dm_env.TimeStep, state: Any):
+        timestep = jax.tree_map(lambda t: t[None, ...], timestep)
+        return self.unroll(timestep, state)
 
 
 class SrNet(_SR):
-    def __init__(self, num_actions, **sr_config):
+    def __init__(
+        self,
+        num_actions,
+        vision_net_fn,
+        capacity,
+        memory_size=256,
+        alpha=0.3,
+        beta=1.0,
+    ):
         #  make sure the rnn computes the sr model
-        sr_config.update(
-            {
-                "apply_core_to_input": False,
-                "memory_size": 256,
-                "alpha": 0.3,
-                "beta": 1.0,
-                "capacity": 140,  # max_steps
-                "name": "sr",
-            }
-        )
-        super().__init__(num_actions, **sr_config)
+        sr_config = {
+            "memory_size": memory_size,
+            "capacity": capacity,  #  max_ep_steps
+            "alpha": alpha,
+            "beta": beta,
+            "name": "sr",
+            # "apply_core_to_input": False,
+        }
+        super().__init__(num_actions, vision_net_fn, **sr_config)
 
 
 class ImpalaNet(_SR):
-    def __init__(self, num_actions):
+    def __init__(self, num_actions, vision_net_fn, **ignored_kwargs):
         #  make sure the rnn skips the sr model
         sr_config = {
-            "apply_core_to_input": True,
-            "alpha": 0.0,
-            "beta": 1.0,
             "memory_size": 256,
             "capacity": 140,  # 0
+            "alpha": 0.0,
+            "beta": 1.0,
             "loss_func": lambda x, y: 0.0,
+            # "apply_core_to_input": True,
             "name": "sr_ablated",
         }
-        super().__init__(num_actions, **sr_config)
+        super().__init__(num_actions, vision_net_fn, **sr_config)
