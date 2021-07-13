@@ -14,7 +14,7 @@
 # ==============================================================================
 """Common networks."""
 import collections
-from typing import Any
+from typing import Any, Tuple
 
 import dm_env
 import haiku as hk
@@ -213,17 +213,23 @@ class SyntheticReturns(hk.RNNCore):
         super().__init__(name=name)
         hidden_units = 256
         core = hk.LSTM(hidden_units)
-        self._sr_net = sr_models_lib.SyntheticReturnsCoreWrapper(core, **sr_config)
+        self._sr_wrapper = hk.ResetCore(
+            sr_models_lib.SyntheticReturnsCoreWrapper(core, **sr_config)
+        )
 
     def initial_state(self, batch_size):
-        if batch_size is None:
-            shape = []
-        else:
-            shape = [batch_size]
-        return jnp.zeros(shape)  # Dummy.
+        return self._sr_wrapper.initial_state(batch_size)
 
-    def __call__(self, x: dm_env.TimeStep, state) -> sr_models_lib.SrOutput:
-        return self._sr_net(x, state)
+    def __call__(self, inputs, state) -> sr_models_lib.SrOutput:
+        features, timestep = inputs
+
+        return_targets = timestep.reward
+        should_reset = jnp.equal(timestep.step_type, int(dm_env.StepType.FIRST))
+
+        core_inputs = ((features, return_targets), should_reset)
+        # sr_state = jax.tree_map(lambda t: t[0], sr_state)
+        output, state = hk.dynamic_unroll(self._sr_wrapper, core_inputs, state)
+        return output, state
 
 
 class PolicyNetwork(hk.RNNCore):
