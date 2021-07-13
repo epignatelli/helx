@@ -101,7 +101,16 @@ class Learner:
         initial_state = jax.tree_map(lambda t: t[0], trajectories.agent_state)
         sr_output = self._agent.unroll(theta, trajectories.timestep, initial_state)
 
+        #  swap between sr and impala here
+        use_sr = int(self._use_synthetic_returns)
         net_out = sr_output.output
+        sr_output = sr_output._replace(
+            augmented_return=sr_output.augmented_return * use_sr
+        )
+        sr_output = sr_output._replace(
+            synthetic_return=sr_output.synthetic_return * use_sr
+        )
+        sr_output = sr_output._replace(sr_loss=sr_output.sr_loss * use_sr)
 
         v_t = net_out.values[1:]
         # Remove bootstrap timestep from non-timesteps.
@@ -153,8 +162,8 @@ class Learner:
         total_loss += sr_loss
 
         logs = {}
-        logs["mdp_reward"] = timestep.reward
-        logs["synthetic_return"] = sr_output.synthetic_return
+        logs["mdp_return"] = jnp.sum(timestep.reward)
+        logs["synthetic_return"] = jnp.sum(sr_output.synthetic_return)
 
         logs["pg_loss"] = pg_loss
         logs["value_loss"] = value_loss
