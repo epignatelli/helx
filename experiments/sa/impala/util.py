@@ -20,6 +20,9 @@ import numpy as np
 import tree
 import wandb
 from absl import logging
+import jax
+import jax.numpy as jnp
+
 
 # Can represent either a single transition, a trajectory, or a batch of
 # trajectories.
@@ -61,14 +64,25 @@ class AbslLogger:
         pass
 
 
-class WandbLogger:
+class WandbLogger(AbslLogger):
     """Writes to logging.info."""
 
-    def __init__(self, experiment=None):
-        wandb.init(project=experiment or "sr")
+    def __init__(self, project=None):
+        self.base = super()
+        wandb.init(project=project or "sr")
 
     def write(self, d):
-        wandb.log(d)
+        try:
+            wandb.log(d)
+        except RuntimeError as e:
+            self.base.write("Wandb failed: {}".format(repr(e)))
+        self.base.write(d)
 
     def close(self):
         pass
+
+
+def l1_norm(tree):
+    """Compute the l2 norm of a pytree of arrays. Useful for weight decay."""
+    leaves, _ = jax.tree_flatten(tree)
+    return jnp.abs(sum(jnp.vdot(x, x) for x in leaves))
