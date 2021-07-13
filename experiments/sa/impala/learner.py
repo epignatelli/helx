@@ -100,17 +100,15 @@ class Learner:
     ) -> Tuple[jnp.ndarray, Dict[str, jnp.ndarray]]:
         """Compute vtrace-based actor-critic loss."""
         initial_state = jax.tree_map(lambda t: t[0], trajectories.agent_state)
-        output: sr.SrOutput = self._agent.unroll(
-            theta, trajectories.timestep, initial_state
-        )
+        sr_output = self._agent.unroll(theta, trajectories.timestep, initial_state)
 
-        learner_outputs = output.output
+        net_out = sr_output.output
 
-        v_t = learner_outputs.values[1:]
+        v_t = net_out.values[1:]
         # Remove bootstrap timestep from non-timesteps.
         _, actor_out, _ = jax.tree_map(lambda t: t[:-1], trajectories)
-        learner_outputs = jax.tree_map(lambda t: t[:-1], learner_outputs)
-        v_tm1 = learner_outputs.values
+        net_out = jax.tree_map(lambda t: t[:-1], net_out)
+        v_tm1 = net_out.values
 
         # Get the discount, reward, step_type from the *next* timestep.
         timestep = jax.tree_map(lambda t: t[1:], trajectories.timestep)
@@ -118,7 +116,7 @@ class Learner:
         rewards = timestep.reward
         #  if using the sr model, reward is the compound reward
         if self._use_synthetic_returns:
-            rewards = output.augmented_return
+            rewards = sr_output.augmented_return
 
         if self._max_abs_reward > 0:
             rewards = jnp.clip(rewards, -self._max_abs_reward, self._max_abs_reward)
@@ -129,7 +127,7 @@ class Learner:
         mask = mask.astype(jnp.float32)
 
         rhos = rlax.categorical_importance_sampling_ratios(
-            learner_outputs.policy_logits, actor_out.policy_logits, actor_out.action
+            net_out.policy_logits, actor_out.policy_logits, actor_out.action
         )
         # vmap vtrace_td_error_and_advantage to take/return [T, B, ...].
         vtrace_td_error_and_advantage = jax.vmap(
@@ -141,13 +139,13 @@ class Learner:
         )
         pg_advs = vtrace_returns.pg_advantage
         pg_loss = policy_gradient_loss(
-            learner_outputs.policy_logits, actor_out.action, pg_advs, mask
+            net_out.policy_logits, actor_out.action, pg_advs, mask
         )
 
         value_loss = 0.5 * jnp.sum(jnp.square(vtrace_returns.errors) * mask)
-        ent_loss = entropy_loss(learner_outputs.policy_logits, mask)
+        ent_loss = entropy_loss(net_out.policy_logits, mask)
 
-        sr_loss = output.sr_loss
+        sr_loss = jnp.sum(sr_output.sr_loss)
         sr_loss *= int(self._use_synthetic_returns)
 
         total_loss = pg_loss
@@ -157,7 +155,7 @@ class Learner:
 
         logs = {}
         logs["mdp_reward"] = timestep.reward
-        logs["synthetic_return"] = output.synthetic_return
+        logs["synthetic_return"] = sr_output.synthetic_return
 
         logs["pg_loss"] = pg_loss
         logs["value_loss"] = value_loss
