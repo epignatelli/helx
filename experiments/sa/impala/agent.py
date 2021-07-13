@@ -14,6 +14,7 @@
 # ==============================================================================
 """A stateless agent interface."""
 import collections
+from impala import sr as sr_lib
 
 import functools
 from typing import Any, Callable, Optional, Tuple
@@ -104,7 +105,7 @@ class Agent:
         params: hk.Params,
         timestep: dm_env.TimeStep,
         state: Nest,
-    ) -> AgentOutput:
+    ) -> sr_lib.SrOutput:
         """Unroll the agent along trajectory."""
         sr_out, _ = self._apply_fn(params, timestep, state)
         sr_out = sr_out._replace(
