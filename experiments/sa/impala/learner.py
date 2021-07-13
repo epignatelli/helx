@@ -14,7 +14,6 @@
 # ==============================================================================
 """IMPALA learner class."""
 
-from impala import sr
 import functools
 import itertools
 import queue
@@ -90,8 +89,8 @@ class Learner:
 
         # Set up logging.
         if logger is None:
-            logger = util.NullLogger()
-        self._logger = logger
+            logger = util.NullLogger
+        self._logger = util.WandbLogger("impala")
 
     def _loss(
         self,
