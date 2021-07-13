@@ -182,7 +182,7 @@ class AtariNet(hk.RNNCore):
 
 
 class CatchConvNet(hk.RNNCore):
-    def initial_state(self, *args, **kwargs):
+    def initial_state(self, batch_size):
         return ()
 
     def __call__(self, x: dm_env.TimeStep, state):
