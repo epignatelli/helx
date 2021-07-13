@@ -180,11 +180,13 @@ class Learner:
         grad_norm_unclipped = optimizers.l2_norm(grads)
         updates, updated_opt_state = self._opt.update(grads, opt_state)
         params = optax.apply_updates(params, updates)
-        weight_norm = optimizers.l2_norm(params)
+        weight_norm_l2 = optimizers.l2_norm(params)
+        weight_norm_l1 = util.l1_norm(params)
         logs.update(
             {
                 "grad_norm_unclipped": grad_norm_unclipped,
-                "weight_norm": weight_norm,
+                "weight_norm_l1": weight_norm_l1,
+                "weight_norm_l2": weight_norm_l2,
             }
         )
         return params, updated_opt_state, logs
