@@ -89,7 +89,8 @@ class Agent:
         timestep = jax.tree_map(lambda t: t[None, None, ...], timestep)
         state = jax.tree_map(lambda t: t[None, ...], state)
 
-        net_out, next_state = self._apply_fn(params, timestep, state)
+        sr_out, next_state = self._apply_fn(params, timestep, state)
+        net_out = sr_out.output
         # Remove the padding from above.
         net_out = jax.tree_map(lambda t: jnp.squeeze(t, axis=(0, 1)), net_out)
         next_state = jax.tree_map(lambda t: jnp.squeeze(t, axis=0), next_state)
@@ -105,5 +106,8 @@ class Agent:
         state: Nest,
     ) -> AgentOutput:
         """Unroll the agent along trajectory."""
-        net_out, _ = self._apply_fn(params, timestep, state)
-        return AgentOutput(net_out.policy_logits, net_out.value, action=[])
+        sr_out, _ = self._apply_fn(params, timestep, state)
+        sr_out = sr_out._replace(
+            output=AgentOutput(sr_out.output.policy_logits, sr_out.output.value, [])
+        )
+        return sr_out
