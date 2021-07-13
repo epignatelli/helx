@@ -237,7 +237,7 @@ class PolicyNetwork(hk.RNNCore):
         super().__init__(name=name)
         self.num_actions = num_actions
 
-    def initial_state(self, *args, **kwargs):
+    def initial_state(self, batch_size):
         return ()
 
     def __call__(self, x: Array, state):
