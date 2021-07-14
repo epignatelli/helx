@@ -40,7 +40,6 @@ flags.DEFINE_float("DISCOUNT_FACTOR", 0.99, "")
 flags.DEFINE_integer("MAX_ENV_FRAMES", 20000, "")
 flags.DEFINE_integer("NUM_ACTORS", 128, "")
 flags.DEFINE_integer("UNROLL_LENGTH", 20, "")
-flags.DEFINE_integer("SEED", 0, "")
 flags.DEFINE_enum("MODEL", "Impala", ("Impala", "Sr", "Sa"), "")
 flags.DEFINE_enum("EXPERIMENT", "Catch", ("Catch", "KeyToDoor"), "")
 
