@@ -85,4 +85,4 @@ class WandbLogger(AbslLogger):
 def l1_norm(tree):
     """Compute the l1 norm of a pytree of arrays. Useful for weight decay."""
     leaves, _ = jax.tree_flatten(tree)
-    return jnp.abs(sum(jnp.linalg.norm(x, ord=1) for x in leaves))
+    return jnp.abs(sum(jnp.vdot(x, x) for x in leaves))
