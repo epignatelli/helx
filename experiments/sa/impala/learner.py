@@ -238,9 +238,10 @@ class Learner:
 
             # Collect and write logs out.
             logs = jax.device_get(logs)
+            logs = {k: float(v) for k, v in logs.items()}
             logs.update(
                 {
-                    "num_frames": num_frames,
+                    "num_frames": int(num_frames),
                 }
             )
             self._logger.write(logs)
