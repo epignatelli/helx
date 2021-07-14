@@ -14,11 +14,9 @@
 # ==============================================================================
 """Single-process IMPALA wiring."""
 
-from functools import partial
 import threading
 from typing import List, NamedTuple
 
-import haiku as hk
 import jax
 import optax
 from absl import app, flags
@@ -30,7 +28,11 @@ import impala.agent as agent_lib
 import impala.learner as learner_lib
 import impala.util as util
 import impala.haiku_nets as models_lib
+import numpy as np
+import random
 
+
+flags.DEFINE_integer("SEED", 0, "")
 flags.DEFINE_bool("DEBUG", False, "")
 flags.DEFINE_integer("ACTION_REPEAT", 1, "")
 flags.DEFINE_integer("BATCH_SIZE", 32, "")
@@ -69,6 +71,9 @@ def main(_):
     MAX_UPDATES = MAX_ENV_FRAMES / FRAMES_PER_ITER
     MODEL = FLAGS.MODEL
     EXPERIMENT = FLAGS.EXPERIMENT
+
+    np.random.seed(0)
+    random.seed(0)
 
     # A thunk that builds a new environment.
     # Substitute your environment here!
