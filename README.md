@@ -2,11 +2,18 @@
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-# Helx
-Helx is a helper library for [JAX](https://github.com/google/jax) / [stax](https://github.com/google/jax/blob/master/jax/experimental/stax.py).
-It is in continuous development, so expect changes.
-For some fuctionalities see below.
+Hi there!
+I am [Eduardo pignatelli](https://epignatelli.com/), I use this repository as a recipient of my research code in Deep Reinforcement Learning.
 
+# Helx
+When I found code that I can abstract out and agnostify from an experiment I am running, I usually consolidate it into `helx`.
+
+Helx is a helper library for [JAX](https://github.com/google/jax) / [stax](https://github.com/google/jax/blob/master/jax/experimental/stax.py).
+Because this is research code, it is in continuous development, so expect changes.
+I do not have plan to consistently guarantee continuous support or proper deployment.
+If you want to use it, I suggest you fork the code and refer to that specific commit when creating an environment.
+
+For some fuctionalities see below.
 
 ### Installation
 
