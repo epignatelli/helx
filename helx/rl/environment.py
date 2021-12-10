@@ -3,6 +3,7 @@ import multiprocessing as mp
 from copy import deepcopy
 from multiprocessing.connection import Connection
 from typing import Sequence
+import matplotlib.pyplot as plt
 
 import dm_env
 import gym
@@ -27,7 +28,8 @@ def make_minigrid(name, pomdp=True):
         env = RGBImgPartialObsWrapper(env)  # Get pixel observations
     env = ImgObsWrapper(env)  # Get rid of the 'mission' field
     env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
-    env.render = env.gym_env.render
+    # fix gym's env.render method
+    env.render = lambda: plt.imshow(env.render("rgb_array"))
     return env
 
 
