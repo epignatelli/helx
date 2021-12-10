@@ -21,9 +21,10 @@ def make(name):
     return env
 
 
-def make_minigrid(name):
+def make_minigrid(name, pomdp=True):
     env = gym.make(name)
-    env = RGBImgPartialObsWrapper(env)  # Get pixel observations
+    if pomdp:
+        env = RGBImgPartialObsWrapper(env)  # Get pixel observations
     env = ImgObsWrapper(env)  # Get rid of the 'mission' field
     env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
     env.render = env.gym_env.render
