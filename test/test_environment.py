@@ -1,12 +1,12 @@
 import logging
 import time
 import multiprocessing as mp
-from helx.rl.environment import make_minigrid, MultiprocessEnv
+from helx.rl.environment import make, MultiprocessEnv
 
 
 def test_multiprocess_env():
     n = 32
-    env = make_minigrid("MiniGrid-Empty-5x5-v0")
+    env = make("MiniGrid-Empty-5x5-v0")
     env = MultiprocessEnv(env, n)
     env.reset()
     logging.debug("resetted env")
@@ -17,7 +17,7 @@ def test_multiprocess_env():
 
 def test_multiprocess_env_async():
     n = 3
-    env = make_minigrid("MiniGrid-Empty-5x5-v0")
+    env = make("MiniGrid-Empty-5x5-v0")
     env = MultiprocessEnv(env, n)
     m = mp.Manager()
     buffer = m.Queue(10)

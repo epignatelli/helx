@@ -1,19 +1,12 @@
 from helx.rl.memory import ReplayBuffer
 from gym_minigrid.wrappers import *
 from bsuite.utils.gym_wrapper import DMEnvFromGym
-
-
-def make(name):
-    env = gym.make(name)
-    env = RGBImgPartialObsWrapper(env)  # Get pixel observations
-    env = ImgObsWrapper(env)  # Get rid of the 'mission' field
-    env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
-    return env
+from helx.rl import environment
 
 
 def test_buffer():
     buffer = ReplayBuffer(10, 1)
-    env = make("MiniGrid-Empty-8x8-v0")
+    env = environment.make("MiniGrid-Empty-8x8-v0")
     num_episodes = 10
 
     for episode in range(num_episodes):
