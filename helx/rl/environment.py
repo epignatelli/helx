@@ -16,10 +16,17 @@ from helx.random import PRNGSequence
 from helx.typing import Size
 
 
+def from_gym(gym_env):
+    #  Convert to dm_env.Environment
+    env = DMEnvFromGym(gym_env)
+    # fix gym's env.render function
+    env.render = lambda: plt.imshow(env.gym_env.render("rgb_array"))
+    return env
+
+
 def make(name):
     env = gym.make(name)
-    env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
-    return env
+    return from_gym(env)
 
 
 def make_minigrid(name, pomdp=True):
@@ -27,10 +34,7 @@ def make_minigrid(name, pomdp=True):
     if pomdp:
         env = RGBImgPartialObsWrapper(env)  # Get pixel observations
     env = ImgObsWrapper(env)  # Get rid of the 'mission' field
-    env = DMEnvFromGym(env)  #  Convert to dm_env.Environment
-    # fix gym's env.render method
-    env.render = lambda: plt.imshow(env.render("rgb_array"))
-    return env
+    return from_gym(env)
 
 
 def preprocess_atari(x):

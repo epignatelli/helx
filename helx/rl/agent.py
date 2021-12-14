@@ -2,6 +2,7 @@ import abc
 import logging
 
 import dm_env
+import jax
 from helx.nn.module import Module
 from helx.optimise.optimisers import Optimiser
 from helx.typing import Action, HParams, Loss
@@ -96,3 +97,11 @@ class IAgent:
                 # prepare next iteration
                 timestep = new_timestep
         return loss
+
+    def rand_prob(self):
+        k, self.rng = jax.random.split(self.rng)
+        return jax.random.uniform(k)
+
+    def rand_action(self, low=0, high=10):
+        k, self.rng = jax.random.split(self.rng)
+        return jax.random.randint(k, (1,), 0, self.action_spec.num_values)
