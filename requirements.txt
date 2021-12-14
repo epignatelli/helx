@@ -1,9 +1,0 @@
-pytest
-jaxlib
-jax
-bsuite
-gym
-gym-minigrid
-wandb
-jupyterlab
-black
