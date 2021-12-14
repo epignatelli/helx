@@ -17,5 +17,15 @@ setup(
     author_email="edu.pignatelli@gmail.com",
     url="https://github.com/epignatelli/helx",
     packages=["helx", "helx.nn", "helx.rl", "helx.rl.baselines", "helx.optimise"],
-    install_requires=parse_requirements("requirements.txt"),
+    install_requires=[
+        "pytest",
+        "jaxlib",
+        "jax",
+        "bsuite",
+        "gym",
+        "gym-minigrid",
+        "wandb",
+        "jupyterlab",
+        "black",
+    ]
 )
