@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+from setuptools import setup, find_packages
 
-from distutils.core import setup
+
+__version__ = "0.0.5.0"
 
 
 def parse_requirements(filename):
@@ -10,13 +11,14 @@ def parse_requirements(filename):
 
 setup(
     name="Helx",
-    version="0.0.5.0",
+    version=__version__,
     description="Helx is a helper library for JAX/stax to implement \
                  Reinforcement Learning and Deep Learning algorithms",
     author="Eduardo Pignatelli",
     author_email="edu.pignatelli@gmail.com",
     url="https://github.com/epignatelli/helx",
-    packages=["helx", "helx.nn", "helx.rl", "helx.rl.baselines", "helx.optimise"],
+    packages=find_packages(exclude="experiments"),
+    python_requires=">=3.7",
     install_requires=[
         "pytest",
         "jaxlib",
@@ -27,5 +29,5 @@ setup(
         "wandb",
         "jupyterlab",
         "black",
-    ]
+    ],
 )
