@@ -83,13 +83,11 @@ class EmailLogger(Logger):
         credentials: Tuple[str, str],
         level=20,
     ):
-        # TODO
         raise NotImplementedError
 
 
 class HttpLogger(Logger):
     def __init__(self, host: str, method: str = "POST", level: int = 20):
-        # TODO
         raise NotImplementedError
 
 
@@ -102,5 +100,5 @@ class WandBLogger(Logger):
 
 
 class TensorboardLogger(Logger):
-    # TODO
-    raise NotImplementedError
+    def __init__(self):
+        raise NotImplementedError
