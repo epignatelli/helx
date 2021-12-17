@@ -26,9 +26,6 @@ def from_gym(gym_env):
 
 def make(name):
     env = gym.make(name)
-    if "MiniGrid" in name:
-        env = RGBImgPartialObsWrapper(env)  # Get pixel observations
-        env = ImgObsWrapper(env)  # Get rid of the 'mission' field
     return from_gym(env)
 
 
@@ -110,7 +107,7 @@ class MultiprocessEnv(dm_env.Environment):
     ):
         assert isinstance(
             env, dm_env.Environment
-        ), "The environment to parallelise but be a dm_env.Environment, got {}".format(
+        ), "The environment to parallelise must be an instance of `dm_env.Environment`, got {} instead".format(
             type(env)
         )
         #  public:
