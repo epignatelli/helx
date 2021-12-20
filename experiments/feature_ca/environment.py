@@ -1,8 +1,11 @@
 import gym
+from gym.spaces.box import Box
 from gym_minigrid.wrappers import ImgObsWrapper
 import numpy as np
 from gym import spaces
 from gym_minigrid.minigrid import OBJECT_TO_IDX, Goal, Grid, Lava, MiniGridEnv
+
+from helx.rl import agent
 
 
 class PartialObsWrapper(gym.core.ObservationWrapper):
@@ -19,11 +22,17 @@ class PartialObsWrapper(gym.core.ObservationWrapper):
             "image" in self.observation_space.spaces
         ), "Observation does not contain an image field."
 
+        # set agent view size
         self.unwrapped.agent_view_size = agent_view_size
-        self.unwrapped.observation_space["image"].shape = (
-            agent_view_size,
-            agent_view_size,
-            self.unwrapped.observation_space.spaces["image"].shape[-1],
+        topX, topY, botX, botY = self.unwrapped.get_view_exts()
+
+        # set partial observation space
+        current = self.unwrapped.observation_space["image"]
+        self.env.observation_space["image"] = Box(
+            low=current.low[topX:botX, topY:botY],
+            high=current.high[topX:botX, topY:botY],
+            shape=(agent_view_size, agent_view_size, *current.shape[2:]),
+            dtype=current.dtype,
         )
 
     def observation(self, obs):
@@ -42,10 +51,11 @@ class SymbolicObsWrapper(gym.core.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
 
+        current = self.env.observation_space["image"]
         self.observation_space.spaces["image"] = spaces.Box(
-            low=0,
-            high=255,
-            shape=(self.env.width, self.env.height, 3),  # number of cells
+            low=min(OBJECT_TO_IDX.values()),
+            high=max(OBJECT_TO_IDX.values()),
+            shape=(self.env.width, self.env.height),
             dtype="uint8",
         )
 
@@ -53,11 +63,11 @@ class SymbolicObsWrapper(gym.core.ObservationWrapper):
         w, h = self.width, self.height
         objects = np.array(
             [OBJECT_TO_IDX[o.type] if o is not None else -1 for o in self.grid.grid]
-        ).reshape(1, w, h)
-        grid = np.mgrid[:w, :h]
-        grid = np.concatenate([grid, objects])
-        grid = np.transpose(grid, (1, 2, 0))
-        obs["image"] = grid
+        ).reshape(w, h)
+        # grid = np.mgrid[:w, :h]
+        # grid = np.concatenate([grid, objects])
+        # grid = np.transpose(grid, (1, 2, 0))
+        obs["image"] = objects
         return obs
 
 
@@ -109,22 +119,8 @@ class EmptyMultigoal(MiniGridEnv):
         self.mission = "get to the green goal square, avoid the lava"
 
 
-class EmptyMultigoalEnv5x5(EmptyMultigoal):
-    def __init__(self, **kwargs):
-        super().__init__(size=7, **kwargs)
-
-
-class EmptyMultigoalEnv8x8(EmptyMultigoal):
-    def __init__(self, **kwargs):
-        super().__init__(size=9, **kwargs)
-
-
-class EmptyMultigoalEnv16x16(EmptyMultigoal):
-    def __init__(self, **kwargs):
-        super().__init__(size=18, **kwargs)
-
-
 if __name__ == "__main__":
+    # debugging
     env = EmptyMultigoal(size=5, n_goals=1, n_traps=1)
     env = SymbolicObsWrapper(env)
     env = PartialObsWrapper(env, agent_view_size=1)
