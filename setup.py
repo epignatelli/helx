@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-__version__ = "0.0.6.0"
+__version__ = "0.0.7.0"
 
 
 def parse_requirements(filename):
@@ -21,8 +21,6 @@ setup(
     python_requires=">=3.7",
     install_requires=[
         "pytest",
-        "jaxlib",
-        "jax",
         "bsuite",
         "gym",
         "gym-minigrid",
