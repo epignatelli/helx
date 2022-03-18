@@ -1,7 +1,11 @@
+from typing import Generator
 import jax
 import jax.numpy as jnp
 
 from .typing import Key
+
+
+KeySequence = Generator[Key, Key, None]
 
 
 def shuffled_batched_indices(
@@ -23,8 +27,12 @@ def shuffled_batched_indices(
     return shuffled_batched
 
 
-def PRNGSequence(seed: int) -> Key:
+def PRNGSequence(seed: int) -> KeySequence:
     k = jax.random.PRNGKey(seed)
     while True:
         rng, k = jax.random.split(k)
         yield rng
+
+
+def new_key(seq: PRNGSequence) -> Key:
+    return next(seq)
