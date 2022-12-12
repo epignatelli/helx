@@ -19,7 +19,7 @@ from ..mdp import Episode
 from ..memory import ReplayBuffer
 
 
-class DqnHParams(NamedTuple):
+class DQNhparams(NamedTuple):
     # network
     input_shape: Shape
     hidden_size: int = 128
@@ -51,7 +51,7 @@ class DQN(Agent):
         self,
         network: nn.Module,
         optimiser: GradientTransformation,
-        hparams: DqnHParams,
+        hparams: DQNhparams,
         seed: int,
     ):
         key = jax.random.PRNGKey(seed)

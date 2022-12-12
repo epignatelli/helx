@@ -19,7 +19,7 @@ from ..mdp import Episode
 from ..memory import ReplayBuffer
 
 
-class SacHParams(NamedTuple):
+class SAChparams(NamedTuple):
     # network
     input_shape: Shape
     tau: float = 0.005
@@ -66,7 +66,7 @@ class SAC(Agent):
         actor: nn.Module,
         critic: nn.Module,
         optimiser: GradientTransformation,
-        hparams: SacHParams,
+        hparams: SAChparams,
         seed: int,
     ):
         key = jax.random.PRNGKey(seed)
