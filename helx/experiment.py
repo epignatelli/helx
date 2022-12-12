@@ -6,7 +6,7 @@ import numpy as np
 
 import wandb
 
-from .agents import Agent
+from .agents.agent import Agent
 
 
 def run(

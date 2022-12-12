@@ -1,27 +1,42 @@
-name: build
+name: Import
 
 on: [push]
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  score-code:
+    runs-on: ${{ matrix.os }}-latest
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
       fail-fast: false
       max-parallel: 5
       matrix:
-        python-version: [3.7, 3.8]
+        os: ["ubuntu", "windows", "macos"]
+    continue-on-error: true
 
     steps:
+
     - uses: actions/checkout@v2
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+
+    - uses: conda-incubator/setup-miniconda@v2
       with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
+        miniforge-version: latest
+        environment-file: environment.yml
+        activate-environment: helx
+        auto-activate-base: false
+
+    - name: Check code quality
+      id: linting
       run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        $CONDA/bin/conda install python=3.7
-        $CONDA/bin/pip install -e .
-    - name: Test with pytest
+        pip install pylint
+        MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
+        echo "$MESSAGE"
+
+    - name: Check for reproducibility
       run: |
-        $CONDA/bin/pytest test/
+        conda info --envs
+        conda env list
+        conda list
+        pip install -e .
+        python -c "import helx"
