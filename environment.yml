@@ -1,0 +1,19 @@
+name: helx
+
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+     - black
+     - flake8
+     - pytest
+     - jax
+     - chex
+     - optax
+     - rlax
+     - flax
+     - dm_env
+     - wandb
+     - absl-py
+     - gym[all]
+     - bsuite
