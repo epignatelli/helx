@@ -1,3 +1,4 @@
+from agents.agent import Agent
 from agents.dqn import DQN, DqnHParams
 from agents.sac import SAC, SacHParams
 from agents.sacd import SACD
