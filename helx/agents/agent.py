@@ -1,3 +1,4 @@
+"""Base class for a Reinforcement Learning agent."""
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ class Hparams(NamedTuple):
 
 class Agent():
     def __init__(self):
-        self.loss = jax.jit(self.loss)  # type: ignore
+        self.loss = jax.jit(self.loss)
 
         if not hasattr(self, "hparams"):
             self.hparams = Hparams()
@@ -80,7 +81,7 @@ class Agent():
 
     def new_key(self, n: int = 1):
         self.key, k = jax.random.split(self.key)
-        return jax.random.split(k, n).squeeze()  # type: ignore
+        return jax.random.split(k, n).squeeze()
 
     def unroll(
         self, env: Environment, eval: bool = False, max_steps: int = int(2e9)

@@ -1,3 +1,4 @@
+"""Common missing modules to the jax.stax library"""
 from typing import NamedTuple
 
 import jax

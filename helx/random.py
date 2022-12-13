@@ -1,3 +1,4 @@
+"""Random number generation utilities."""
 from typing import Generator
 import jax
 import jax.numpy as jnp

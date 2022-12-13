@@ -1,3 +1,4 @@
+"""A set of functions to define RL environments."""
 import logging
 import multiprocessing as mp
 from copy import deepcopy
@@ -17,7 +18,13 @@ from chex import Shape
 
 
 class Environment(DMEnvFromGym):
-    def seed(self, seed: int):
+    """A wrapper around a gym environment to make it compatible with dm_env
+    with two additional methods: i.e.
+      - `seed(self, seed: int) -> None` and
+      - `render(self)`.
+    """
+
+    def seed(self, seed: int) -> None:
         if seed is not None:
             self.gym_env.np_random, seed = gym.utils.seeding.np_random(seed)
         return
@@ -27,11 +34,13 @@ class Environment(DMEnvFromGym):
 
 
 def from_gym(gym_env):
+    """Convert a gym environment to dm_env.Environment"""
     #  Convert to dm_env.Environment
     return Environment(gym_env)
 
 
 def make(name):
+    """Create an helx.Environment from a gym environment name"""
     env = gym.make(name)
     return from_gym(env)
 
@@ -55,6 +64,14 @@ def preprocess_minigrid(x, size: Shape = (56, 56)):
 
 
 def actor(server: Connection, client: Connection, env: Environment):
+    """Actor definition for Actor-Learner architectures.
+
+    Args:
+        server (Connection): server connection
+        client (Connection): client connection
+        env (Environment): environment to interact with
+    """
+
     def _step(env, a: int):
         timestep = env.step(a)
         if timestep.last():
