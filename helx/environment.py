@@ -49,7 +49,7 @@ def preprocess_atari(x):
 
 def preprocess_minigrid(x, size: Shape = (56, 56)):
     """Refer to the minigrid implementation at:
-    https://github.com/maximecb/gym-minigrid
+    https://github.com/Farama-Foundation/Minigrid
     """
     return imresize(x / 255, size=size, channel_first=False)
 
