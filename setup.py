@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-__version__ = "0.0.7.0"
+__version__ = "0.1.0.0"
 
 
 def parse_requirements(filename):
