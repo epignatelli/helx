@@ -1,66 +1,13 @@
-"""A set of functions to define RL environments."""
-import logging
-import multiprocessing as mp
-from copy import deepcopy
+
 from multiprocessing.connection import Connection
-from typing import Any, List, Sequence
-import matplotlib.pyplot as plt
 
-import dm_env
-import gym
-import gym.utils.seeding
-import jax
-import jax.numpy as jnp
-from bsuite.utils.gym_wrapper import DMEnvFromGym
-from helx.image import greyscale, imresize
 from helx.random import PRNGSequence
-from chex import Shape
-
-
-class Environment(DMEnvFromGym):
-    """A wrapper around a gym environment to make it compatible with dm_env
-    with two additional methods: i.e.
-      - `seed(self, seed: int) -> None` and
-      - `render(self)`.
-    """
-
-    def seed(self, seed: int) -> None:
-        if seed is not None:
-            self.gym_env.np_random, seed = gym.utils.seeding.np_random(seed)
-        return
-
-    def render(self):
-        return self.gym_env.render()
-
-
-def from_gym(gym_env):
-    """Convert a gym environment to dm_env.Environment"""
-    #  Convert to dm_env.Environment
-    return Environment(gym_env)
-
-
-def make(name):
-    """Create an helx.Environment from a gym environment name"""
-    env = gym.make(name)
-    return from_gym(env)
-
-
-def preprocess_atari(x):
-    """Preprocessing function from
-    Mnih, V., 2015, https://www.nature.com/articles/nature14236
-    """
-    # depthwise max pooling to remove flickering
-    x = jax.lax.reduce_window(
-        x, -jnp.inf, jax.lax.max, (2, 1, 1, 1), (1, 1, 1, 1), "SAME"
-    )
-    return greyscale(imresize(x, (84, 84)))
-
-
-def preprocess_minigrid(x, size: Shape = (56, 56)):
-    """Refer to the minigrid implementation at:
-    https://github.com/Farama-Foundation/Minigrid
-    """
-    return imresize(x / 255, size=size, channel_first=False)
+from .environment import Environment
+import multiprocessing as mp
+import logging
+import dm_env
+from typing import Any, List, Sequence
+from copy import deepcopy
 
 
 def actor(server: Connection, client: Connection, env: Environment):
@@ -112,7 +59,7 @@ def actor(server: Connection, client: Connection, env: Environment):
         env.close()
 
 
-class MultiprocessEnv(dm_env.Environment):
+class MultiprocessEnv(Environment):
     """
     This class is inspired by openai's SubprocEnv.
     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
@@ -129,8 +76,8 @@ class MultiprocessEnv(dm_env.Environment):
         seed: int = 0,
     ):
         assert isinstance(
-            env, dm_env.Environment
-        ), "The environment to parallelise must be an instance of `dm_env.Environment`, got {} instead".format(
+            env, Environment
+        ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead".format(
             type(env)
         )
         #  public:
@@ -168,16 +115,13 @@ class MultiprocessEnv(dm_env.Environment):
             p.join()
 
     def reward_spec(self):
-        return self.envs[0].reward_spec()
+        return self.envs[0].reward_space()
 
     def observation_spec(self):
-        return self.envs[0].observation_spec()
+        return self.envs[0].observation_space()
 
     def action_spec(self):
-        return self.envs[0].action_spec()
-
-    def discount_spec(self):
-        return self.envs[0].discount_spec()
+        return self.envs[0].action_space()
 
     def reset(self) -> List[Any]:
         for server in self.servers:
@@ -219,3 +163,4 @@ class MultiprocessEnv(dm_env.Environment):
             \nReceived {} actions for {} environments. ".format(
             len(actions), self.n_actors
         )
+

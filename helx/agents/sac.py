@@ -14,12 +14,12 @@ from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
-from .agent import Agent
-from ..mdp import Episode
+from .agent import Agent, Hparams
+from ..environment.mdp import Episode
 from ..memory import ReplayBuffer
 
 
-class SAChparams(NamedTuple):
+class SAChparams(Hparams):
     # network
     input_shape: Shape
     tau: float = 0.005
@@ -82,7 +82,7 @@ class SAC(Agent):
         self.critic = critic
         self.optimiser = optimiser
         self.temperature = temperature
-        self.hparams = hparams
+        self.hparams: SAChparams = hparams
         self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.iteration = 0
         self.dim_A = jnp.ndim(output_tensor)
@@ -91,7 +91,7 @@ class SAC(Agent):
         self.params_critic_target = params_critic.copy({})
         super().__init__()
 
-    def policy(self, observation: Array, eval: bool = False) -> Tuple[Array, Array]:
+    def sample_action(self, observation: Array, eval: bool = False) -> Tuple[Array, Array]:
         """Selects an action using a parameterise gaussian policy"""
         (params_actor, _, _) = self.params
         return self._policy(params_actor, observation, self.new_key())  # type: ignore

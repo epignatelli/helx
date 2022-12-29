@@ -4,7 +4,7 @@ from collections import deque
 
 import jax
 
-from .mdp import Episode, tree_stack
+from .environment.mdp import Episode, tree_stack
 
 
 class ReplayBuffer:

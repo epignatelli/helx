@@ -8,6 +8,7 @@ dependencies:
      - flake8
      - pytest
      - jax
+     - jax_dataclasses
      - chex
      - optax
      - rlax
@@ -15,5 +16,5 @@ dependencies:
      - dm_env
      - wandb
      - absl-py
-     - gym[all]
+     - gymnasium[all]
      - bsuite

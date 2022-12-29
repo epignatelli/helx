@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 
-__version__ = "0.1.0.0"
+__version__ = "0.1.1.0"
 
 
 def parse_requirements(filename):
@@ -12,12 +12,11 @@ def parse_requirements(filename):
 setup(
     name="Helx",
     version=__version__,
-    description="Helx is a helper library for JAX/stax to implement \
-                 Reinforcement Learning and Deep Learning algorithms",
+    description="Helx is a helper library for Reinforcement Learning for JAX",
     author="Eduardo Pignatelli",
     author_email="edu.pignatelli@gmail.com",
     url="https://github.com/epignatelli/helx",
-    packages=find_packages(exclude="experiments"),
+    packages=find_packages(exclude=["experiments", "test", "examples"]),
     python_requires=">=3.9",
     install_requires=[
         "pytest",

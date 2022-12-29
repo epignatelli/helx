@@ -10,16 +10,16 @@ import jax.numpy as jnp
 import optax
 import rlax
 import wandb
-from chex import Array, Shape
+from chex import Array, Shape, dataclass
 from flax import linen as nn
 from optax import GradientTransformation
 
-from .agent import Agent
+from .agent import Agent, Hparams
 from ..mdp import Episode
 from ..memory import ReplayBuffer
 
 
-class DQNhparams(NamedTuple):
+class DQNhparams(Hparams):
     # network
     input_shape: Shape
     hidden_size: int = 128
@@ -56,14 +56,13 @@ class DQN(Agent):
     ):
         key = jax.random.PRNGKey(seed)
         key, k1 = jax.random.split(key)
-        input_shape = hparams.input_shape
-        params = network.init(k1, jnp.ones(input_shape))
+        params = network.init(k1, jnp.ones(hparams.input_shape))
 
         # const:
         self.key = key
         self.network = network
         self.optimiser = optimiser
-        self.hparams = hparams
+        self.hparams: DQNhparams = hparams
         self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.iteration = 0
         self.params = params
@@ -80,6 +79,9 @@ class DQN(Agent):
             y, self.hparams.final_exploration, self.hparams.initial_exploration
         )
         return jax.lax.select(eval, 0.0, eps)
+
+    def sample_action(self, observation: Array, eval: bool = False) -> Array:
+        return self.policy(observation, eval)[0]
 
     def policy(self, observation: Array, eval=False) -> Tuple[Array, Array]:
         """Selects an action using an e-greedy policy"""

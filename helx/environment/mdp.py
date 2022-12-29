@@ -1,18 +1,58 @@
 from __future__ import annotations
+from enum import IntEnum
 
 from functools import partial
-from typing import List, Tuple
+from typing import Any, List, Tuple, SupportsFloat
 
 import dm_env
+import gym.core
+import gymnasium.core
 import jax
 import jax.numpy as jnp
-from chex import Array
+from chex import Array, dataclass
 from dm_env import TimeStep
 from jax.tree_util import register_pytree_node_class
 
 
 def tree_stack(pytree, axis=0):
     return jax.tree_util.tree_map(lambda *x: jnp.stack(x, axis=axis), *pytree)
+
+
+GymnasiumTimestep = Tuple[gymnasium.core.ObsType, SupportsFloat, bool, bool, dict[str, Any]]
+GymTimestep = Tuple[gym.core.ObsType, float, bool, bool, dict]
+
+
+class Action(int, float, Array):
+    ...
+
+
+class StepType(IntEnum):
+    TRANSITION = 0
+    TRUNCATION = 1
+    TERMINATION = 2
+
+
+@register_pytree_node_class
+class Timestep:
+    def __init__(self, observation: Array, reward: Array | None, step_type: StepType):
+        self.observation: Array = observation
+        self.reward: Array | None = reward
+        self.step_type: StepType = step_type
+
+    @classmethod
+    def from_gym(cls, gym_step: GymnasiumTimestep) -> Timestep:
+        # TODO
+        raise NotImplementedError()
+
+    @classmethod
+    def from_gymnasium(cls, gymnasium_step: GymnasiumTimestep) -> Timestep:
+        # TODO
+        raise NotImplementedError()
+
+    @classmethod
+    def from_dm_env(cls, dm_step: dm_env.TimeStep) -> Timestep:
+        # TODO
+        raise NotImplementedError()
 
 
 @register_pytree_node_class
@@ -84,12 +124,12 @@ class Episode:
         action: Array,
     ) -> None:
         """Adds a new timestep to the episode.
-            Args:
-                timestep (dm_env.TimeStep): The timestep to add
-                action (Array): the action taken at `timestep.observation`
-            Returns:
-                None
-            """
+        Args:
+            timestep (dm_env.TimeStep): The timestep to add
+            action (Array): the action taken at `timestep.observation`
+        Returns:
+            None
+        """
         # add new transition to the trajectory
         self._s.append(jnp.asarray(timestep.observation, dtype=jnp.float32))
         self._a.append(action)
@@ -103,14 +143,14 @@ class Episode:
 
     def sars(self, axis=0):
         """Computes a (s₀, a₀, r₁, s₁, d₁) unroll of the episode.
-            Args:
-                axis (int): The temporala axis to index into
-            Returns:
-                (Tuple[Array, Array, Array, Array, Array]) a 5D-tuple containing
-                each transition in the episode, where the first axis it the
-                temporal axis
+        Args:
+            axis (int): The temporala axis to index into
+        Returns:
+            (Tuple[Array, Array, Array, Array, Array]) a 5D-tuple containing
+            each transition in the episode, where the first axis it the
+            temporal axis
         """
-        assert len(self.s) - 1== len(self.r) == len(self.d) == len(self.a)
+        assert len(self.s) - 1 == len(self.r) == len(self.d) == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
         pairs = []
         for t in range(0, len(self.s) - 1):
@@ -126,12 +166,12 @@ class Episode:
 
     def sarsa(self, axis=0):
         """Returns a (s₀, a₀, r₁, s₁, d₁, a₁) unroll of the episode
-            Args:
-                axis (int): The temporala axis to index into
-            Returns:
-                (Tuple[Array, Array, Array, Array, Array, Array]) a 6D-tuple containing
-                each transition in the episode, where the first axis it the
-                temporal axis
+        Args:
+            axis (int): The temporala axis to index into
+        Returns:
+            (Tuple[Array, Array, Array, Array, Array, Array]) a 6D-tuple containing
+            each transition in the episode, where the first axis it the
+            temporal axis
         """
         assert len(self.s) == len(self.r) + 1 == len(self.d) + 1 == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
