@@ -1,13 +1,14 @@
-
+import logging
+import multiprocessing as mp
+from copy import deepcopy
 from multiprocessing.connection import Connection
+from typing import Any, List, Sequence
+
+import dm_env
 
 from helx.random import PRNGSequence
+
 from .environment import Environment
-import multiprocessing as mp
-import logging
-import dm_env
-from typing import Any, List, Sequence
-from copy import deepcopy
 
 
 def actor(server: Connection, client: Connection, env: Environment):
@@ -163,4 +164,3 @@ class MultiprocessEnv(Environment):
             \nReceived {} actions for {} environments. ".format(
             len(actions), self.n_actors
         )
-

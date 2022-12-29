@@ -1,8 +1,8 @@
 from __future__ import annotations
-from enum import IntEnum
 
+from enum import IntEnum
 from functools import partial
-from typing import Any, List, Tuple, SupportsFloat
+from typing import Any, List, SupportsFloat, Tuple
 
 import dm_env
 import gym.core
@@ -18,11 +18,13 @@ def tree_stack(pytree, axis=0):
     return jax.tree_util.tree_map(lambda *x: jnp.stack(x, axis=axis), *pytree)
 
 
-GymnasiumTimestep = Tuple[gymnasium.core.ObsType, SupportsFloat, bool, bool, dict[str, Any]]
+GymnasiumTimestep = Tuple[
+    gymnasium.core.ObsType, SupportsFloat, bool, bool, dict[str, Any]
+]
 GymTimestep = Tuple[gym.core.ObsType, float, bool, bool, dict]
 
 
-class Action(int, float, Array):
+class Action(Array):
     ...
 
 
@@ -32,7 +34,6 @@ class StepType(IntEnum):
     TERMINATION = 2
 
 
-@register_pytree_node_class
 class Timestep:
     def __init__(self, observation: Array, reward: Array | None, step_type: StepType):
         self.observation: Array = observation

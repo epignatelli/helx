@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 from chex import Array, Shape
 
-from .mdp import StepType, Timestep, Action
+from .mdp import Action, StepType, Timestep
 from .spaces import BoundedSpace, Space
 
 

@@ -15,7 +15,7 @@ from flax import linen as nn
 from optax import GradientTransformation
 
 from .agent import Agent, Hparams
-from ..mdp import Episode
+from ..environment.mdp import Episode
 from ..memory import ReplayBuffer
 
 
