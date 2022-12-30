@@ -2,7 +2,7 @@ import flax.linen as nn
 from absl import logging, app, flags
 import optax
 import helx
-
+import gym
 
 helx.ui.define_flags_from_hparams(helx.agents.DQNhparams)
 FLAGS = flags.FLAGS
@@ -13,7 +13,8 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = helx.environment.make("Pong-v0")
+    gym_env = gym.make("Pong-v0")
+    env = helx.environment.Environment.make(gym_env)
 
     # optimiser
     optimiser = optax.rmsprop(

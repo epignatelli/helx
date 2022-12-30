@@ -35,7 +35,7 @@ def run_episode(
     t = 0
     timestep = env.reset()
     episode = Episode.start(timestep)
-    while (not timestep.last()) and t < max_steps:
+    while (not timestep.terminated()) and t < max_steps:
         t += 1
         action, _ = agent.sample_action(timestep.observation, eval=eval)
         timestep = env.step(action.item())
@@ -63,7 +63,7 @@ def run(
         project=project,
         group="{}-{}".format(env_name, agent_name),
         tags=(env_name, agent_name, experiment_name),
-        config=agent.hparams._asdict(),
+        config=agent.hparams.as_dict(),
         mode=mode
     )
 
@@ -74,7 +74,7 @@ def run(
     )
     logging.info(
         "The hyperparameters for the current experiment are {}".format(
-            agent.hparams._asdict()
+            agent.hparams.as_dict()
         )
     )
     logging.info("Start logging experiment on wandb project {}".format(experiment_name))
