@@ -9,8 +9,7 @@ import gym.core
 import gymnasium.core
 import jax
 import jax.numpy as jnp
-from chex import Array, dataclass
-from dm_env import TimeStep
+from chex import Array
 from jax.tree_util import register_pytree_node_class
 
 
@@ -39,6 +38,12 @@ class Timestep:
         self.observation: Array = observation
         self.reward: Array | None = reward
         self.step_type: StepType = step_type
+
+    def terminated(self) -> bool:
+        return self.step_type == StepType.TERMINATION
+
+    def truncated(self) -> bool:
+        return self.step_type == StepType.TRUNCATION
 
     @classmethod
     def from_gym(cls, gym_step: GymnasiumTimestep) -> Timestep:
@@ -116,12 +121,12 @@ class Episode:
         return cls(*children)
 
     @classmethod
-    def start(cls, timestep: TimeStep):
+    def start(cls, timestep: Timestep):
         return cls([timestep.observation], [], [], [])
 
     def add(
         self,
-        timestep: dm_env.TimeStep,
+        timestep: Timestep,
         action: Array,
     ) -> None:
         """Adds a new timestep to the episode.
@@ -131,15 +136,10 @@ class Episode:
         Returns:
             None
         """
-        # add new transition to the trajectory
         self._s.append(jnp.asarray(timestep.observation, dtype=jnp.float32))
         self._a.append(action)
         self._r.append(jnp.asarray([timestep.reward], dtype=jnp.float32))
-        # `self.d` stores whether the timestep is *terminal*
-        # reaching env.max_steps does not cause termination, but truncation
-        # γ(truncation) != 0, while γ(termination) = 0
-        truncated = bool(timestep.discount)
-        self._d.append(jnp.array([timestep.last() * int(truncated)], dtype=jnp.int32))
+        self._d.append(jnp.asarray([timestep.step_type], dtype=jnp.int32))
         return
 
     def sars(self, axis=0):
@@ -154,13 +154,17 @@ class Episode:
         assert len(self.s) - 1 == len(self.r) == len(self.d) == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
         pairs = []
+        s = self.s
+        a = self.a
+        r = self.r
+        d = self.d
         for t in range(0, len(self.s) - 1):
             transition = (
-                take(self.s, t, t + 1),
-                take(self.a, t, t + 1),
-                take(self.r, t, t + 1),
-                take(self.s, t + 1, t + 2),
-                take(self.d, t, t + 1),
+                take(s, t, t + 1),
+                take(a, t, t + 1),
+                take(r, t, t + 1),
+                take(s, t + 1, t + 2),
+                take(d, t, t + 1),
             )
             pairs.append(transition)
         return pairs

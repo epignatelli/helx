@@ -15,7 +15,9 @@ class Params(FrozenVariableDict):
     ...
 
 
-class Hparams: ...
+class Hparams:
+    def as_dict(self):
+        return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
 
 class Agent(abc.ABC):
