@@ -33,7 +33,7 @@ class Environment(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def observation_space(self) -> Shape:
+    def observation_space(self) -> Space:
         ...
 
     @abc.abstractmethod
