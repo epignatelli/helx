@@ -16,5 +16,6 @@ dependencies:
      - dm_env
      - wandb
      - absl-py
-     - gymnasium[all]
+     - gymnasium[all]>=0.26
+     - gym[all]>=0.26
      - bsuite

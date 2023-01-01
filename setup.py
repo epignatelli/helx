@@ -21,7 +21,8 @@ setup(
     install_requires=[
         "pytest",
         "bsuite",
-        "gym[all]",
+        "gymnasium[all]>=0.26"
+        "gym[all]>=0.26",
         "minigrid",
         "wandb",
         "jupyterlab",
