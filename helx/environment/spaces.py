@@ -7,6 +7,7 @@ import gym.spaces
 import gymnasium.spaces
 import jax.numpy as jnp
 from chex import Array
+import jax
 
 
 class Space(abc.ABC):
@@ -27,8 +28,14 @@ class Space(abc.ABC):
 
 
 class DiscreteSpace(Space):
-    def __init__(self, n_actions: int):
-        self.n_actions = n_actions
+    def __init__(self, n_dimensions: int):
+        self.n_dimensions = n_dimensions
+
+    def __len__(self) -> int:
+        return self.n_dimensions
+
+    def sample(self, key) -> Array:
+        return jax.random.randint(key, (1,), 0, self.n_dimensions)
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Discrete) -> DiscreteSpace:
@@ -52,6 +59,9 @@ class ContinuousSpace(Space):
     def __init__(self, n_dimensions: int = 1):
         self.n_dimensions = n_dimensions
 
+    def sample(self, key) -> Array:
+        return jax.random.uniform(key, (self.n_dimensions,), -float("inf"), float("inf"))
+
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Box) -> ContinuousSpace:
         # TODO
@@ -68,12 +78,15 @@ class ContinuousSpace(Space):
         raise NotImplementedError()
 
 
-class BoundedSpace(Space):
+class BoundedRange(Space):
     def __init__(self, minimum: float = -float("inf"), maximum: float = float("inf")):
         self.min: Array = jnp.asarray(minimum)
         self.max: Array = jnp.asarray(maximum)
 
-    def from_gym(self, gym_space: gym.spaces.Box) -> BoundedSpace:
+    def sample(self, key) -> Array:
+        return jax.random.uniform(key, (1,), self.min, self.max)
+
+    def from_gym(self, gym_space: gym.spaces.Box) -> BoundedRange:
         # TODO
         raise NotImplementedError()
 
@@ -81,6 +94,6 @@ class BoundedSpace(Space):
         # TODO
         raise NotImplementedError()
 
-    def from_dm_env(self, dm_space: dm_env.specs.BoundedArray) -> BoundedSpace:
+    def from_dm_env(self, dm_space: dm_env.specs.BoundedArray) -> BoundedRange:
         # TODO
         raise NotImplementedError()

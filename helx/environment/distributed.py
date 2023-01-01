@@ -8,10 +8,10 @@ import dm_env
 
 from helx.random import PRNGSequence
 
-from .environment import Environment
+from .env import Environment
 
 
-def actor(server: Connection, client: Connection, env: Environment):
+def _actor(server: Connection, client: Connection, env: Environment):
     """Actor definition for Actor-Learner architectures.
 
     Args:
@@ -97,7 +97,7 @@ class MultiprocessEnv(Environment):
             env.seed(int(next(rng)[0]))
             self.processes.append(
                 ctx.Process(  # type: ignore
-                    target=actor,
+                    target=_actor,
                     args=(server, client, env),
                     daemon=True,
                 )
@@ -115,14 +115,14 @@ class MultiprocessEnv(Environment):
         for p in self.processes:
             p.join()
 
-    def reward_spec(self):
-        return self.envs[0].reward_space()
+    def action_space(self):
+        return self.envs[0].action_space()
 
-    def observation_spec(self):
+    def observation_space(self):
         return self.envs[0].observation_space()
 
-    def action_spec(self):
-        return self.envs[0].action_space()
+    def reward_space(self):
+        return self.envs[0].reward_space()
 
     def reset(self) -> List[Any]:
         for server in self.servers:

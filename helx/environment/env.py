@@ -3,7 +3,7 @@ RL environment interfaces, like `gym`, `gymnasium`, `dm_env`, `bsuite and others
 from __future__ import annotations
 
 import abc
-from typing import Any
+from typing import Any, cast
 
 import bsuite.environments
 import dm_env
@@ -15,8 +15,8 @@ import jax
 import jax.numpy as jnp
 from chex import Array, Shape
 
-from .mdp import Action, StepType, Timestep
-from .spaces import BoundedSpace, Space
+from .mdp import Action, StepType, Timestep, GymnasiumTimestep, GymTimestep
+from .spaces import BoundedRange, Space
 
 
 class Environment(abc.ABC):
@@ -117,7 +117,7 @@ class FromGymnasiumEnv(Environment):
 
         minimum = self._env.reward_range[0]
         maximum = self._env.reward_range[1]
-        self._reward_space = BoundedSpace(minimum, maximum)
+        self._reward_space = BoundedRange(minimum, maximum)
         return self._reward_space
 
     def state(self) -> Array:
@@ -133,7 +133,7 @@ class FromGymnasiumEnv(Environment):
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action)
+        next_step = cast(GymnasiumTimestep, self._env.step(action))
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gymnasium(next_step)
 
@@ -177,7 +177,7 @@ class FromGymEnv(Environment):
 
         minimum = self._env.reward_range[0]
         maximum = self._env.reward_range[1]
-        self._reward_space = BoundedSpace(minimum, maximum)
+        self._reward_space = BoundedRange(minimum, maximum)
         return self._reward_space
 
     def state(self) -> Array:
