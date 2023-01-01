@@ -337,3 +337,35 @@ class FromBsuiteEnv(Environment):
 
     def close(self) -> None:
         return self._env.close()
+
+
+class FromGymnaxEnv(Environment):
+    """Static class to convert between Gymnax environments and helx environments."""
+
+    def __init__(self, env: Any):
+        # TODO (epignatelli): Implement this
+        raise NotImplementedError()
+
+
+class FromIvyGymEnv(Environment):
+    """Static class to convert between Ivy Gym environments and helx environments."""
+
+    def __init__(self, env: Any):
+        # TODO (epignatelli): Implement this
+        raise NotImplementedError()
+
+
+class FromDMControlEnv(Environment):
+    """Static class to convert between dm_control environments and helx environments."""
+
+    def __init__(self, env: Any):
+        # TODO (epignatelli): Implement this
+        raise NotImplementedError()
+
+
+class FromMujocoEnv(Environment):
+    """Static class to convert between mujoco environments and helx environments."""
+
+    def __init__(self, env: Any):
+        # TODO (epignatelli): Implement this
+        raise NotImplementedError()
