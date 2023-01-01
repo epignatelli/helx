@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import IntEnum
 from functools import partial
-from typing import Any, List, SupportsFloat, Tuple
+from typing import Any, List, SupportsFloat, Tuple, Union
 
 import dm_env
 import gym.core
@@ -11,16 +11,12 @@ import jax
 import jax.numpy as jnp
 from chex import Array
 from jax.tree_util import register_pytree_node_class
+from gymnasium.utils.step_api_compatibility import TerminatedTruncatedStepType as GymnasiumTimestep
+from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
 
 
 def tree_stack(pytree, axis=0):
     return jax.tree_util.tree_map(lambda *x: jnp.stack(x, axis=axis), *pytree)
-
-
-GymnasiumTimestep = Tuple[
-    gymnasium.core.ObsType, SupportsFloat, bool, bool, dict[str, Any]
-]
-GymTimestep = Tuple[gym.core.ObsType, float, bool, bool, dict]
 
 
 class Action(Array):
@@ -46,19 +42,43 @@ class Timestep:
         return self.step_type == StepType.TRUNCATION
 
     @classmethod
-    def from_gym(cls, gym_step: GymnasiumTimestep) -> Timestep:
-        # TODO
-        raise NotImplementedError()
+    def from_gymnasium(cls, gymnasium_step: GymnasiumTimestep) -> Timestep:
+        obs, reward, terminated, truncated, _ = gymnasium_step
+        obs = jnp.asarray(obs)
+        reward = jnp.asarray(reward)
+        if terminated:
+            step_type = StepType.TERMINATION
+        elif truncated:
+            step_type = StepType.TRUNCATION
+        else:
+            step_type = StepType.TRANSITION
+        return cls(obs, reward, step_type)
 
     @classmethod
-    def from_gymnasium(cls, gymnasium_step: GymnasiumTimestep) -> Timestep:
-        # TODO
-        raise NotImplementedError()
+    def from_gym(cls, gym_step: GymTimestep) -> Timestep:
+        obs, reward, terminated, truncated, _ = gym_step
+        obs = jnp.asarray(obs)
+        reward = jnp.asarray(reward)
+        if terminated:
+            step_type = StepType.TERMINATION
+        elif truncated:
+            step_type = StepType.TRUNCATION
+        else:
+            step_type = StepType.TRANSITION
+        return cls(obs, reward, step_type)
 
     @classmethod
     def from_dm_env(cls, dm_step: dm_env.TimeStep) -> Timestep:
-        # TODO
-        raise NotImplementedError()
+        step_type = dm_step.step_type
+        obs = jnp.asarray(dm_step.observation)
+        reward = jnp.asarray(dm_step.reward)
+        if  dm_step.step_type == dm_env.StepType.LAST:
+            step_type = StepType.TERMINATION
+        elif float(dm_step.discount) == 0.0:
+            step_type = StepType.TRUNCATION
+        else:
+            step_type = StepType.TRANSITION
+        return cls(obs, reward, step_type)
 
 
 @register_pytree_node_class
@@ -151,6 +171,7 @@ class Episode:
             each transition in the episode, where the first axis it the
             temporal axis
         """
+        # TODO: improve efficiency of this
         assert len(self.s) - 1 == len(self.r) == len(self.d) == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
         pairs = []
