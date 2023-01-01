@@ -9,7 +9,8 @@ import dm_env
 from helx.random import PRNGSequence
 
 from .env import Environment
-
+from .mdp import Action, Timestep
+from .spaces import Space
 
 def _actor(server: Connection, client: Connection, env: Environment):
     """Actor definition for Actor-Learner architectures.
@@ -115,13 +116,13 @@ class MultiprocessEnv(Environment):
         for p in self.processes:
             p.join()
 
-    def action_space(self):
+    def action_space(self) -> Space:
         return self.envs[0].action_space()
 
-    def observation_space(self):
+    def observation_space(self) -> Space:
         return self.envs[0].observation_space()
 
-    def reward_space(self):
+    def reward_space(self) -> Space:
         return self.envs[0].reward_space()
 
     def reset(self) -> List[Any]:
@@ -129,13 +130,13 @@ class MultiprocessEnv(Environment):
             server.send(("reset", None))
         return self._receive()
 
-    def step(self, actions: Sequence[int]) -> List[dm_env.TimeStep]:
+    def step(self, actions: Sequence[Action]) -> List[Timestep]:
         self._check_actions(actions)
         for a, server in zip(actions, self.servers):
             server.send(("step", a))
         return self._receive()
 
-    def step_async(self, actions: Sequence[int], queue: mp.Queue) -> None:
+    def step_async(self, actions: Sequence[Action], queue: mp.Queue) -> None:
         self._check_actions(actions)
         for a, server in zip(actions, self.servers):
             server.send(("step_async", (a, queue)))
@@ -157,7 +158,7 @@ class MultiprocessEnv(Environment):
     def _receive(self) -> List[Any]:
         return [server.recv() for server in self.servers]
 
-    def _check_actions(self, actions: Sequence[int]):
+    def _check_actions(self, actions: Sequence[Action]):
         assert (
             len(actions) == self.n_actors
         ), "The number of actions must be equal to the number of parallel environments.\
