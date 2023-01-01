@@ -1,8 +1,13 @@
+from typing import cast
+
 import flax.linen as nn
-from absl import logging, app, flags
+import gymnasium
+import jax.numpy as jnp
 import optax
+from absl import app, flags, logging
+
 import helx
-import gym
+
 
 helx.ui.define_flags_from_hparams(helx.agents.DQNhparams)
 FLAGS = flags.FLAGS
@@ -13,8 +18,8 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    gym_env = gym.make("Pong-v0")
-    env = helx.environment.Environment.make(gym_env)
+    env = gymnasium.make("pong-v0")
+    env = helx.environment.Environment.make(env)
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -25,9 +30,14 @@ def main(argv):
     )
 
     # agent
+    n_actions = len(cast(helx.environment.DiscreteSpace, env.action_space()))
     hparams = helx.ui.hparams_from_flags(helx.agents.DQNhparams, FLAGS)
     network = nn.Sequential(
-        [nn.Dense(features=64), nn.Dense(features=env.action_spec.num_values)]
+        [
+            lambda x: jnp.reshape(x, (-1, 1)),
+            nn.Dense(features=64),
+            nn.Dense(features=n_actions),
+        ]
     )
     agent = helx.agents.DQN(
         network=network, optimiser=optimiser, hparams=hparams, seed=0

@@ -7,7 +7,7 @@ import numpy as np
 import wandb
 
 from .agents.agent import Agent
-from .environment.environment import Environment
+from .environment.env import Environment
 from .environment.mdp import Episode
 
 
@@ -43,7 +43,6 @@ def run_episode(
     return episode
 
 
-
 def run(
     agent: Agent,
     env: Environment,
@@ -53,7 +52,7 @@ def run(
     print_frequency=10,
     project="",
     experiment_name: str = "",
-    debug: bool = False
+    debug: bool = False,
 ):
     # init logger
     nameof = lambda x: type(x).__name__
@@ -64,7 +63,7 @@ def run(
         group="{}-{}".format(env_name, agent_name),
         tags=(env_name, agent_name, experiment_name),
         config=agent.hparams.as_dict(),
-        mode=mode
+        mode=mode,
     )
 
     logging.info(
