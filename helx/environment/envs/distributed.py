@@ -8,11 +8,12 @@ import dm_env
 
 from helx.random import PRNGSequence
 
-from .env import Environment
-from .mdp import Action, Timestep
-from .spaces import Space
+from .base import IEnvironment
+from ..mdp import Action, Timestep
+from ..spaces import Space
 
-def _actor(server: Connection, client: Connection, env: Environment):
+
+def _actor(server: Connection, client: Connection, env: IEnvironment):
     """Actor definition for Actor-Learner architectures.
 
     Args:
@@ -61,7 +62,7 @@ def _actor(server: Connection, client: Connection, env: Environment):
         env.close()
 
 
-class MultiprocessEnv(Environment):
+class MultiprocessEnv(IEnvironment):
     """
     This class is inspired by openai's SubprocEnv.
     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
@@ -72,13 +73,13 @@ class MultiprocessEnv(Environment):
 
     def __init__(
         self,
-        env: Environment,
+        env: IEnvironment,
         n_actors: int,
         context: str = "spawn",
         seed: int = 0,
     ):
         assert isinstance(
-            env, Environment
+            env, IEnvironment
         ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead".format(
             type(env)
         )
@@ -86,7 +87,7 @@ class MultiprocessEnv(Environment):
         self.n_actors: int = n_actors
         self.clients: Sequence[Connection] = []
         self.servers: Sequence[Connection] = []
-        self.envs: Sequence[Environment] = [deepcopy(env) for _ in range(n_actors)]
+        self.envs: Sequence[IEnvironment] = [deepcopy(env) for _ in range(n_actors)]
         self.processes = []
 
         #  setup parallel workers
@@ -113,8 +114,6 @@ class MultiprocessEnv(Environment):
 
     def __del__(self):
         self.close()
-        for p in self.processes:
-            p.join()
 
     def action_space(self) -> Space:
         return self.envs[0].action_space()
@@ -145,6 +144,8 @@ class MultiprocessEnv(Environment):
     def close(self) -> List[Any]:
         for server in self.servers:
             server.send(("close", None))
+        for p in self.processes:
+            p.join()
         return self._receive()
 
     def render(self, mode: str = "rgb_array"):

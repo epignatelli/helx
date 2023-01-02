@@ -7,12 +7,12 @@ import numpy as np
 import wandb
 
 from .agents.agent import Agent
-from .environment.env import Environment
+from .environment.envs.base import IEnvironment
 from .environment.mdp import Episode
 
 
 def run_episode(
-    agent, env: Environment, eval: bool = False, max_steps: int = int(2e9)
+    agent, env: IEnvironment, eval: bool = False, max_steps: int = int(2e9)
 ) -> Episode:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
@@ -45,7 +45,7 @@ def run_episode(
 
 def run(
     agent: Agent,
-    env: Environment,
+    env: IEnvironment,
     num_episodes: int,
     num_eval_episodes: int = 5,
     eval_frequency: int = 1000,

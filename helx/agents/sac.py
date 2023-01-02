@@ -61,6 +61,7 @@ class SAC(Agent):
         arXiv preprint arXiv:2201.12434. 2022 Jan 28.
         https://arxiv.org/abs/2201.12434
     """
+
     def __init__(
         self,
         actor: nn.Module,
@@ -91,7 +92,9 @@ class SAC(Agent):
         self.params_critic_target = params_critic.copy({})
         super().__init__()
 
-    def sample_action(self, observation: Array, eval: bool = False) -> Tuple[Array, Array]:
+    def sample_action(
+        self, observation: Array, eval: bool = False
+    ) -> Tuple[Array, Array]:
         """Selects an action using a parameterise gaussian policy"""
         (params_actor, _, _) = self.params
         return self._policy(params_actor, observation, self.new_key())  # type: ignore
