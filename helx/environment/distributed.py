@@ -6,9 +6,9 @@ from typing import Any, List, Sequence
 
 from helx.random import PRNGSequence
 
+from ..mdp import Action, Timestep
+from ..spaces import Space
 from .base import IEnvironment
-from .mdp import Action, Timestep
-from .spaces import Space
 
 
 def _actor(server: Connection, client: Connection, env: IEnvironment):

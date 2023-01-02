@@ -14,9 +14,9 @@ from chex import Array, Shape, dataclass
 from flax import linen as nn
 from optax import GradientTransformation
 
-from .agent import Agent, Hparams
-from ..environment.mdp import Episode
+from ..mdp import Episode
 from ..memory import ReplayBuffer
+from .agent import Agent, Hparams
 
 
 class DQNhparams(Hparams):

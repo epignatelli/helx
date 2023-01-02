@@ -1,14 +1,12 @@
 import logging
 
-import dm_env
 import jax.numpy as jnp
 import numpy as np
-
 import wandb
 
 from .agents.agent import Agent
 from .environment.base import IEnvironment
-from .environment.mdp import Episode
+from .mdp import Episode
 
 
 def run_episode(

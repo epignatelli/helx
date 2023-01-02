@@ -8,9 +8,9 @@ import jax
 import jax.numpy as jnp
 from chex import Array
 
+from ..mdp import Action, GymnasiumTimestep, StepType, Timestep
+from ..spaces import Continuous, Space
 from .base import IEnvironment
-from .mdp import Action, GymnasiumTimestep, StepType, Timestep
-from .spaces import Continuous, Space
 
 
 class FromGymnasiumEnv(IEnvironment):
@@ -40,7 +40,7 @@ class FromGymnasiumEnv(IEnvironment):
 
         minimum = self._env.reward_range[0]
         maximum = self._env.reward_range[1]
-        self._reward_space = Continuous(minimum, maximum)
+        self._reward_space = Continuous((1,), (minimum,), (maximum,))
         return self._reward_space
 
     def state(self) -> Array:
