@@ -1,0 +1,15 @@
+black
+flake8
+pytest
+jax
+jax_dataclasses
+chex
+optax
+rlax
+flax
+dm_env
+wandb
+absl-py
+gymnasium[all]>=0.26
+gym[all]>=0.26
+bsuite
