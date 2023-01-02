@@ -1,7 +1,7 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import NamedTuple, Tuple
+from typing import Tuple
 
 import distrax
 import jax
@@ -97,10 +97,28 @@ class SAC(Agent):
     ) -> Tuple[Array, Array]:
         """Selects an action using a parameterise gaussian policy"""
         (params_actor, _, _) = self.params
-        return self._policy(params_actor, observation, self.new_key())  # type: ignore
+        return self.policy(params_actor, observation, self.new_key())  # type: ignore
 
-    def _policy(self, params_actor: nn.FrozenDict, observation: Array, key: PRNGKey):
-        mu, logvar = self.actor.apply(params_actor, observation)
+    def policy(
+        self,
+        params: nn.FrozenDict,
+        observation: Array,
+        key: PRNGKey,
+        eval: bool = False,
+    ) -> Tuple[Array, Array]:
+        """
+        Returns a sampled action and the log probability of the action under the
+        policy distribution.
+
+        Args:
+            params: actor parameters
+            observation: the current observation to act on
+            key: a jax random key
+
+        Returns:
+            action: the action and the log probability of the action
+        """
+        mu, logvar = self.actor.apply(params, observation)
         noise = jax.random.normal(key, (self.dim_A,))
         action = jnp.tanh(mu + logvar * noise)
         logprob = distrax.Normal(mu, jnp.exp(logvar)).log_prob(action)  # type: ignore
@@ -111,7 +129,7 @@ class SAC(Agent):
         s_0, _, r_1, s_1, d = transitions_batch
         (params_actor, params_critic, params_temperature) = params
 
-        _policy = jax.vmap(self._policy(p, o, k), in_axes=(None, 0, 0))  # type: ignore
+        _policy = jax.vmap(self.policy(p, o, k), in_axes=(None, 0, 0))  # type: ignore
         _value = jax.vmap(self.critic.apply, in_axes=(None, 0))  # type: ignore
 
         # current estimates

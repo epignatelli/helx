@@ -67,12 +67,12 @@ class Continuous(Space):
     def __init__(
         self,
         shape: Shape = (1,),
-        minimum: Sequence[float] = (-1.,),
-        maximum: Sequence[float] = (1.,),
+        minimum: float | Sequence[float] | Array = -1.,
+        maximum: float | Sequence[float] | Array = 1.,
     ):
         self.shape: Shape = shape
-        self.min: Array = jnp.asarray(minimum)
-        self.max: Array = jnp.asarray(maximum)
+        self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
+        self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
 
         assert (
             self.min.shape == self.max.shape == shape
@@ -85,12 +85,21 @@ class Continuous(Space):
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Box) -> Continuous:
-        return cls(gym_space.shape, gym_space.low.tolist(), gym_space.high.tolist())
+        shape = gym_space.shape
+        minimum = jnp.asarray(gym_space.low)
+        maximum = jnp.asarray(gym_space.high)
+        return cls(shape, minimum, maximum)
 
     @classmethod
     def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Box) -> Continuous:
-        return cls(gymnasium_space.shape, list(gymnasium_space.low), list(gymnasium_space.high))
+        shape = gymnasium_space.shape
+        minimum = jnp.asarray(gymnasium_space.low)
+        maximum = jnp.asarray(gymnasium_space.high)
+        return cls(shape, minimum, maximum)
 
     @classmethod
     def from_dm_env(cls, dm_space: dm_env.specs.BoundedArray) -> Continuous:
-        return cls(dm_space.shape, list(dm_space.minimum), list(dm_space.maximum))
+        shape = dm_space.shape
+        minimum = jnp.asarray(dm_space.minimum)
+        maximum = jnp.asarray(dm_space.maximum)
+        return cls(shape, minimum, maximum)

@@ -80,9 +80,13 @@ def define_flags_from_hparams(type_):
     return
 
 
-def hparams_from_flags(type_, flags):
+def hparams_from_flags(type_, flags, **kwargs):
     hparams = {}
+    for key, value in kwargs.items():
+        hparams[key] = value
     for field in get_type_hints(type_):
+        if field in kwargs:
+            continue
         value = flags[field].value
         if value is None:
             raise ValueError("Flag {} is required".format(field))

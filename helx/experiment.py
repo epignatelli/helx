@@ -5,12 +5,13 @@ import numpy as np
 import wandb
 
 from .agents.agent import Agent
-from .environment.base import IEnvironment
+from .environment.base import Environment
 from .mdp import Episode
+from .image import ensure_video_format
 
 
 def run_episode(
-    agent, env: IEnvironment, eval: bool = False, max_steps: int = int(2e9)
+    agent: Agent, env: Environment, eval: bool = False, max_steps: int = int(2e9)
 ) -> Episode:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
@@ -35,38 +36,40 @@ def run_episode(
     episode = Episode.start(timestep)
     while (not timestep.terminated()) and t < max_steps:
         t += 1
-        action, _ = agent.sample_action(timestep.observation, eval=eval)
-        timestep = env.step(action.item())
+        action = agent.sample_action(timestep.observation, eval=eval)
+        timestep = env.step(action)
         episode.add(timestep, action)
     return episode
 
 
 def run(
     agent: Agent,
-    env: IEnvironment,
+    env: Environment,
     num_episodes: int,
     num_eval_episodes: int = 5,
     eval_frequency: int = 1000,
     print_frequency=10,
     project="",
-    experiment_name: str = "",
+    experiment_name: str = "debug",
     debug: bool = False,
 ):
     # init logger
-    nameof = lambda x: type(x).__name__
-    env_name, agent_name = list(map(nameof, (env, agent)))
+    agent_name = type(agent).__name__
+    env_name = env.name()
+    run_name = "{}/{}/{}".format(experiment_name, agent_name, env_name)
     mode = ("online", "disabled")[int(debug)]
     wandb.init(
         project=project,
-        group="{}-{}".format(env_name, agent_name),
-        tags=(env_name, agent_name, experiment_name),
+        group="{}/{}".format(env_name, agent_name),
+        tags=[env_name, agent_name, experiment_name],
         config=agent.hparams.as_dict(),
+        name=run_name,
         mode=mode,
     )
 
     logging.info(
-        "Starting {} agent {} on environment {}.\nThe scheduled number of episode is {}".format(
-            "evaluating" if eval else "training", agent_name, env_name, num_episodes
+        "Starting experiment {}.\nThe scheduled number of episode is {}".format(
+            run_name, num_episodes
         )
     )
     logging.info(
@@ -81,8 +84,7 @@ def run(
 
         #  experience a new episode
         episode = run_episode(agent, env)
-        returns = jnp.sum(episode.r).item()
-
+        returns = episode.returns().item()
         #  update policy
         loss = agent.update(episode)
 
@@ -106,8 +108,8 @@ def run(
             logging.info("Evaluating episode {} at iteration {}".format(j, i))
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
-            returns = jnp.sum(episode.r).item()
-            video = np.array(episode.s).transpose((0, 3, 1, 2))
+            returns = episode.returns().item()
+            video = np.array(ensure_video_format(episode.s))
             wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
 
             # log episode
