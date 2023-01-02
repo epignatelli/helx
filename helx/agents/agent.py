@@ -4,15 +4,11 @@ from __future__ import annotations
 import abc
 from typing import Any, Tuple
 
+import flax.linen as nn
 import jax
-from chex import Array, dataclass
-from flax.core.scope import FrozenVariableDict
+from chex import Array
 
 from ..mdp import Episode
-
-
-class Params(FrozenVariableDict):
-    ...
 
 
 class Hparams:
@@ -26,7 +22,7 @@ class Agent(abc.ABC):
 
     @abc.abstractmethod
     def loss(
-        self, params: Params, sarsa: Episode, *args, **kwargs
+        self, params: nn.FrozenDict, sarsa: Episode, *args, **kwargs
     ) -> Tuple[Array, Any]:
         """The loss function to differentiate through for Deep RL agents.
             This function can be used for heavy computation and can be xla-compiled,
@@ -56,9 +52,17 @@ class Agent(abc.ABC):
         """
 
     @abc.abstractmethod
-    def sample_action(
-        self, observation: Array, eval: bool = False, **kwargs
-    ) -> Tuple[Array, Array]:
+    def policy(self, params: nn.FrozenDict, observation: Array, eval=False, **kwargs) -> Array:
+        """The policy function to evaluate the agent's policy π(s).
+        Args:
+            params (PyTreeDef): A pytree of function parameters.
+            s (Array): The state to evaluate the policy on.
+        Returns:
+            Array: the action to take in the state s
+        """
+
+    @abc.abstractmethod
+    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Array:
         """Collects a sample from the policy distribution conditioned on the provided observation π(s), and
             returns both the sampled action, and a (possibly empty) array of the correspondent log probabilities.
         Args:
@@ -66,10 +70,8 @@ class Agent(abc.ABC):
             keys (PRNGKey): a random key used to sample the action
             eval (bool): optional boolean if the agent follows a different policy at evaluation time
         Returns:
-            Tuple[Array, Array]: a tuple containing
-                i) the sampled action and
-                ii) the log probability of the sampled action, for one-action-out architectures
-                    the log probabilities for all actions for all-actions-out architectures"""
+            Array: the sampled action
+        """
 
     @abc.abstractmethod
     def update(self, episode: Episode) -> Array:

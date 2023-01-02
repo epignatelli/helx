@@ -1,8 +1,8 @@
 from typing import Any
-from .base import IEnvironment
+from .base import Environment
 
 
-class FromDMControlEnv(IEnvironment):
+class FromDMControlEnv(Environment):
     """Static class to convert between dm_control environments and helx environments."""
 
     def __init__(self, env: Any):

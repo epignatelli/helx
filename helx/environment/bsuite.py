@@ -7,15 +7,14 @@ from chex import Array
 
 from ..mdp import Action, Timestep
 from ..spaces import Space
-from .base import IEnvironment
+from .base import Environment
 
 
-class FromBsuiteEnv(IEnvironment):
+class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     def __init__(self, env: bsuite.environments.Environment):
-        super().__init__()
-        self._env = env
+        super().__init__(env)
 
     def action_space(self) -> Space:
         if self._action_space is not None:
@@ -59,7 +58,7 @@ class FromBsuiteEnv(IEnvironment):
 
     def step(self, action: Action) -> Timestep:
         # TODO (epignatelli): Remove `type: ignore` once bsuite is correctly typed
-        next_step = self._env.step(action)  # type: ignore
+        next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_dm_env(next_step)
 

@@ -7,15 +7,14 @@ from chex import Array
 
 from ..mdp import Action, Timestep
 from ..spaces import Space
-from .base import IEnvironment
+from .base import Environment
 
 
-class FromDmEnv(IEnvironment):
+class FromDmEnv(Environment[dm_env.Environment]):
     """Static class to convert between dm_env and helx environments."""
 
     def __init__(self, env: dm_env.Environment):
-        super().__init__()
-        self._env = env
+        super().__init__(env)
 
     def action_space(self) -> Space:
         if self._action_space is not None:
@@ -54,7 +53,7 @@ class FromDmEnv(IEnvironment):
         return Timestep.from_dm_env(next_step)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action)
+        next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_dm_env(next_step)
 

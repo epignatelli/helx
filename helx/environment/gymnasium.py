@@ -10,15 +10,14 @@ from chex import Array
 
 from ..mdp import Action, GymnasiumTimestep, StepType, Timestep
 from ..spaces import Continuous, Space
-from .base import IEnvironment
+from .base import Environment
 
 
-class FromGymnasiumEnv(IEnvironment):
+class FromGymnasiumEnv(Environment[gymnasium.Env]):
     """Static class to convert between gymnasium and helx environments."""
 
     def __init__(self, env: gymnasium.Env):
-        super().__init__()
-        self._env: gymnasium.Env = env
+        super().__init__(env)
 
     def action_space(self) -> Space:
         if self._action_space is not None:
@@ -56,7 +55,7 @@ class FromGymnasiumEnv(IEnvironment):
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = cast(GymnasiumTimestep, self._env.step(action))
+        next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gymnasium(next_step)
 

@@ -3,22 +3,28 @@ RL environment interfaces, like `gym`, `gymnasium`, `dm_env`, `bsuite and others
 from __future__ import annotations
 
 import abc
+from typing import Any, Generic, TypeVar
 
 import jax
 from chex import Array
 
-from ..mdp import Timestep
+from jax.random import KeyArray
+
+from ..mdp import Action, Timestep
 from ..spaces import Space
 
+T = TypeVar("T")
 
-class IEnvironment(abc.ABC):
-    def __init__(self):
-        self._action_space = None
-        self._observation_space = None
-        self._reward_space = None
-        self._current_observation = None
-        self._seed = 0
-        self._key = jax.random.PRNGKey(self._seed)
+
+class Environment(abc.ABC, Generic[T]):
+    def __init__(self, env: Any):
+        self._action_space: Space | None = None
+        self._observation_space: Space | None  = None
+        self._reward_space: Space | None = None
+        self._current_observation: Array | None = None
+        self._seed: int = 0
+        self._key: KeyArray = jax.random.PRNGKey(self._seed)
+        self._env: T = env
 
     @abc.abstractmethod
     def action_space(self) -> Space:
@@ -41,7 +47,7 @@ class IEnvironment(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def step(self, action: int) -> Timestep:
+    def step(self, action: Action) -> Timestep:
         ...
 
     @abc.abstractmethod
@@ -55,6 +61,9 @@ class IEnvironment(abc.ABC):
     @abc.abstractmethod
     def close(self) -> None:
         ...
+
+    def name(self) -> str:
+        return self._env.__class__.__name__
 
     def __enter__(self):
         return self

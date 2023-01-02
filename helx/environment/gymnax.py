@@ -1,8 +1,8 @@
 from typing import Any
-from .base import IEnvironment
+from .base import Environment
 
 
-class FromGymnaxEnv(IEnvironment):
+class FromGymnaxEnv(Environment):
     """Static class to convert between Gymnax environments and helx environments."""
 
     def __init__(self, env: Any):

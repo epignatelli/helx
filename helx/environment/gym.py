@@ -9,17 +9,16 @@ import jax
 import jax.numpy as jnp
 from chex import Array
 
-from .base import IEnvironment
-from ..mdp import Action, GymTimestep, StepType, Timestep
+from .base import Environment
+from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
 
 
-class FromGymEnv(IEnvironment):
+class FromGymEnv(Environment[gym.Env]):
     """Static class to convert between gym and helx environments."""
 
     def __init__(self, env: gym.core.Env):
-        super().__init__()
-        self._env: gym.core.Env = env
+        super().__init__(env)
 
     def action_space(self) -> Space:
         if self._action_space is not None:
@@ -52,12 +51,12 @@ class FromGymEnv(IEnvironment):
         return self._current_observation
 
     def reset(self, seed: int | None = None) -> Timestep:
-        obs, info = self._env.reset(seed=seed)
+        obs, _ = self._env.reset(seed=seed)
         self._current_observation = jnp.asarray(obs)
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action)
+        next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gym(next_step)
 

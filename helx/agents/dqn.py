@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import NamedTuple, Tuple
+from typing import Tuple, cast
 
 import distrax
 import jax
 import jax.numpy as jnp
 import optax
 import rlax
-import wandb
-from chex import Array, Shape, dataclass
+from chex import Array, Shape
 from flax import linen as nn
+from flax.core.scope import FrozenVariableDict
 from optax import GradientTransformation
+
+import wandb
 
 from ..mdp import Episode
 from ..memory import ReplayBuffer
@@ -69,34 +71,29 @@ class DQN(Agent):
         self.params_target = params.copy({})
         self.opt_state = optimiser.init(params)
 
-    def epsilon(self, eval=False) -> Array:
-        x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
-        x1 = self.hparams.final_exploration_frame
-        y1 = self.hparams.final_exploration
-        x = self.iteration
-        y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
-        eps = jnp.clip(
-            y, self.hparams.final_exploration, self.hparams.initial_exploration
-        )
-        return jax.lax.select(eval, 0.0, eps)
-
     def sample_action(self, observation: Array, eval: bool = False) -> Array:
-        return self.policy(observation, eval)[0]
+        return self.policy(self.params, observation, eval)[0]  # type: ignore
 
-    def policy(self, observation: Array, eval=False) -> Tuple[Array, Array]:
-        """Selects an action using an e-greedy policy"""
-        q_values = self.network.apply(self.params, observation)  # type: ignore
-        action, log_probs = distrax.EpsilonGreedy(
-            q_values, self.epsilon(eval)  # type: ignore
-        ).sample_and_log_prob(seed=self.new_key())
+    def policy(
+        self, params: nn.FrozenDict, observation: Array, eval=False
+    ) -> Tuple[Array, Array]:
+        """Selects an action using an e-greedy policy
+
+        Args:
+            observation (Array): the current observation including the batch dimension
+            eval (bool, optional): whether to use the evaluation policy. Defaults to False.
+        Returns:
+            Tuple[Array, Array]: the action and the log probability of the action"""
+        q_values = self.network.apply(params, observation)
+        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval))  # type: ignore
+        action, log_probs = distr.sample_and_log_prob(seed=self.new_key())
         return action, log_probs
 
     @partial(jax.value_and_grad, argnums=1, has_aux=True)
     def loss(self, params, transitions_batch, params_target):
-        Q = jax.vmap(self.network.apply, in_axes=(None, 0))  # type: ignore
         s_0, a_0, r_1, s_1, d = transitions_batch
         q_1 = jax.lax.stop_gradient(jnp.max(Q(params_target, s_1), axis=-1))  # type: ignore
-        q_0 = Q(params, s_0)
+        q_0 = self.network.apply(params, s_0)
         td_error = r_1 + (1 - d) * self.hparams.discount * jnp.max(q_1) - q_0[a_0]
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
@@ -140,3 +137,14 @@ class DQN(Agent):
         wandb.log({"train/total_loss": loss.item()})
         wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
         return loss
+
+    def epsilon(self, eval=False) -> Array:
+        x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
+        x1 = self.hparams.final_exploration_frame
+        y1 = self.hparams.final_exploration
+        x = self.iteration
+        y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
+        eps = jnp.clip(
+            y, self.hparams.final_exploration, self.hparams.initial_exploration
+        )
+        return jax.lax.select(eval, 0.0, eps)

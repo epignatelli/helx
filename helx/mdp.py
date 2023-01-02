@@ -8,19 +8,18 @@ import dm_env
 import jax
 import jax.numpy as jnp
 from chex import Array
+from gym.utils.step_api_compatibility import \
+    TerminatedTruncatedStepType as GymTimestep
+from gymnasium.utils.step_api_compatibility import \
+    TerminatedTruncatedStepType as GymnasiumTimestep
 from jax.tree_util import register_pytree_node_class
-from gymnasium.utils.step_api_compatibility import (
-    TerminatedTruncatedStepType as GymnasiumTimestep,
-)
-from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
 
 
 def tree_stack(pytree, axis=0):
     return jax.tree_util.tree_map(lambda *x: jnp.stack(x, axis=axis), *pytree)
 
 
-class Action(Array):
-    ...
+Action = Array
 
 
 class StepType(IntEnum):
@@ -72,9 +71,10 @@ class Timestep:
         step_type = dm_step.step_type
         obs = jnp.asarray(dm_step.observation)
         reward = jnp.asarray(dm_step.reward)
+        discount = dm_step.discount
         if dm_step.step_type == dm_env.StepType.LAST:
             step_type = StepType.TERMINATION
-        elif float(dm_step.discount) == 0.0:
+        elif discount is not None and float(discount) == 0.0:
             step_type = StepType.TRUNCATION
         else:
             step_type = StepType.TRANSITION
@@ -161,6 +161,9 @@ class Episode:
         self._r.append(jnp.asarray([timestep.reward], dtype=jnp.float32))
         self._d.append(jnp.asarray([timestep.step_type], dtype=jnp.int32))
         return
+
+    def returns(self, axis=None):
+        return jnp.sum(self.r, axis=axis)
 
     def sars(self, axis=0):
         """Computes a (s₀, a₀, r₁, s₁, d₁) unroll of the episode.

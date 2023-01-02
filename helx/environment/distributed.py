@@ -8,10 +8,10 @@ from helx.random import PRNGSequence
 
 from ..mdp import Action, Timestep
 from ..spaces import Space
-from .base import IEnvironment
+from .base import Environment
 
 
-def _actor(server: Connection, client: Connection, env: IEnvironment):
+def _actor(server: Connection, client: Connection, env: Environment):
     """Actor definition for Actor-Learner architectures.
 
     Args:
@@ -60,7 +60,7 @@ def _actor(server: Connection, client: Connection, env: IEnvironment):
         env.close()
 
 
-class MultiprocessEnv(IEnvironment):
+class MultiprocessEnv(Environment):
     """
     This class is inspired by openai's SubprocEnv.
     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
@@ -71,13 +71,13 @@ class MultiprocessEnv(IEnvironment):
 
     def __init__(
         self,
-        env: IEnvironment,
+        env: Environment,
         n_actors: int,
         context: str = "spawn",
         seed: int = 0,
     ):
         assert isinstance(
-            env, IEnvironment
+            env, Environment
         ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead".format(
             type(env)
         )
@@ -85,7 +85,7 @@ class MultiprocessEnv(IEnvironment):
         self.n_actors: int = n_actors
         self.clients: Sequence[Connection] = []
         self.servers: Sequence[Connection] = []
-        self.envs: Sequence[IEnvironment] = [deepcopy(env) for _ in range(n_actors)]
+        self.envs: Sequence[Environment] = [deepcopy(env) for _ in range(n_actors)]
         self.processes = []
 
         #  setup parallel workers
