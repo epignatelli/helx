@@ -11,7 +11,9 @@ import jax
 import jax.numpy as jnp
 from chex import Array
 from jax.tree_util import register_pytree_node_class
-from gymnasium.utils.step_api_compatibility import TerminatedTruncatedStepType as GymnasiumTimestep
+from gymnasium.utils.step_api_compatibility import (
+    TerminatedTruncatedStepType as GymnasiumTimestep,
+)
 from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
 
 
@@ -72,7 +74,7 @@ class Timestep:
         step_type = dm_step.step_type
         obs = jnp.asarray(dm_step.observation)
         reward = jnp.asarray(dm_step.reward)
-        if  dm_step.step_type == dm_env.StepType.LAST:
+        if dm_step.step_type == dm_env.StepType.LAST:
             step_type = StepType.TERMINATION
         elif float(dm_step.discount) == 0.0:
             step_type = StepType.TRUNCATION

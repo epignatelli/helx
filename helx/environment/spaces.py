@@ -60,7 +60,9 @@ class ContinuousSpace(Space):
         self.n_dimensions = n_dimensions
 
     def sample(self, key) -> Array:
-        return jax.random.uniform(key, (self.n_dimensions,), -float("inf"), float("inf"))
+        return jax.random.uniform(
+            key, (self.n_dimensions,), -float("inf"), float("inf")
+        )
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Box) -> ContinuousSpace:

@@ -19,7 +19,7 @@ def main(argv):
 
     # environment
     env = bsuite.load_from_id("catch/0")
-    env = helx.environment.Environment.make(env)
+    env = helx.environment.make_from(env)
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -33,11 +33,7 @@ def main(argv):
     n_actions = len(cast(helx.environment.DiscreteSpace, env.action_space()))
     hparams = helx.ui.hparams_from_flags(helx.agents.DQNhparams, FLAGS)
     network = nn.Sequential(
-        [
-            helx.flax.MLP(n_layers=1),
-            nn.Dense(features=n_actions),
-            nn.log_softmax
-        ]
+        [helx.flax.MLP(n_layers=1), nn.Dense(features=n_actions), nn.log_softmax]
     )
     agent = helx.agents.DQN(
         network=network, optimiser=optimiser, hparams=hparams, seed=0
