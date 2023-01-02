@@ -30,7 +30,7 @@ def main(argv):
     )
 
     # agent
-    n_actions = len(cast(helx.environment.DiscreteSpace, env.action_space()))
+    n_actions = len(cast(helx.environment.Discrete, env.action_space()))
     hparams = helx.ui.hparams_from_flags(helx.agents.DQNhparams, FLAGS)
     network = nn.Sequential(
         [
