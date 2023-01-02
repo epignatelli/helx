@@ -2,7 +2,6 @@ from typing import cast
 
 import bsuite
 import flax.linen as nn
-import jax.numpy as jnp
 import optax
 from absl import app, flags, logging
 

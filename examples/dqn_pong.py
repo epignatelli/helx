@@ -19,7 +19,7 @@ def main(argv):
 
     # environment
     env = gymnasium.make("pong-v0")
-    env = helx.environment.IEnvironment.make(env)
+    env = helx.environment.make_from(env)
 
     # optimiser
     optimiser = optax.rmsprop(

@@ -70,7 +70,7 @@ class ContinuousSpace(Space):
         raise NotImplementedError()
 
     @classmethod
-    def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Space) -> Space:
+    def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Space) -> ContinuousSpace:
         # TODO
         raise NotImplementedError()
 
@@ -92,7 +92,7 @@ class BoundedRange(Space):
         # TODO
         raise NotImplementedError()
 
-    def from_gymnasium(self, gymnasium_space: gymnasium.spaces.Space) -> Space:
+    def from_gymnasium(self, gymnasium_space: gymnasium.spaces.Space) -> BoundedRange:
         # TODO
         raise NotImplementedError()
 
