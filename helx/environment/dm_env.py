@@ -5,9 +5,9 @@ import jax
 import jax.numpy as jnp
 from chex import Array
 
+from ..mdp import Action, Timestep
+from ..spaces import Space
 from .base import IEnvironment
-from .mdp import Action, Timestep
-from .spaces import Space
 
 
 class FromDmEnv(IEnvironment):
@@ -22,7 +22,7 @@ class FromDmEnv(IEnvironment):
             return self._action_space
 
         # TODO (epignatelli): remove type ignore once dm_env is correctly typed.
-        self._action_space = Space.from_dm_env(self._env.action_spec)  # type: ignore
+        self._action_space = Space.from_dm_env(self._env.action_spec())  # type: ignore
         return self._action_space
 
     def observation_space(self) -> Space:
@@ -30,7 +30,7 @@ class FromDmEnv(IEnvironment):
             return self._observation_space
 
         # TODO (epignatelli): remove type ignore once dm_env is correctly typed.
-        self._observation_space = Space.from_dm_env(self._env.observation_spec)  # type: ignore
+        self._observation_space = Space.from_dm_env(self._env.observation_spec())  # type: ignore
         return self._observation_space
 
     def reward_space(self) -> Space:
@@ -38,7 +38,7 @@ class FromDmEnv(IEnvironment):
             return self._reward_space
 
         # TODO (epignatelli): remove type ignore once dm_env is correctly typed.
-        self._reward_space = Space.from_dm_env(self._env.reward_spec)  # type: ignore
+        self._reward_space = Space.from_dm_env(self._env.reward_spec())  # type: ignore
         return self._reward_space
 
     def state(self) -> Array:

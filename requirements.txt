@@ -13,3 +13,4 @@ absl-py
 gymnasium[all]>=0.26
 gym[all]>=0.26
 bsuite
+typing-extensions

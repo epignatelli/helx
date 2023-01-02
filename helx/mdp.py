@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from enum import IntEnum
 from functools import partial
-from typing import Any, List, SupportsFloat, Tuple, Union
+from typing import List, Tuple
 
 import dm_env
-import gym.core
-import gymnasium.core
 import jax
 import jax.numpy as jnp
 from chex import Array

@@ -8,7 +8,7 @@ import jax
 from chex import Array, dataclass
 from flax.core.scope import FrozenVariableDict
 
-from ..environment.mdp import Episode
+from ..mdp import Episode
 
 
 class Params(FrozenVariableDict):
