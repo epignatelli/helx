@@ -11,7 +11,7 @@ from chex import Array
 
 from .base import IEnvironment
 from .mdp import Action, GymTimestep, StepType, Timestep
-from .spaces import BoundedRange, Space
+from .spaces import Continuous, Space
 
 
 class FromGymEnv(IEnvironment):
@@ -41,7 +41,7 @@ class FromGymEnv(IEnvironment):
 
         minimum = self._env.reward_range[0]
         maximum = self._env.reward_range[1]
-        self._reward_space = BoundedRange(minimum, maximum)
+        self._reward_space = Continuous(minimum, maximum)
         return self._reward_space
 
     def state(self) -> Array:
