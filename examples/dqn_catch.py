@@ -7,7 +7,6 @@ from absl import app, flags, logging
 
 import helx
 
-
 helx.flags.define_flags_from_hparams(helx.agents.DQNhparams)
 FLAGS = flags.FLAGS
 
@@ -35,7 +34,11 @@ def main(argv):
     )
 
     network = nn.Sequential(
-        [helx.networks.Flatten(), helx.networks.MLP(features=[32, 16]), nn.Dense(features=n_actions)]
+        [
+            helx.networks.Flatten(),
+            helx.networks.MLP(features=[32, 16]),
+            nn.Dense(features=n_actions),
+        ]
     )
     agent = helx.agents.DQN(
         network=network, optimiser=optimiser, hparams=hparams, seed=0
