@@ -7,8 +7,8 @@ import abc
 import jax
 from chex import Array
 
-from ..mdp import Timestep
-from ..spaces import Space
+from .mdp import Timestep
+from .spaces import Space
 
 
 class IEnvironment(abc.ABC):

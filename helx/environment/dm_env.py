@@ -6,8 +6,8 @@ import jax.numpy as jnp
 from chex import Array
 
 from .base import IEnvironment
-from ..mdp import Action, Timestep
-from ..spaces import Space
+from .mdp import Action, Timestep
+from .spaces import Space
 
 
 class FromDmEnv(IEnvironment):

@@ -2,37 +2,36 @@ from __future__ import annotations
 
 from typing import cast
 
-import gym
-import gym.core
-import gym.utils.seeding
+import gymnasium
+import gymnasium.utils.seeding
 import jax
 import jax.numpy as jnp
 from chex import Array
 
 from .base import IEnvironment
-from ..mdp import Action, GymTimestep, StepType, Timestep
-from ..spaces import BoundedRange, Space
+from .mdp import Action, GymnasiumTimestep, StepType, Timestep
+from .spaces import BoundedRange, Space
 
 
-class FromGymEnv(IEnvironment):
-    """Static class to convert between gym and helx environments."""
+class FromGymnasiumEnv(IEnvironment):
+    """Static class to convert between gymnasium and helx environments."""
 
-    def __init__(self, env: gym.core.Env):
+    def __init__(self, env: gymnasium.Env):
         super().__init__()
-        self._env: gym.core.Env = env
+        self._env: gymnasium.Env = env
 
     def action_space(self) -> Space:
         if self._action_space is not None:
             return self._action_space
 
-        self._action_space = Space.from_gym(self._env.action_space)
+        self._action_space = Space.from_gymnasium(self._env.action_space)
         return self._action_space
 
     def observation_space(self) -> Space:
         if self._observation_space is not None:
             return self._observation_space
 
-        self._observation_space = Space.from_gym(self._env.observation_space)
+        self._observation_space = Space.from_gymnasium(self._env.observation_space)
         return self._observation_space
 
     def reward_space(self) -> Space:
@@ -57,12 +56,12 @@ class FromGymEnv(IEnvironment):
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action)
+        next_step = cast(GymnasiumTimestep, self._env.step(action))
         self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_gym(next_step)
+        return Timestep.from_gymnasium(next_step)
 
     def seed(self, seed: int) -> None:
-        self._env.np_random, seed = gym.utils.seeding.np_random(seed)
+        self._env.np_random, seed = gymnasium.utils.seeding.np_random(seed)
         self._seed = seed
         self._key = jax.random.PRNGKey(seed)
 

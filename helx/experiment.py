@@ -7,7 +7,7 @@ import numpy as np
 import wandb
 
 from .agents.agent import Agent
-from .environment.envs.base import IEnvironment
+from .environment.base import IEnvironment
 from .environment.mdp import Episode
 
 
