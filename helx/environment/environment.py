@@ -5,10 +5,10 @@ import dm_env
 import gym.core
 import gymnasium.core
 
-from .envs.bsuite import FromBsuiteEnv
-from .envs.dm_env import FromDmEnv
-from .envs.gym import FromGymEnv
-from .envs.gymnasium import FromGymnasiumEnv
+from .bsuite import FromBsuiteEnv
+from .dm_env import FromDmEnv
+from .gym import FromGymEnv
+from .gymnasium import FromGymnasiumEnv
 
 
 def make_from(env: Any) -> Any:

@@ -4,13 +4,11 @@ from copy import deepcopy
 from multiprocessing.connection import Connection
 from typing import Any, List, Sequence
 
-import dm_env
-
 from helx.random import PRNGSequence
 
 from .base import IEnvironment
-from ..mdp import Action, Timestep
-from ..spaces import Space
+from .mdp import Action, Timestep
+from .spaces import Space
 
 
 def _actor(server: Connection, client: Connection, env: IEnvironment):
