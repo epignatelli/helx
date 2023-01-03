@@ -16,7 +16,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gymnasium.make("Pong-v4")
+    env = gymnasium.make("Pong-v5")
     env = helx.environment.make_from(env)
 
     # optimiser
