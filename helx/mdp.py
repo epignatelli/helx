@@ -8,10 +8,10 @@ import dm_env
 import jax
 import jax.numpy as jnp
 from chex import Array
-from gym.utils.step_api_compatibility import \
-    TerminatedTruncatedStepType as GymTimestep
-from gymnasium.utils.step_api_compatibility import \
-    TerminatedTruncatedStepType as GymnasiumTimestep
+from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
+from gymnasium.utils.step_api_compatibility import (
+    TerminatedTruncatedStepType as GymnasiumTimestep,
+)
 from jax.tree_util import register_pytree_node_class
 
 
@@ -178,10 +178,7 @@ class Episode:
         assert len(self.s) - 1 == len(self.r) == len(self.d) == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
         pairs = []
-        s = self.s
-        a = self.a
-        r = self.r
-        d = self.d
+        s, a, r, d = self.s, self.a, self.r, self.d
         for t in range(0, len(self.s) - 1):
             transition = (
                 take(s, t, t + 1),
@@ -205,14 +202,15 @@ class Episode:
         assert len(self.s) == len(self.r) + 1 == len(self.d) + 1 == len(self.a)
         take = partial(jax.lax.slice_in_dim, axis=axis)
         pairs = []
+        s, a, r, d = self.s, self.a, self.r, self.d
         for t in range(0, len(self.s) - 1):
             transition = (
-                take(self.s, t, t + 1),
-                take(self.a, t, t + 1),
-                take(self.r, t, t + 1),
-                take(self.s, t + 1, t + 2),
-                take(self.d, t, t + 1),
-                take(self.a, t + 1, t + 2),
+                take(s, t, t + 1),
+                take(a, t, t + 1),
+                take(r, t, t + 1),
+                take(s, t + 1, t + 2),
+                take(d, t, t + 1),
+                take(a, t + 1, t + 2),
             )
             pairs.append(transition)
         return pairs

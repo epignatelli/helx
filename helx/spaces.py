@@ -19,7 +19,9 @@ class Space(abc.ABC):
         elif isinstance(gym_space, gym.spaces.Box):
             return Continuous.from_gym(gym_space)
         else:
-            raise NotImplementedError("Cannot convert gym space of type {}".format(type(gym_space)))
+            raise NotImplementedError(
+                "Cannot convert gym space of type {}".format(type(gym_space))
+            )
 
     @classmethod
     def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Space) -> Space:
@@ -28,7 +30,11 @@ class Space(abc.ABC):
         elif isinstance(gymnasium_space, gymnasium.spaces.Box):
             return Continuous.from_gymnasium(gymnasium_space)
         else:
-            raise NotImplementedError("Cannot convert gymnasium space of type {}".format(type(gymnasium_space)))
+            raise NotImplementedError(
+                "Cannot convert gymnasium space of type {}".format(
+                    type(gymnasium_space)
+                )
+            )
 
     @classmethod
     def from_dm_env(cls, dm_space: dm_env.specs.Array) -> Space:
@@ -37,7 +43,9 @@ class Space(abc.ABC):
         elif isinstance(dm_space, dm_env.specs.BoundedArray):
             return Continuous.from_dm_env(dm_space)
         else:
-            raise NotImplementedError("Cannot convert dm_env space of type {}".format(type(dm_space)))
+            raise NotImplementedError(
+                "Cannot convert dm_env space of type {}".format(type(dm_space))
+            )
 
 
 class Discrete(Space):
@@ -67,8 +75,8 @@ class Continuous(Space):
     def __init__(
         self,
         shape: Shape = (1,),
-        minimum: float | Sequence[float] | Array = -1.,
-        maximum: float | Sequence[float] | Array = 1.,
+        minimum: float | Sequence[float] | Array = -1.0,
+        maximum: float | Sequence[float] | Array = 1.0,
     ):
         self.shape: Shape = shape
         self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
