@@ -1,6 +1,6 @@
 import logging
+from pprint import pformat
 
-import jax.numpy as jnp
 import numpy as np
 import wandb
 
@@ -34,7 +34,7 @@ def run_episode(
     t = 0
     timestep = env.reset()
     episode = Episode.start(timestep)
-    while (not timestep.terminated()) and t < max_steps:
+    while (not timestep.is_terminated()) and t < max_steps:
         t += 1
         action = agent.sample_action(timestep.observation, eval=eval)
         timestep = env.step(action)
@@ -74,7 +74,7 @@ def run(
     )
     logging.info(
         "The hyperparameters for the current experiment are {}".format(
-            agent.hparams.as_dict()
+            pformat(agent.hparams.as_dict())
         )
     )
     logging.info("Start logging experiment on wandb project {}".format(experiment_name))
@@ -109,7 +109,8 @@ def run(
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
             video = np.array(ensure_video_format(episode.s))
-            wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
+            if video is not None:
+                wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
 
             # log episode
             returns = episode.returns().item()

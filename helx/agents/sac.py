@@ -177,7 +177,7 @@ class SAC(Agent):
         wandb.log({"Iteration": self.iteration})
 
         # update memory
-        transitions = episode.sars()
+        transitions = episode.transitions()
         self.memory.add_range(transitions)  # makes self.loss recompile each time, why??
         wandb.log({"Buffer size": len(self.memory)})
 

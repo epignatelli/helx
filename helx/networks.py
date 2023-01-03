@@ -1,8 +1,6 @@
 from typing import Sequence, Tuple
 import flax.linen as nn
-import jax
 from chex import Array
-from flax.core.scope import FrozenVariableDict
 
 
 class Flatten(nn.Module):
