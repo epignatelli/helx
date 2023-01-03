@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from typing import Generic, List, Sequence, TypeVar, Deque
 from collections import deque
 
 import jax
+from jax.random import KeyArray
+from .mdp import tree_stack
 
-from .mdp import Episode, tree_stack
+
+T = TypeVar("T")
 
 
-class ReplayBuffer:
-    """A replay buffer used for Experience Replay (ER):
+class ReplayBuffer(Generic[T]):
+    """A circular buffer used for Experience Replay (ER):
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
     This type of buffer is usually used
     with off-policy methods, such as DQN or ACER.
@@ -18,37 +22,54 @@ class ReplayBuffer:
     However, this does not allow for off-policy corrections with nstep methods
     at consumption time. To perform off-policy corrections, please store
     the action probabilities foreach time step in the buffer.
+
+    Args:
+        capacity (int): The maximum number of elements that can be stored in the buffer.
+        seed (int): The seed used to initialise the random number generator for sampling.
     """
 
     def __init__(self, capacity: int, seed: int = 0):
-        self.capacity = capacity
-        self.key = jax.random.PRNGKey(seed)
-        self.elements = [None] * capacity
-        self.length = 0
+        self.elements: Deque[T] = deque(maxlen=capacity)
+        self.key: KeyArray = jax.random.PRNGKey(seed)
 
     def __len__(self):
-        return self.length
+        return len(self.elements)
 
     def __getitem__(self, idx):
         return self.elements[idx]
 
+    @property
+    def capacity(self) -> int:
+        """Returns the capacity of the buffer."""
+        return self.elements.maxlen or 0
+
     def full(self) -> bool:
+        """Returns whether the buffer has reached its capacity."""
         return len(self) == self.capacity
 
-    def add(
-        self,
-        transition: object,
-    ) -> None:
-        idx = self.length % self.capacity
-        self.elements[idx] = transition  # type: ignore
-        self.length += 1
+    def add(self, transition: T) -> None:
+        """Adds an element to the buffer. If the buffer is full, the oldest element
+        is overwritten."""
+        self.elements.append(transition)
 
-    def add_range(self, elements) -> None:
+    def add_range(self, elements: Sequence[T]) -> None:
+        """Adds more than one elements to the buffer.
+        Args:
+            elements (Sequence[T]): A sequence of elements to add to the buffer.
+        """
         for element in elements:
-            self.add(element)
+            self.elements.append(element)
 
-    def sample(self, n: int) -> Episode:
+    def sample(self, n: int) -> T:
+        """Samples `n` elements from the buffer, and stacks them into a single pytree
+        to form a batch of `T` elements.
+        Args:
+            n (int): The number of elements to sample.
+        Returns:
+            T: A pytree of `n` elements, where each element in the pytree has an
+            additional batch dimension.
+        """
         self.key, k = jax.random.split(self.key)
-        n = min(n, self.length)
+        n = min(n, len(self.elements))
         indices = jax.random.randint(k, (n,), 0, len(self))
-        return tree_stack([self.elements[i] for i in indices])  # type: ignore
+        return tree_stack([self.elements[i] for i in indices])
