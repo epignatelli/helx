@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Tuple, cast
+from typing import Any, List, Tuple
 
 import distrax
 import jax
@@ -11,12 +11,11 @@ import optax
 import rlax
 from chex import Array, Shape
 from flax import linen as nn
-from flax.core.scope import FrozenVariableDict
 from optax import GradientTransformation
 
 import wandb
 
-from ..mdp import Episode
+from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
 from .agent import Agent, Hparams
 
@@ -43,7 +42,7 @@ class DQNhparams(Hparams):
     min_squared_gradient: float = 0.01
 
 
-class DQN(Agent):
+class DQN(Agent[DQNhparams]):
     """Implements a Deep Q-Network:
     Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
     Nature 518.7540 (2015): 529-533.
@@ -56,23 +55,12 @@ class DQN(Agent):
         hparams: DQNhparams,
         seed: int,
     ):
-        key = jax.random.PRNGKey(seed)
-        key, k1 = jax.random.split(key)
-        params = network.init(k1, jnp.ones(hparams.input_shape))
-
-        # const:
-        self.key = key
-        self.network = network
-        self.optimiser = optimiser
-        self.hparams: DQNhparams = hparams
-        self.memory = ReplayBuffer(hparams.replay_memory_size)
-        self.iteration = 0
-        self.params = params
-        self.params_target = params.copy({})
-        self.opt_state = optimiser.init(params)
+        super().__init__(network, optimiser, hparams, seed)
+        self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
+        self.params_target = self.params.copy({})
 
     def sample_action(self, observation: Array, eval: bool = False) -> Array:
-        return self.policy(self.params, observation, eval)[0]  # type: ignore
+        return self.policy(self.params, observation, eval)[0]
 
     def policy(
         self, params: nn.FrozenDict, observation: Array, eval=False
@@ -84,16 +72,22 @@ class DQN(Agent):
             eval (bool, optional): whether to use the evaluation policy. Defaults to False.
         Returns:
             Tuple[Array, Array]: the action and the log probability of the action"""
-        q_values = self.network.apply(params, observation)
-        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval))  # type: ignore
+        q_values = jnp.asarray(self.network.apply(params, observation))
+        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())
         action, log_probs = distr.sample_and_log_prob(seed=self.new_key())
         return action, log_probs
 
-    @partial(jax.value_and_grad, argnums=1, has_aux=True)
-    def loss(self, params, transitions_batch, params_target):
-        s_0, a_0, r_1, s_1, d = transitions_batch
-        q_1 = jax.lax.stop_gradient(jnp.max(Q(params_target, s_1), axis=-1))  # type: ignore
+    def loss(
+        self,
+        params: nn.FrozenDict,
+        transition: Transition,
+        params_target: nn.FrozenDict,
+    ) -> Tuple[Array, Any]:
+        s_0, a_0, r_1, s_1, d = transition
         q_0 = self.network.apply(params, s_0)
+        q_1 = self.network.apply(params_target, s_1)
+
+        q_1 = jax.lax.stop_gradient(q_1)
         td_error = r_1 + (1 - d) * self.hparams.discount * jnp.max(q_1) - q_0[a_0]
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
@@ -104,7 +98,7 @@ class DQN(Agent):
         wandb.log({"Iteration": self.iteration})
 
         # update memory
-        transitions = episode.sars()
+        transitions: List[Transition] = episode.transitions()
         self.memory.add_range(transitions)
         wandb.log({"Buffer size": len(self.memory)})
 
@@ -116,17 +110,18 @@ class DQN(Agent):
         if self.iteration % self.hparams.update_frequency != 0:
             return jnp.asarray([])
 
-        episode_batch = self.memory.sample(self.hparams.batch_size)
-        (loss, _), grads = self.loss(
+        episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
+
+        params, opt_state, loss, aux = self.sgd_step(
             self.params,
             episode_batch,
+            self.opt_state,
             self.params_target,
         )
-        updates, opt_state = self.optimiser.update(grads, self.opt_state)
 
         # update dqn state
         self.opt_state = opt_state
-        self.params = optax.apply_updates(self.params, updates)
+        self.params = params
         self.params_target = rlax.periodic_update(
             self.params,
             self.params_target,

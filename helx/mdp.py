@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import IntEnum
 from functools import partial
-from typing import List, Tuple
+from typing import List, Sequence, Tuple, TypeVar
 
 import dm_env
 import jax
@@ -14,12 +14,11 @@ from gymnasium.utils.step_api_compatibility import (
 )
 from jax.tree_util import register_pytree_node_class
 
+T = TypeVar("T")
 
-def tree_stack(pytree, axis=0):
+
+def tree_stack(pytree: Sequence[T], axis: int = 0) -> T:
     return jax.tree_util.tree_map(lambda *x: jnp.stack(x, axis=axis), *pytree)
-
-
-Action = Array
 
 
 class StepType(IntEnum):
@@ -28,16 +27,23 @@ class StepType(IntEnum):
     TERMINATION = 2
 
 
+Action = Array
+Observation = Array
+Reward = Array
+Condition = Array
+Transition = Tuple[Observation, Action, Reward, Observation, Condition]
+
+
 class Timestep:
     def __init__(self, observation: Array, reward: Array | None, step_type: StepType):
         self.observation: Array = observation
         self.reward: Array | None = reward
         self.step_type: StepType = step_type
 
-    def terminated(self) -> bool:
+    def is_terminated(self) -> bool:
         return self.step_type == StepType.TERMINATION
 
-    def truncated(self) -> bool:
+    def is_truncated(self) -> bool:
         return self.step_type == StepType.TRUNCATION
 
     @classmethod
@@ -85,17 +91,17 @@ class Timestep:
 class Episode:
     """A collection of (s)
     The class uses the following data structure:
-        >>> s₀, s₁, s₂, s₃, ..., sₜ,
-        >>> a₀, a₁, a₂, a₃, ..., aₜ,
-        >>> /  , r₁, r₂, r₃, ..., rₜ,
-        >>> /  , d₁, d₂, d₃, ..., dₜ,
+        >>> $s_0, s_1, s_2, s_3, ..., s_t$
+        >>> $a_0, a_1, a_2, a_3, ..., a_t$
+        >>> $r_1, r_2, r_3, ..., r_t$
+        >>> $d_1, d_2, d_3, ..., d_t$
     ```
     And corresponds to the following sarsa unroll:
-    (s₀, a₀, r₁, s₁, d₁, a₁)
+    $\\langle s_0, a_0, r_1, s_1, d_1, a_1 \\rangle$
 
-    Where, a_0 corresponds to the action taken with respect to
-    observation s_0, and r_1 is the reward received during the transition
-    from s_0 to s_1.
+    Where, $a_0$ corresponds to the action taken with respect to
+    observation $s_0$, and $r_1$ is the reward received during the transition
+    from $s_0$ to $s_1$.
     """
 
     def __init__(self, s: List[Array], a: List[Array], r: List[Array], d: List[Array]):
@@ -120,16 +126,42 @@ class Episode:
     def d(self) -> Array:
         return jnp.stack(self._d)
 
+    @property
+    def s_t(self) -> Array:
+        return self.s[:-1]
+
+    @property
+    def s_tp1(self) -> Array:
+        return self.s[1:]
+
+    @property
+    def a_t(self) -> Array:
+        return self.a
+
+    @property
+    def r_tp1(self) -> Array:
+        return self.r
+
+    @property
+    def d_tp1(self) -> Array:
+        return self.d
+
     def __getitem__(self, idx):
-        return jax.tree_util.tree_map(lambda x: x[idx], self.sarsa())
+        return (
+            self.s_t[idx],
+            self.a_t[idx],
+            self.r_tp1[idx],
+            self.s_tp1[idx],
+            self.d_tp1[idx],
+        )
 
     def __len__(self):
         # the number of transitions is 1 minus the number of stored states
         # since states contain also the state for the next timestep
-        return len(self.s) - 1
+        return len(self._s) - 1
 
     def tree_flatten(self):
-        return (self.s, self.a, self.r, self.d), ()
+        return (self._s, self._a, self._r, self._d), ()
 
     @classmethod
     def tree_unflatten(
@@ -162,55 +194,20 @@ class Episode:
         self._d.append(jnp.asarray([timestep.step_type], dtype=jnp.int32))
         return
 
-    def returns(self, axis=None):
-        return jnp.sum(self.r, axis=axis)
-
-    def sars(self, axis=0):
+    def transitions(self) -> List[Transition]:
         """Computes a (s₀, a₀, r₁, s₁, d₁) unroll of the episode.
-        Args:
-            axis (int): The temporala axis to index into
         Returns:
             (Tuple[Array, Array, Array, Array, Array]) a 5D-tuple containing
             each transition in the episode, where the first axis it the
             temporal axis
         """
-        # TODO: improve efficiency of this
         assert len(self.s) - 1 == len(self.r) == len(self.d) == len(self.a)
-        take = partial(jax.lax.slice_in_dim, axis=axis)
-        pairs = []
-        s, a, r, d = self.s, self.a, self.r, self.d
-        for t in range(0, len(self.s) - 1):
-            transition = (
-                take(s, t, t + 1),
-                take(a, t, t + 1),
-                take(r, t, t + 1),
-                take(s, t + 1, t + 2),
-                take(d, t, t + 1),
-            )
-            pairs.append(transition)
-        return pairs
+        return list(zip(self.s_t, self.a_t, self.r_tp1, self.s_tp1, self.d_tp1))
 
-    def sarsa(self, axis=0):
-        """Returns a (s₀, a₀, r₁, s₁, d₁, a₁) unroll of the episode
-        Args:
-            axis (int): The temporala axis to index into
-        Returns:
-            (Tuple[Array, Array, Array, Array, Array, Array]) a 6D-tuple containing
-            each transition in the episode, where the first axis it the
-            temporal axis
-        """
-        assert len(self.s) == len(self.r) + 1 == len(self.d) + 1 == len(self.a)
-        take = partial(jax.lax.slice_in_dim, axis=axis)
-        pairs = []
-        s, a, r, d = self.s, self.a, self.r, self.d
-        for t in range(0, len(self.s) - 1):
-            transition = (
-                take(s, t, t + 1),
-                take(a, t, t + 1),
-                take(r, t, t + 1),
-                take(s, t + 1, t + 2),
-                take(d, t, t + 1),
-                take(a, t + 1, t + 2),
-            )
-            pairs.append(transition)
-        return pairs
+    def is_complete(self) -> Array:
+        """Returns whether the episode is completed, i.e., whether the last
+        timestep was a termination."""
+        return self.d[-1] == StepType.TERMINATION
+
+    def returns(self, axis: int | None = None) -> Array:
+        return jnp.sum(self.r, axis=axis)

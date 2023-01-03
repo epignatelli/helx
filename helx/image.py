@@ -1,3 +1,4 @@
+import logging
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -38,26 +39,25 @@ def ensure_video_format(video: Array, channel_first: bool = True):
         video (Array): the video to be reshaped.
         channel_first (bool): whether the input array has channel first or not.
     Returns:
-        (Array): the reshaped video with shape (time, channel, height, width)
-    Raises:
-        ValueError: if the video has less than three or more than four dimensions."""
+        (Array): the reshaped video with shape (time, channel, height, width),
+        or None if `video.ndim < 3` or `video.ndim > 5`."""
     # Check shape first
-    if 5 < video.ndim < 3:
-        raise ValueError(
+    if 3 < video.ndim < 5:
+        logging.warning(
             "Video must have at least three and at most four dimensions, got {} instead.".format(
                 video.ndim
             )
         )
-    elif video.ndim == 3:
+        return None
+
+    # video.ndim either 3 or 4
+    if video.ndim == 3:
         # add channel axis
         video = jnp.expand_dims(video, axis=1)
         video = jnp.repeat(video, repeats=3, axis=1)
+    # if 4
     elif not channel_first:
         video = video.transpose(0, 3, 1, 2)
-
-    assert video.ndim == 4, "Video must have four dimensions, got {} instead.".format(
-        video.ndim
-    )
 
     # Check dtype and range
     if video.dtype == jnp.float32:
