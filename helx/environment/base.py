@@ -19,7 +19,7 @@ T = TypeVar("T")
 class Environment(abc.ABC, Generic[T]):
     def __init__(self, env: Any):
         self._action_space: Space | None = None
-        self._observation_space: Space | None  = None
+        self._observation_space: Space | None = None
         self._reward_space: Space | None = None
         self._current_observation: Array | None = None
         self._seed: int = 0

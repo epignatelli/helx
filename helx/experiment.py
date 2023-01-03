@@ -84,11 +84,11 @@ def run(
 
         #  experience a new episode
         episode = run_episode(agent, env)
-        returns = episode.returns().item()
         #  update policy
         loss = agent.update(episode)
 
         # log episode
+        returns = episode.returns().item()
         if i % print_frequency == 0:
             logging.info(
                 "Iteration: {}/{} - Return: {} - Loss: {}".format(
@@ -108,11 +108,11 @@ def run(
             logging.info("Evaluating episode {} at iteration {}".format(j, i))
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
-            returns = episode.returns().item()
             video = np.array(ensure_video_format(episode.s))
             wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
 
             # log episode
+            returns = episode.returns().item()
             logging.info(
                 "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
             )

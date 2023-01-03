@@ -52,7 +52,9 @@ class Agent(abc.ABC):
         """
 
     @abc.abstractmethod
-    def policy(self, params: nn.FrozenDict, observation: Array, eval=False, **kwargs) -> Array:
+    def policy(
+        self, params: nn.FrozenDict, observation: Array, eval=False, **kwargs
+    ) -> Array:
         """The policy function to evaluate the agent's policy π(s).
         Args:
             params (PyTreeDef): A pytree of function parameters.
