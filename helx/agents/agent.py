@@ -9,11 +9,11 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import optax
-from chex import Array, Shape
+from chex import Array, PyTreeDef, Shape
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
-from ..mdp import Episode, Transition
+from ..mdp import Action, Episode, Transition
 
 
 @wraps(optax.apply_updates)
@@ -60,13 +60,12 @@ class Agent(abc.ABC, Generic[T]):
         hparams: T,
         seed: int,
     ):
-        # init:
         key: KeyArray = jax.random.PRNGKey(seed)
-        params: nn.FrozenDict = network.init(
+        outputs, params = network.init_with_output(
             key, jnp.ones(hparams.input_shape, dtype=jnp.float32)
         )
 
-        # const:
+        # properties:
         self.key: KeyArray = key
         self.network: nn.Module = network
         self.optimiser: GradientTransformation = optimiser
@@ -74,12 +73,14 @@ class Agent(abc.ABC, Generic[T]):
         self.iteration: int = 0
         self.params: nn.FrozenDict = params
         self.opt_state: OptState = optimiser.init(params)
+        self.output_shape: PyTreeDef = jax.tree_map(lambda x: x.shape, outputs)
 
+        # methods:
         self.sgd_step = jax.jit(self._sgd_step)
 
     @abc.abstractmethod
     def policy(
-        self, params: nn.FrozenDict, observation: Array, eval=False, **kwargs
+        self, params: nn.FrozenDict, observation: Array, **kwargs
     ) -> Array:
         """The policy function to evaluate the agent's policy π(s).
         Args:
@@ -88,27 +89,6 @@ class Agent(abc.ABC, Generic[T]):
         Returns:
             Array: the action to take in the state s
         """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Array:
-        """Collects a sample from the policy distribution conditioned on the provided observation π(s), and
-            returns both the sampled action, and a (possibly empty) array of the correspondent log probabilities.
-        Args:
-            observation (Array): The observation to condition onto.
-            keys (PRNGKey): a random key used to sample the action
-            eval (bool): optional boolean if the agent follows a different policy at evaluation time
-        Returns:
-            Array: the sampled action
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def update(self, episode: Episode) -> Array:
-        """Updates the agent state at the end of each episode and returns the loss as a scalar.
-        This function can used to update both the agent's parameters and its memory.
-        This function is usually not jittable, as we can not ensure that the agent memory, and other
-        properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -143,7 +123,36 @@ class Agent(abc.ABC, Generic[T]):
         """
         raise NotImplementedError()
 
-    def _loss(
+    @abc.abstractmethod
+    def actor(self, observation: Array, **kwargs) -> Action:
+        """The actor function to evaluate the agent's policy $\\pi(s)$.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: the action to take in the state s
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def critic(self, observation: Array, **kwargs) -> Array:
+        """The critic function to evaluate the agent's value function
+            $V(s)$ or $Q(s) \\forall a in \\mathcal{A}$.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: the value of the state s
+        """
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def update(self, episode: Episode) -> Array:
+        """Updates the agent state at the end of each episode and returns the loss as a scalar.
+        This function can used to update both the agent's parameters and its memory.
+        This function is usually not jittable, as we can not ensure that the agent memory, and other
+        properties are jittable. This is also a good place to perform logging."""
+        raise NotImplementedError()
+
+    def _loss_batched(
         self,
         params: nn.FrozenDict,
         batched_transitions: Transition,
@@ -174,13 +183,13 @@ class Agent(abc.ABC, Generic[T]):
             the updated parameters as a pytree of the same structure as params,
             and the updated optimiser state.
         """
-        backward = jax.value_and_grad(self._loss, argnums=0, has_aux=True)
+        backward = jax.value_and_grad(self._loss_batched, argnums=0, has_aux=True)
         (loss, aux), grads = backward(params, batched_transition, *args)
         updates, opt_state = self.optimiser.update(grads, opt_state, params)
         params = _apply_updates(params, updates)
         return params, opt_state, loss, aux
 
-    def new_key(self, n: int = 1):
+    def _new_key(self, n: int = 1):
         self.key, k = jax.random.split(self.key)
         return jax.random.split(k, n).squeeze()
 

@@ -36,7 +36,7 @@ def run_episode(
     episode = Episode.start(timestep)
     while (not timestep.is_terminated()) and t < max_steps:
         t += 1
-        action = agent.sample_action(timestep.observation, eval=eval)
+        action = agent.actor(timestep.observation, eval=eval)
         timestep = env.step(action)
         episode.add(timestep, action)
     return episode
