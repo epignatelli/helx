@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, cast
 
 import distrax
 import jax
@@ -15,7 +15,7 @@ from optax import GradientTransformation
 
 import wandb
 
-from ..mdp import Episode, Transition
+from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
 from .agent import Agent, Hparams
 
@@ -59,9 +59,6 @@ class DQN(Agent[DQNhparams]):
         self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
         self.params_target = self.params.copy({})
 
-    def sample_action(self, observation: Array, eval: bool = False) -> Array:
-        return self.policy(self.params, observation, eval)[0]
-
     def policy(
         self, params: nn.FrozenDict, observation: Array, eval=False
     ) -> Tuple[Array, Array]:
@@ -74,7 +71,7 @@ class DQN(Agent[DQNhparams]):
             Tuple[Array, Array]: the action and the log probability of the action"""
         q_values = jnp.asarray(self.network.apply(params, observation))
         distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())
-        action, log_probs = distr.sample_and_log_prob(seed=self.new_key())
+        action, log_probs = distr.sample_and_log_prob(seed=self._new_key())
         return action, log_probs
 
     def loss(
@@ -87,10 +84,18 @@ class DQN(Agent[DQNhparams]):
         q_0 = self.network.apply(params, s_0)
         q_1 = self.network.apply(params_target, s_1)
 
-        q_1 = jax.lax.stop_gradient(q_1)
-        td_error = r_1 + (1 - d) * self.hparams.discount * jnp.max(q_1) - q_0[a_0]
+        # ignoring type because flax modules can return anything
+        # we should either strongly type the network or cast the output
+        q_1 = jax.lax.stop_gradient(jnp.max(q_1,))  # type: ignore
+        td_error = r_1 + (1 - d) * self.hparams.discount * q_1 - q_0[a_0]  # type: ignore
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
+
+    def actor(self, observation: Array, eval: bool = False) -> Action:
+        return self.policy(self.params, observation, eval=eval)[0]
+
+    def critic(self, observation: Array) -> Array:
+        return cast(Array, self.network.apply(self.params, observation))
 
     def update(self, episode: Episode) -> Array:
         # increment iteration
@@ -112,7 +117,7 @@ class DQN(Agent[DQNhparams]):
 
         episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
 
-        params, opt_state, loss, aux = self.sgd_step(
+        params, opt_state, loss, _ = self.sgd_step(
             self.params,
             episode_batch,
             self.opt_state,
