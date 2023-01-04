@@ -1,6 +1,14 @@
 from typing import Sequence, Tuple
+
 import flax.linen as nn
+import jax
+import jax.numpy as jnp
 from chex import Array
+
+
+def jit_bound(method, *args, **kwargs):
+    """JIT a method that is bound to a class. Useful to jit instance methods"""
+    return jax.jit(nn.module._get_unbound_fn(method), *args, **kwargs)
 
 
 class Flatten(nn.Module):
@@ -53,3 +61,15 @@ class CNN(nn.Module):
             x = module(x)
             x = nn.relu(x)
         return x
+
+
+class Temperature(nn.Module):
+    initial_temperature: float = 1.0
+
+    @nn.compact
+    def __call__(self) -> Array:
+        log_temperature = self.param(
+            "log_temperature",
+            init_fn=lambda key: jnp.full((), jnp.log(self.initial_temperature)),
+        )
+        return jnp.exp(log_temperature)
