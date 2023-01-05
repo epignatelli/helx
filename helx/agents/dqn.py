@@ -1,13 +1,11 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from functools import partial
 from typing import Any, List, Tuple, cast
 
 import distrax
 import jax
 import jax.numpy as jnp
-import optax
 import rlax
 from chex import Array, Shape
 from flax import linen as nn
@@ -17,10 +15,11 @@ import wandb
 
 from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
+from ..networks import AgentNetwork
 from .agent import Agent, Hparams
 
 
-class DQNhparams(Hparams):
+class DQNHparams(Hparams):
     # network
     input_shape: Shape
     hidden_size: int = 128
@@ -42,7 +41,7 @@ class DQNhparams(Hparams):
     min_squared_gradient: float = 0.01
 
 
-class DQN(Agent[DQNhparams]):
+class DQN(Agent[DQNHparams]):
     """Implements a Deep Q-Network:
     Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
     Nature 518.7540 (2015): 529-533.
@@ -50,9 +49,9 @@ class DQN(Agent[DQNhparams]):
 
     def __init__(
         self,
-        network: nn.Module,
+        network: AgentNetwork,
         optimiser: GradientTransformation,
-        hparams: DQNhparams,
+        hparams: DQNHparams,
         seed: int,
     ):
         super().__init__(network, optimiser, hparams, seed)
@@ -69,7 +68,7 @@ class DQN(Agent[DQNhparams]):
             eval (bool, optional): whether to use the evaluation policy. Defaults to False.
         Returns:
             Tuple[Array, Array]: the action and the log probability of the action"""
-        q_values = jnp.asarray(self.network.apply(params, observation))
+        q_values = self.network.critic(params, observation)
         distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())
         action, log_probs = distr.sample_and_log_prob(seed=self._new_key())
         return action, log_probs
@@ -81,21 +80,15 @@ class DQN(Agent[DQNhparams]):
         params_target: nn.FrozenDict,
     ) -> Tuple[Array, Any]:
         s_0, a_0, r_1, s_1, d = transition
-        q_0 = self.network.apply(params, s_0)
-        q_1 = self.network.apply(params_target, s_1)
+        q_0 = self.network.critic(params, s_0)
+        q_1 = self.network.critic(params_target, s_1)
 
         # ignoring type because flax modules can return anything
         # we should either strongly type the network or cast the output
-        q_1 = jax.lax.stop_gradient(jnp.max(q_1,))  # type: ignore
+        q_1 = jax.lax.stop_gradient(jnp.max(q_1))
         td_error = r_1 + (1 - d) * self.hparams.discount * q_1 - q_0[a_0]  # type: ignore
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
-
-    def actor(self, observation: Array, eval: bool = False) -> Action:
-        return self.policy(self.params, observation, eval=eval)[0]
-
-    def critic(self, observation: Array) -> Array:
-        return cast(Array, self.network.apply(self.params, observation))
 
     def update(self, episode: Episode) -> Array:
         # increment iteration
