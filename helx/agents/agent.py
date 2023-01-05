@@ -1,4 +1,4 @@
-"""Base class for a Reinforcement Learning agent."""
+"""Base classes for a Reinforcement Learning agent."""
 from __future__ import annotations
 
 import abc
@@ -16,6 +16,7 @@ from ..networks import AgentNetwork, apply_updates
 
 
 class Hparams(NamedTuple):
+    """A base dataclass to define the hyperparameters of an agent."""
     input_shape: Shape
 
     def as_dict(self):
