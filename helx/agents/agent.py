@@ -2,29 +2,20 @@
 from __future__ import annotations
 
 import abc
-from functools import wraps
-from typing import Any, Generic, Tuple, TypeVar
+from typing import Any, Generic, NamedTuple, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-import optax
 from chex import Array, PyTreeDef, Shape
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
 from ..mdp import Action, Episode, Transition
+from ..networks import AgentNetwork, apply_updates
 
 
-@wraps(optax.apply_updates)
-def _apply_updates(params: nn.FrozenDict, updates: optax.Updates) -> nn.FrozenDict:
-    # work around a typing compatibility issue
-    # optax.apply_updates expects a pytree of parameters
-    # but works with nn.FrozenDict anyway
-    return optax.apply_updates(params, updates)  # type: ignore
-
-
-class Hparams:
+class Hparams(NamedTuple):
     input_shape: Shape
 
     def as_dict(self):
@@ -55,7 +46,7 @@ class Agent(abc.ABC, Generic[T]):
 
     def __init__(
         self,
-        network: nn.Module,
+        network: AgentNetwork,
         optimiser: GradientTransformation,
         hparams: T,
         seed: int,
@@ -79,9 +70,7 @@ class Agent(abc.ABC, Generic[T]):
         self.sgd_step = jax.jit(self._sgd_step)
 
     @abc.abstractmethod
-    def policy(
-        self, params: nn.FrozenDict, observation: Array, **kwargs
-    ) -> Array:
+    def policy(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
         """The policy function to evaluate the agent's policy π(s).
         Args:
             params (PyTreeDef): A pytree of function parameters.
@@ -124,6 +113,13 @@ class Agent(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     @abc.abstractmethod
+    def update(self, episode: Episode) -> Array:
+        """Updates the agent state at the end of each episode and returns the loss as a scalar.
+        This function can used to update both the agent's parameters and its memory.
+        This function is usually not jittable, as we can not ensure that the agent memory, and other
+        properties are jittable. This is also a good place to perform logging."""
+        raise NotImplementedError()
+
     def actor(self, observation: Array, **kwargs) -> Action:
         """The actor function to evaluate the agent's policy $\\pi(s)$.
         Args:
@@ -131,9 +127,8 @@ class Agent(abc.ABC, Generic[T]):
         Returns:
             Array: the action to take in the state s
         """
-        raise NotImplementedError()
+        return self.network.actor(self.params, observation, **kwargs)
 
-    @abc.abstractmethod
     def critic(self, observation: Array, **kwargs) -> Array:
         """The critic function to evaluate the agent's value function
             $V(s)$ or $Q(s) \\forall a in \\mathcal{A}$.
@@ -142,14 +137,27 @@ class Agent(abc.ABC, Generic[T]):
         Returns:
             Array: the value of the state s
         """
+        return self.network.critic(self.params, observation, **kwargs)
+
+    def state_transition(
+        self, observation: Array, action: Action, **kwargs
+    ) -> Tuple[Array, Array, Array]:
+        """The state transition function to evaluate the agent's dynamics model
+            $p(s' | s, a)$.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: the value of the state s
+        """
+        return self.network.state_transition(self.params, observation, action, **kwargs)
+
+    def save(self, path):
+        # TODO(epignatelli): implement
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def update(self, episode: Episode) -> Array:
-        """Updates the agent state at the end of each episode and returns the loss as a scalar.
-        This function can used to update both the agent's parameters and its memory.
-        This function is usually not jittable, as we can not ensure that the agent memory, and other
-        properties are jittable. This is also a good place to perform logging."""
+    @classmethod
+    def load(cls, path):
+        # TODO(epignatelli): implement
         raise NotImplementedError()
 
     def _loss_batched(
@@ -158,6 +166,7 @@ class Agent(abc.ABC, Generic[T]):
         batched_transitions: Transition,
         *args,
     ) -> Tuple[Array, Any]:
+        """A batched version of the loss function."""
         # in_axis for named arguments is not supported yet by jax.vmap
         # see https://github.com/google/jax/issues/7465
         in_axes = (None, 0) + (None,) * len(args)
@@ -186,16 +195,10 @@ class Agent(abc.ABC, Generic[T]):
         backward = jax.value_and_grad(self._loss_batched, argnums=0, has_aux=True)
         (loss, aux), grads = backward(params, batched_transition, *args)
         updates, opt_state = self.optimiser.update(grads, opt_state, params)
-        params = _apply_updates(params, updates)
+        params = apply_updates(params, updates)
         return params, opt_state, loss, aux
 
     def _new_key(self, n: int = 1):
+        """Returns a new key from the PRNGKey."""
         self.key, k = jax.random.split(self.key)
         return jax.random.split(k, n).squeeze()
-
-    def save(self, path):
-        raise NotImplementedError()
-
-    @classmethod
-    def load(cls, path):
-        raise NotImplementedError()
