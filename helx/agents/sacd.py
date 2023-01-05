@@ -42,7 +42,7 @@ class SACD(SAC):
         s_0, _, r_1, s_1, d = sarsd_batch
         (params_actor, params_critic, params_temperature) = params
 
-        _policy = jax.vmap(self.policy, in_axes=(None, 0, 0))  # type: ignore
+        _policy = jax.vmap(self.actor, in_axes=(None, 0, 0))  # type: ignore
         _value = jax.vmap(self.critic.apply, in_axes=(None, 0))  # type: ignore
         batch_matmul = lambda a, b: jnp.sum(a * b, axis=-1, keepdims=True)
 

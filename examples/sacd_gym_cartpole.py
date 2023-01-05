@@ -7,7 +7,7 @@ from absl import app, flags, logging
 
 import helx
 
-helx.flags.define_flags_from_hparams(helx.agents.DQNhparams)
+helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
 FLAGS = flags.FLAGS
 
 
@@ -16,7 +16,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gymnasium.make("Pong-v5")
+    env = gymnasium.make("CartPole-v1")
     env = helx.environment.make_from(env)
 
     # optimiser
@@ -30,7 +30,7 @@ def main(argv):
     # agent
     n_actions = len(cast(helx.spaces.Discrete, env.action_space()))
     hparams = helx.flags.hparams_from_flags(
-        helx.agents.DQNhparams, FLAGS, input_shape=env.observation_space().shape
+        helx.agents.DQNHparams, FLAGS, input_shape=env.observation_space().shape
     )
 
     network = nn.Sequential(

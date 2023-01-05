@@ -1,17 +1,13 @@
 from typing import cast
 
-import bsuite
-import jax
 import flax.linen as nn
+import gymnasium
 import optax
 from absl import app, flags, logging
 
 import helx
 
-
-jax.disable_jit(True)
-
-helx.flags.define_flags_from_hparams(helx.agents.DQNhparams)
+helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
 FLAGS = flags.FLAGS
 
 
@@ -20,25 +16,19 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = bsuite.load_from_id("catch/0")
+    env = gymnasium.make("Ant-v4")
     env = helx.environment.make_from(env)
 
     # optimiser
-    optimiser = optax.rmsprop(
-        learning_rate=FLAGS.learning_rate,
-        momentum=FLAGS.gradient_momentum,
-        eps=FLAGS.min_squared_gradient,
-        centered=True,
-    )
+    optimiser = optax.adam(learning_rate=FLAGS.learning_rate)
 
     # agent
-    n_actions = len(cast(helx.spaces.Discrete, env.action_space()))
+    action_space = cast(helx.spaces.Continuous, env.action_space())
     hparams = helx.flags.hparams_from_flags(
-        helx.agents.DQNhparams,
+        helx.agents.DQNHparams,
         FLAGS,
         input_shape=env.observation_space().shape,
-        replay_start=10,
-        batch_size=2,
+        dim_A=action_space.shape[0],
     )
 
     network = nn.Sequential(
