@@ -1,4 +1,4 @@
 from .agent import Agent
-from .dqn import DQN, DQNhparams
-from .sac import SAC, SAChparams
+from .dqn import DQN, DQNHparams
+from .sac import SAC, SACHparams
 from .sacd import SACD
