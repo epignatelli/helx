@@ -80,11 +80,11 @@ def define_flags_from_hparams(type_):
     return
 
 
-def hparams_from_flags(type_, flags, **kwargs):
+def hparams_from_flags(cls, flags, **kwargs):
     hparams = {}
     for key, value in kwargs.items():
         hparams[key] = value
-    for field in get_type_hints(type_):
+    for field in get_type_hints(cls):
         if field in kwargs:
             continue
         value = flags[field].value
@@ -92,4 +92,4 @@ def hparams_from_flags(type_, flags, **kwargs):
             raise ValueError("Flag {} is required".format(field))
         hparams[field] = value
 
-    return type_(**hparams)
+    return cls(**hparams)
