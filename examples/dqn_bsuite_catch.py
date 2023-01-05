@@ -1,13 +1,17 @@
 from typing import cast
 
+import bsuite
+import jax
 import flax.linen as nn
-import gymnasium
 import optax
 from absl import app, flags, logging
 
 import helx
 
-helx.flags.define_flags_from_hparams(helx.agents.DQNhparams)
+
+jax.disable_jit(True)
+
+helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
 FLAGS = flags.FLAGS
 
 
@@ -16,7 +20,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gymnasium.make("CartPole-v1")
+    env = bsuite.load_from_id("catch/0")
     env = helx.environment.make_from(env)
 
     # optimiser
@@ -30,16 +34,21 @@ def main(argv):
     # agent
     n_actions = len(cast(helx.spaces.Discrete, env.action_space()))
     hparams = helx.flags.hparams_from_flags(
-        helx.agents.DQNhparams, FLAGS, input_shape=env.observation_space().shape
+        helx.agents.DQNHparams,
+        FLAGS,
+        input_shape=env.observation_space().shape,
+        replay_start=10,
+        batch_size=2,
     )
 
-    network = nn.Sequential(
+    critic_net = nn.Sequential(
         [
             helx.networks.Flatten(),
             helx.networks.MLP(features=[32, 16]),
             nn.Dense(features=n_actions),
         ]
     )
+    network = helx.networks.AgentNetwork(critic_net=critic_net)
     agent = helx.agents.DQN(
         network=network, optimiser=optimiser, hparams=hparams, seed=0
     )

@@ -1,12 +1,11 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import Tuple
+from typing import List, Tuple
 
 import distrax
 import jax
 import jax.numpy as jnp
-import optax
 import rlax
 import wandb
 from chex import Array, PRNGKey, Shape
@@ -14,14 +13,16 @@ from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
-from ..mdp import Episode
+from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
+from ..networks import AgentNetwork, Temperature
 from .agent import Agent, Hparams
 
 
-class SAChparams(Hparams):
+class SACHparams(Hparams):
     # network
     input_shape: Shape
+    dim_A: int
     tau: float = 0.005
     # rl
     replay_start: int = 1000
@@ -36,19 +37,7 @@ class SAChparams(Hparams):
     learning_rate: float = 3e-4
 
 
-class Temperature(nn.Module):
-    initial_temperature: float = 1.0
-
-    @nn.compact
-    def __call__(self) -> Array:
-        log_temperature = self.param(
-            "log_temperature",
-            init_fn=lambda key: jnp.full((), jnp.log(self.initial_temperature)),
-        )
-        return jnp.exp(log_temperature)
-
-
-class SAC(Agent):
+class SAC(Agent[SACHparams]):
     """Implements Soft Actor-Critic with gaussian policy for continuous action spaces.
     Haarnoja, Tuomas, et al. "Soft actor-critic: Off-policy maximum entropy deep
         reinforcement learning with a stochastic actor."
@@ -64,47 +53,21 @@ class SAC(Agent):
 
     def __init__(
         self,
-        actor: nn.Module,
-        critic: nn.Module,
+        network: AgentNetwork,
         optimiser: GradientTransformation,
-        hparams: SAChparams,
+        hparams: SACHparams,
         seed: int,
     ):
-        key = jax.random.PRNGKey(seed)
-        key, k1, k2, k3 = jax.random.split(key, 4)
-        temperature = Temperature()
-        input_tensor = jnp.ones(hparams.input_shape)
-        output_tensor, params_actor = actor.init_with_output(k1, input_tensor)
-        params_critic = critic.init(k2, input_tensor)
-        params_temperature = temperature.init(k3)
+        super().__init__(network, optimiser, hparams, seed)
 
-        self.key = key
-        self.actor = actor
-        self.critic = critic
-        self.optimiser = optimiser
-        self.temperature = temperature
-        self.hparams: SAChparams = hparams
         self.memory = ReplayBuffer(hparams.replay_memory_size)
-        self.iteration = 0
-        self.dim_A = jnp.ndim(output_tensor)
-        self.params = (params_actor, params_critic, params_temperature)
-        self.opt_state = optimiser.init(self.params)
-        self.params_critic_target = params_critic.copy({})
-        super().__init__()
-
-    def sample_action(
-        self, observation: Array, eval: bool = False
-    ) -> Tuple[Array, Array]:
-        """Selects an action using a parameterise gaussian policy"""
-        (params_actor, _, _) = self.params
-        return self.policy(params_actor, observation, self.new_key())  # type: ignore
+        self.params_target: nn.FrozenDict = self.params.copy({})
 
     def policy(
         self,
         params: nn.FrozenDict,
         observation: Array,
         key: PRNGKey,
-        eval: bool = False,
     ) -> Tuple[Array, Array]:
         """
         Returns a sampled action and the log probability of the action under the
@@ -118,28 +81,31 @@ class SAC(Agent):
         Returns:
             action: the action and the log probability of the action
         """
-        mu, logvar = self.actor.apply(params, observation)
-        noise = jax.random.normal(key, (self.dim_A,))
+        mu, logvar = self.network.actor(params, observation)
+        noise = jax.random.normal(key, (self.hparams.dim_A,))
         action = jnp.tanh(mu + logvar * noise)
         logprob = distrax.Normal(mu, jnp.exp(logvar)).log_prob(action)  # type: ignore
         return action, logprob
 
-    def loss(self, params, transitions_batch, keys, params_critic_target):
+    def loss(
+        self,
+        params: nn.FrozenDict,
+        transition: Transition,
+        keys: jax.random.KeyArray,
+        params_critic_target: nn.FrozenDict,
+    ):
         print("{} compiles".format(self.__class__.__name__))
-        s_0, _, r_1, s_1, d = transitions_batch
+        s_0, _, r_1, s_1, d = transition
         (params_actor, params_critic, params_temperature) = params
 
-        _policy = jax.vmap(self.policy(p, o, k), in_axes=(None, 0, 0))  # type: ignore
-        _value = jax.vmap(self.critic.apply, in_axes=(None, 0))  # type: ignore
-
         # current estimates
-        temperature = self.temperature.apply(params_temperature)
+        temperature = self.network.extra(params_temperature)
         alpha = stop_gradient(temperature)
-        _, logprobs_a_0 = _policy(params_actor, s_0, keys)
-        _, logprobs_a_1 = _policy(params_actor, s_1, keys)
+        _, logprobs_a_0 = self.policy(params_actor, s_0, keys)
+        _, logprobs_a_1 = self.policy(params_actor, s_1, keys)
         probs_a_0 = jnp.exp(logprobs_a_0)
-        qA_0, qB_0 = _value(params_critic, s_0)
-        qA_1, qB_1 = _value(params_critic_target, s_1)
+        qA_0, qB_0 = self.network.critic(params_critic, s_0)
+        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)  # type: ignore
@@ -158,7 +124,7 @@ class SAC(Agent):
         critic_loss = rlax.l2_loss(qA_0, td_target) + rlax.l2_loss(qB_0, td_target)  # type: ignore
 
         # temperature loss
-        target_entropy = -self.dim_A
+        target_entropy = -self.hparams.dim_A
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         temperature_loss = -(temperature * (logprobs_a_0 + target_entropy))
 
@@ -169,7 +135,7 @@ class SAC(Agent):
         policy_entropy = policy_entropy.mean()
         loss = actor_loss + critic_loss + temperature_loss
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
-        return jnp.array(loss, dtype=float), aux
+        return loss, aux
 
     def update(self, episode: Episode) -> Array:
         # update iteration
@@ -177,7 +143,7 @@ class SAC(Agent):
         wandb.log({"Iteration": self.iteration})
 
         # update memory
-        transitions = episode.transitions()
+        transitions: List[Transition] = episode.transitions()
         self.memory.add_range(transitions)  # makes self.loss recompile each time, why??
         wandb.log({"Buffer size": len(self.memory)})
 
@@ -189,27 +155,25 @@ class SAC(Agent):
         if self.iteration % self.hparams.update_frequency != 0:
             return jnp.asarray([])
 
-        episode_batch = self.memory.sample(self.hparams.batch_size)
-        keys = self.new_key(self.hparams.batch_size)
-        (loss, aux), grads = self.loss(
+        episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
+        params, opt_state, loss, aux = self.sgd_step(
             self.params,
             episode_batch,
-            keys,
-            self.params_critic_target,
+            self.opt_state,
+            self.params_target,
         )
-        updates, opt_state = self.optimiser.update(grads, self.opt_state)
-        actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
 
         # update dqn state
         self.opt_state = opt_state
-        self.params = optax.apply_updates(self.params, updates)
+        self.params = params
         self.params_critic_target = jax.tree_map(
             lambda theta, theta_: theta * self.hparams.tau
             + (1 - self.hparams.tau) * theta_,
-            self.params[1],  # type: ignore
-            self.params_critic_target,
+            self.params,
+            self.params_target,
         )
 
+        actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
         wandb.log({"train/total_loss": loss.item()})
         wandb.log({"train/actor_loss": actor_loss.item()})
         wandb.log({"train/critic_loss": critic_loss.item()})
