@@ -1,22 +1,84 @@
 from __future__ import annotations
 
+from functools import wraps
 from typing import Sequence, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import optax
 from chex import Array
 
+from .mdp import Action
 
+
+@wraps(jax.jit)
 def jit_bound(method, *args, **kwargs):
-    """JIT a method that is bound to a class. Useful to jit instance methods"""
     return jax.jit(nn.module._get_unbound_fn(method), *args, **kwargs)
+
+
+@wraps(optax.apply_updates)
+def apply_updates(params: nn.FrozenDict, updates: optax.Updates) -> nn.FrozenDict:
+    # work around a typing compatibility issue
+    # optax.apply_updates expects a pytree of parameters
+    # but works with nn.FrozenDict anyway
+    return optax.apply_updates(params, updates)  # type: ignore
 
 
 class Flatten(nn.Module):
     @nn.compact
     def __call__(self, x: Array) -> Array:
         return x.flatten()
+
+
+class AgentNetwork(nn.Module):
+    representation_net: nn.Module | None = None
+    actor_net: nn.Module | None = None
+    critic_net: nn.Module | None = None
+    state_transition_net: nn.Module | None = None
+    reward_net: nn.Module | None = None
+    extra_net: nn.Module | None = None
+
+    @nn.compact
+    def __call__(
+        self, observation: Array, *args, **kwargs
+    ) -> Tuple[Array, Array, Array, Array]:
+        modules = [
+            self.actor_net,
+            self.critic_net,
+            self.state_transition_net,
+            self.reward_net,
+        ]
+        ys = []
+        for module in modules:
+            if module is None:
+                y = jnp.empty((0,))
+            else:
+                y = module(observation, *args, **kwargs)
+            ys.append(y)
+        return tuple(ys)
+
+    def state_representation(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+        return jnp.asarray(self.apply(params, observation, method=self.representation_net, **kwargs))
+
+    def actor(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+        return jnp.asarray(self.apply(params, observation, method=self.actor_net, **kwargs))
+
+    def critic(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+        return jnp.asarray(self.apply(params, observation, method=self.critic_net, **kwargs))
+
+    def state_transition(
+        self, params: nn.FrozenDict, observation: Array, action: Action, **kwargs
+    ) -> Array:
+        return jnp.asarray(self.apply(
+            params, observation, action, method=self.state_transition_net, **kwargs
+        ))
+
+    def reward(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+        return jnp.asarray(self.apply(params, observation, method=self.reward_net, **kwargs))
+
+    def extra(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+        return jnp.asarray(self.apply(params, observation, method=self.extra_net, **kwargs))
 
 
 class MLP(nn.Module):
