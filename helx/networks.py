@@ -31,8 +31,13 @@ class Flatten(nn.Module):
         return x.flatten()
 
 
+class Identity(nn.Module):
+    @nn.compact
+    def __call__(self, x: Array) -> Array:
+        return x
+
 class AgentNetwork(nn.Module):
-    representation_net: nn.Module | None = None
+    representation_net: nn.Module = Identity()
     actor_net: nn.Module | None = None
     critic_net: nn.Module | None = None
     state_transition_net: nn.Module | None = None
@@ -48,37 +53,74 @@ class AgentNetwork(nn.Module):
             self.critic_net,
             self.state_transition_net,
             self.reward_net,
+            self.extra_net,
         ]
+        representation = self.representation_net(observation)
         ys = []
         for module in modules:
             if module is None:
                 y = jnp.empty((0,))
             else:
-                y = module(observation, *args, **kwargs)
+                y = module(representation, *args, **kwargs)
             ys.append(y)
         return tuple(ys)
 
-    def state_representation(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
-        return jnp.asarray(self.apply(params, observation, method=self.representation_net, **kwargs))
+    def state_representation(
+        self, params: nn.FrozenDict, observation: Array, **kwargs
+    ) -> Array:
+        return jnp.asarray(
+            self.apply(params, observation, method=self.representation_net, **kwargs)
+        )
 
     def actor(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
-        return jnp.asarray(self.apply(params, observation, method=self.actor_net, **kwargs))
+        representation = self.apply(
+            params, observation, method=self.representation_net, **kwargs
+        )
+        return jnp.asarray(
+            self.apply(params, representation, method=self.actor_net, **kwargs)
+        )
 
     def critic(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
-        return jnp.asarray(self.apply(params, observation, method=self.critic_net, **kwargs))
+        representation = self.apply(
+            params, observation, method=self.representation_net, **kwargs
+        )
+        return jnp.asarray(
+            self.apply(params, representation, method=self.critic_net, **kwargs)
+        )
 
     def state_transition(
         self, params: nn.FrozenDict, observation: Array, action: Action, **kwargs
     ) -> Array:
-        return jnp.asarray(self.apply(
-            params, observation, action, method=self.state_transition_net, **kwargs
-        ))
+        representation = self.apply(
+            params, observation, method=self.representation_net, **kwargs
+        )
+        return jnp.asarray(
+            self.apply(
+                params,
+                representation,
+                action,
+                method=self.state_transition_net,
+                **kwargs,
+            )
+        )
 
-    def reward(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
-        return jnp.asarray(self.apply(params, observation, method=self.reward_net, **kwargs))
+    def reward(
+        self, params: nn.FrozenDict, observation: Array, action: Action, **kwargs
+    ) -> Array:
+        representation = self.apply(
+            params, observation, method=self.representation_net, **kwargs
+        )
+        return jnp.asarray(
+            self.apply(params, representation, action, method=self.reward_net, **kwargs)
+        )
 
     def extra(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
-        return jnp.asarray(self.apply(params, observation, method=self.extra_net, **kwargs))
+        representation = self.apply(
+            params, observation, method=self.representation_net, **kwargs
+        )
+        return jnp.asarray(
+            self.apply(params, representation, method=self.extra_net, **kwargs)
+        )
 
 
 class MLP(nn.Module):
