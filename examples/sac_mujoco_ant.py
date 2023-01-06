@@ -45,7 +45,7 @@ def main(argv):
     actor_net = nn.Dense(features=action_space.shape[0])
     critic_net = nn.Dense(features=1)
     network = helx.networks.AgentNetwork(
-        representation_net=representation_net,
+        state_representation_net=representation_net,
         actor_net=actor_net,
         critic_net=critic_net,
     )
