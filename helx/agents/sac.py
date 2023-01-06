@@ -21,7 +21,6 @@ from .agent import Agent, Hparams
 
 class SACHparams(Hparams):
     # network
-    input_shape: Shape
     dim_A: int
     tau: float = 0.005
     # rl
