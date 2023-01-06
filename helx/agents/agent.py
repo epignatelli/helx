@@ -7,7 +7,7 @@ from typing import Any, Generic, NamedTuple, Tuple, TypeVar
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
-from chex import Array, PyTreeDef, Shape
+from chex import Array, PyTreeDef, Shape, dataclass
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
@@ -15,7 +15,8 @@ from ..mdp import Action, Episode, Transition
 from ..networks import AgentNetwork, apply_updates
 
 
-class Hparams(NamedTuple):
+@dataclass
+class Hparams:
     """A base dataclass to define the hyperparameters of an agent."""
     input_shape: Shape
 
@@ -71,13 +72,13 @@ class Agent(abc.ABC, Generic[T]):
         self.sgd_step = jax.jit(self._sgd_step)
 
     @abc.abstractmethod
-    def policy(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Array:
+    def policy(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Tuple[Action, Array]:
         """The policy function to evaluate the agent's policy π(s).
         Args:
             params (PyTreeDef): A pytree of function parameters.
             s (Array): The state to evaluate the policy on.
         Returns:
-            Array: the action to take in the state s
+            Tuple[Array, Array]: the action to take in the state s, and the log-probability of the action.
         """
         raise NotImplementedError()
 
@@ -120,6 +121,15 @@ class Agent(abc.ABC, Generic[T]):
         This function is usually not jittable, as we can not ensure that the agent memory, and other
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
+
+    def sample_action(self, observation: Array, **kwargs) -> Action:
+        """Samples an action from the agent's policy.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: the action to take in the state s
+        """
+        return self.policy(self.params, observation, **kwargs)[0]
 
     def actor(self, observation: Array, **kwargs) -> Action:
         """The actor function to evaluate the agent's policy $\\pi(s)$.
