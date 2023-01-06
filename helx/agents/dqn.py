@@ -21,7 +21,6 @@ from .agent import Agent, Hparams
 
 class DQNHparams(Hparams):
     # network
-    input_shape: Shape
     hidden_size: int = 128
     # rl
     initial_exploration: float = 1.0
