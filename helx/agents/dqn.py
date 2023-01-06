@@ -1,19 +1,18 @@
-# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import Any, List, Tuple, cast
+from typing import Any, List, Tuple
 
 import distrax
 import jax
 import jax.numpy as jnp
 import rlax
-from chex import Array, Shape
+from chex import Array
 from flax import linen as nn
 from optax import GradientTransformation
 
 import wandb
 
-from ..mdp import Action, Episode, Transition
+from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
 from ..networks import AgentNetwork
 from .agent import Agent, Hparams
