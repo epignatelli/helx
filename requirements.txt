@@ -10,9 +10,8 @@ flax
 dm_env
 wandb
 absl-py
-gymnasium[all]>=0.26
-gym[all]>=0.26
+gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
+gym[all]>=0.26  # 0.26 introduced the termination/truncation API
 bsuite
 typing-extensions
 pylint
-mujoco
