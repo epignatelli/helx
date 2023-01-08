@@ -70,3 +70,6 @@ class FromGymnasiumEnv(Environment[gymnasium.Env]):
 
     def close(self) -> None:
         return self._env.close()
+
+    def name(self) -> str:
+        return self._env.unwrapped.__class__.__name__
