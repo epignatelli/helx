@@ -46,6 +46,9 @@ class Timestep:
     def is_truncated(self) -> bool:
         return self.step_type == StepType.TRUNCATION
 
+    def is_final(self) -> bool:
+        return self.is_terminated() or self.is_truncated()
+
     @classmethod
     def from_gymnasium(cls, gymnasium_step: GymnasiumTimestep) -> Timestep:
         obs, reward, terminated, truncated, _ = gymnasium_step
