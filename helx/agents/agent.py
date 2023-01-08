@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, NamedTuple, Tuple, TypeVar
+from typing import Any, Generic, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
@@ -13,12 +13,15 @@ from optax import GradientTransformation, OptState
 
 from ..mdp import Action, Episode, Transition
 from ..networks import AgentNetwork, apply_updates
+from ..spaces import Space
 
 
 @dataclass
 class Hparams:
     """A base dataclass to define the hyperparameters of an agent."""
-    input_shape: Shape
+
+    obs_space: Space
+    action_space: Space
 
     def as_dict(self):
         return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
@@ -52,11 +55,13 @@ class Agent(abc.ABC, Generic[T]):
         optimiser: GradientTransformation,
         hparams: T,
         seed: int,
+        **extra_init_kwargs,
     ):
         key: KeyArray = jax.random.PRNGKey(seed)
+        obs = hparams.obs_space.sample(key)
+        action = hparams.action_space.sample(key)
         outputs, params = network.init_with_output(
-            key, jnp.ones(hparams.input_shape, dtype=jnp.float32)
-        )
+            key, obs, action, key=key, **extra_init_kwargs)
 
         # properties:
         self.key: KeyArray = key
@@ -66,13 +71,20 @@ class Agent(abc.ABC, Generic[T]):
         self.iteration: int = 0
         self.params: nn.FrozenDict = params
         self.opt_state: OptState = optimiser.init(params)
-        self.output_shape: PyTreeDef = jax.tree_map(lambda x: x.shape, outputs)
+        self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))
 
         # methods:
         self.sgd_step = jax.jit(self._sgd_step)
 
     @abc.abstractmethod
-    def policy(self, params: nn.FrozenDict, observation: Array, **kwargs) -> Tuple[Action, Array]:
+    def policy(
+        self,
+        params: nn.FrozenDict,
+        observation: Array,
+        eval: bool = False,
+        key: KeyArray = None,
+        **kwargs,
+    ) -> Tuple[Action, Array]:
         """The policy function to evaluate the agent's policy π(s).
         Args:
             params (PyTreeDef): A pytree of function parameters.
@@ -84,7 +96,10 @@ class Agent(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def loss(
-        self, params: nn.FrozenDict, transition: Transition, **kwargs
+        self,
+        params: nn.FrozenDict,
+        transition: Transition,
+        **kwargs,
     ) -> Tuple[Array, Any]:
         """The loss function to differentiate through for Deep RL agents.
             This function can be used for heavy computation and can be xla-compiled,
@@ -122,14 +137,16 @@ class Agent(abc.ABC, Generic[T]):
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
 
-    def sample_action(self, observation: Array, **kwargs) -> Action:
+    def sample_action(
+        self, observation: Array, eval: bool = False, **kwargs
+    ) -> Action:
         """Samples an action from the agent's policy.
         Args:
             observation (Array): The observation to condition onto.
         Returns:
             Array: the action to take in the state s
         """
-        return self.policy(self.params, observation, **kwargs)[0]
+        return self.policy(self.params, observation, eval, self._new_key(), **kwargs)[0]
 
     def actor(self, observation: Array, **kwargs) -> Action:
         """The actor function to evaluate the agent's policy $\\pi(s)$.

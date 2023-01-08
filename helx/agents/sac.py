@@ -8,14 +8,15 @@ import jax
 import jax.numpy as jnp
 import rlax
 import wandb
-from chex import Array, PRNGKey, Shape
+from jax.random import KeyArray
+from chex import Array
 from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
 from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork, Temperature
+from ..networks import AgentNetwork
 from .agent import Agent, Hparams
 
 
@@ -48,6 +49,16 @@ class SAC(Agent[SACHparams]):
     Haonanm Yu, et al. "Do you need reward entropy (in practice)?".
         arXiv preprint arXiv:2201.12434. 2022 Jan 28.
         https://arxiv.org/abs/2201.12434
+
+    Args:
+        network (AgentNetwork): the network to use for the agent.
+            the `actor_net` is usually a `GaussianPolicy` for continuous action spaces.
+            the `critic_net` is usually a `Dense` layer with 1 output.
+            the `extra_net` is usually a `Temperature` layer to tune the entropy temperature
+            automatically.
+        optimiser (GradientTransformation): the optimiser to use for the agent.
+        hparams (SACHparams): the hyperparameters to use for the agent.
+        seed (int): the seed to use for the agent.
     """
 
     def __init__(
@@ -66,7 +77,9 @@ class SAC(Agent[SACHparams]):
         self,
         params: nn.FrozenDict,
         observation: Array,
-        key: PRNGKey,
+        eval: bool = False,
+        key: KeyArray = None,
+        **kwargs,
     ) -> Tuple[Array, Array]:
         """
         Returns a sampled action and the log probability of the action under the
@@ -80,30 +93,25 @@ class SAC(Agent[SACHparams]):
         Returns:
             action: the action and the log probability of the action
         """
-        mu, logvar = self.network.actor(params, observation)
-        noise = jax.random.normal(key, (self.hparams.dim_A,))
-        action = jnp.tanh(mu + logvar * noise)
-        logprob = distrax.Normal(mu, jnp.exp(logvar)).log_prob(action)  # type: ignore
-        return action, logprob
+        return self.network.actor(params, observation, key)
 
     def loss(
         self,
         params: nn.FrozenDict,
         transition: Transition,
-        keys: jax.random.KeyArray,
+        key: jax.random.KeyArray,
         params_critic_target: nn.FrozenDict,
     ):
         print("{} compiles".format(self.__class__.__name__))
         s_0, _, r_1, s_1, d = transition
-        (params_actor, params_critic, params_temperature) = params
 
         # current estimates
-        temperature = self.network.extra(params_temperature)
+        temperature = self.network.extra(params)
         alpha = stop_gradient(temperature)
-        _, logprobs_a_0 = self.policy(params_actor, s_0, keys)
-        _, logprobs_a_1 = self.policy(params_actor, s_1, keys)
+        _, logprobs_a_0 = self.network.actor(params, s_0, key)
+        _, logprobs_a_1 = self.network.actor(params, s_1, key)
         probs_a_0 = jnp.exp(logprobs_a_0)
-        qA_0, qB_0 = self.network.critic(params_critic, s_0)
+        qA_0, qB_0 = self.network.critic(params, s_0)
         qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
 
         # augment reward with policy entropy
@@ -159,6 +167,7 @@ class SAC(Agent[SACHparams]):
             self.params,
             episode_batch,
             self.opt_state,
+            self._new_key(),
             self.params_target,
         )
 

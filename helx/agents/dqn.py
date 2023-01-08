@@ -7,6 +7,7 @@ import jax
 import jax.numpy as jnp
 import rlax
 from chex import Array
+from jax.random import KeyArray
 from flax import linen as nn
 from optax import GradientTransformation
 
@@ -57,7 +58,11 @@ class DQN(Agent[DQNHparams]):
         self.params_target = self.params.copy({})
 
     def policy(
-        self, params: nn.FrozenDict, observation: Array, eval=False
+        self,
+        params: nn.FrozenDict,
+        observation: Array,
+        eval=False,
+        key: KeyArray = None,
     ) -> Tuple[Array, Array]:
         """Selects an action using an e-greedy policy
 
@@ -68,7 +73,7 @@ class DQN(Agent[DQNHparams]):
             Tuple[Array, Array]: the action and the log probability of the action"""
         q_values = self.network.critic(params, observation)
         distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())
-        action, log_probs = distr.sample_and_log_prob(seed=self._new_key())
+        action, log_probs = distr.sample_and_log_prob(seed=key)
         return action, log_probs
 
     def loss(
