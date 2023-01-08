@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Sequence
+from typing import Sequence, Type
 
 import dm_env.specs
 import gym.spaces
@@ -9,9 +9,17 @@ import gymnasium.spaces
 import jax.numpy as jnp
 from chex import Array, Shape
 import jax
+from jax.random import KeyArray
 
 
 class Space(abc.ABC):
+    shape: Shape = NotImplemented
+    dtype: Type = NotImplemented
+
+    @abc.abstractmethod
+    def sample(self, key: KeyArray) -> Array:
+        raise NotImplementedError()
+
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Space) -> Space:
         if isinstance(gym_space, gym.spaces.Discrete):
@@ -50,13 +58,15 @@ class Space(abc.ABC):
 
 class Discrete(Space):
     def __init__(self, n_dimensions: int):
-        self.n_dimensions: int = n_dimensions
+        self.n_bins: int = n_dimensions
+        self.dtype: Type = jnp.int32
 
-    def __len__(self) -> int:
-        return self.n_dimensions
+    @property
+    def shape(self) -> Shape:
+        return (1,)
 
-    def sample(self, key) -> Array:
-        return jax.random.randint(key, (1,), 0, self.n_dimensions)
+    def sample(self, key: KeyArray) -> Array:
+        return jax.random.randint(key, self.shape, 0, self.n_bins + 1)
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Discrete) -> Discrete:
@@ -75,10 +85,12 @@ class Continuous(Space):
     def __init__(
         self,
         shape: Shape = (1,),
+        dtype: Type = jnp.float32,
         minimum: float | Sequence[float] | Array = -1.0,
         maximum: float | Sequence[float] | Array = 1.0,
     ):
         self.shape: Shape = shape
+        self.dtype = dtype
         self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
         self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
 
@@ -88,26 +100,40 @@ class Continuous(Space):
             self.min.shape, self.max.shape, shape
         )
 
-    def sample(self, key) -> Array:
-        return jax.random.uniform(key, self.shape, minval=self.min, maxval=self.max)
+    def sample(self, key: KeyArray) -> Array:
+        if (jnp.issubdtype(self.dtype, jnp.integer)):
+            out = jax.random.randint(
+                key, self.shape, self.min, self.max, dtype=self.dtype
+            )
+            return out
+        elif (jnp.issubdtype(self.dtype, jnp.floating)):
+            return jax.random.uniform(
+                key, self.shape, minval=self.min, maxval=self.max, dtype=self.dtype
+            )
+        else:
+            raise NotImplementedError(
+                "Cannot sample from space of type {}".format(self.dtype)
+            )
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Box) -> Continuous:
         shape = gym_space.shape
         minimum = jnp.asarray(gym_space.low)
         maximum = jnp.asarray(gym_space.high)
-        return cls(shape, minimum, maximum)
+        return cls(shape=shape, dtype=gym_space.dtype, minimum=minimum, maximum=maximum)
 
     @classmethod
     def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Box) -> Continuous:
         shape = gymnasium_space.shape
         minimum = jnp.asarray(gymnasium_space.low)
         maximum = jnp.asarray(gymnasium_space.high)
-        return cls(shape, minimum, maximum)
+        return cls(
+            shape=shape, dtype=gymnasium_space.dtype, minimum=minimum, maximum=maximum
+        )
 
     @classmethod
     def from_dm_env(cls, dm_space: dm_env.specs.BoundedArray) -> Continuous:
         shape = dm_space.shape
         minimum = jnp.asarray(dm_space.minimum)
         maximum = jnp.asarray(dm_space.maximum)
-        return cls(shape, minimum, maximum)
+        return cls(shape=shape, dtype=dm_space.dtype, minimum=minimum, maximum=maximum)
