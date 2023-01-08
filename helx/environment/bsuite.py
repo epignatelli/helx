@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import bsuite.environments
+import chex
 import jax
 import jax.numpy as jnp
 from chex import Array
@@ -57,6 +58,7 @@ class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
 
     def step(self, action: Action) -> Timestep:
         # bsuite only has discrete actions envs
+        chex.assert_scalar(action)
         next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_dm_env(next_step)
