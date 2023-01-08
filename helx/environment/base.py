@@ -28,39 +28,39 @@ class Environment(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def action_space(self) -> Space:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def observation_space(self) -> Space:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def reward_space(self) -> Space:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def state(self) -> Array:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def reset(self, seed: int | None = None) -> Timestep:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def step(self, action: Action) -> Timestep:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def seed(self, seed: int) -> None:
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def render(self, mode: str = "human"):
-        ...
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def close(self) -> None:
-        ...
+        raise NotImplementedError()
 
     def name(self) -> str:
         return self._env.__class__.__name__
