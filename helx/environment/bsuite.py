@@ -36,8 +36,7 @@ class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
         if self._reward_space is not None:
             return self._reward_space
 
-        # TODO (epignatelli): Remove this once dm_env is correctly typed.
-        self._reward_space = Space.from_dm_env(self._env.reward_spec())  # type: ignore
+        self._reward_space = Space.from_dm_env(self._env.reward_spec())
         return self._reward_space
 
     def state(self) -> Array:
@@ -57,7 +56,7 @@ class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
         return Timestep.from_dm_env(next_step)
 
     def step(self, action: Action) -> Timestep:
-        # TODO (epignatelli): Remove `type: ignore` once bsuite is correctly typed
+        # bsuite only has discrete actions envs
         next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_dm_env(next_step)

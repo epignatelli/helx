@@ -8,6 +8,7 @@ import gym.utils.seeding
 import jax
 import jax.numpy as jnp
 from chex import Array
+import numpy as np
 
 from .base import Environment
 from ..mdp import Action, StepType, Timestep
@@ -56,7 +57,8 @@ class FromGymEnv(Environment[gym.Env]):
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action.item())
+        action_ = np.asarray(action)
+        next_step = self._env.step(action_)
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gym(next_step)
 
