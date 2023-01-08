@@ -34,7 +34,7 @@ def run_episode(
     t = 0
     timestep = env.reset()
     episode = Episode.start(timestep)
-    while (not timestep.is_terminated()) and t < max_steps:
+    while (not timestep.is_final()) and t < max_steps:
         t += 1
         action = agent.sample_action(timestep.observation, eval=eval)
         timestep = env.step(action)
