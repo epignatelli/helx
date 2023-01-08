@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from typing import cast
-
+import numpy as np
 import gymnasium
 import gymnasium.utils.seeding
 import jax
@@ -55,7 +54,8 @@ class FromGymnasiumEnv(Environment[gymnasium.Env]):
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(action.item())
+        action_ = np.asarray(action)
+        next_step = self._env.step(action_)
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gymnasium(next_step)
 
