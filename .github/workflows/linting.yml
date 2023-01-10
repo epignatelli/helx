@@ -1,9 +1,9 @@
-name: Import
+name: Linting
 
 on: [push]
 
 jobs:
-  score-code:
+  linting:
     runs-on: ${{ matrix.os }}-latest
     defaults:
       run:
@@ -13,7 +13,7 @@ jobs:
       max-parallel: 5
       matrix:
         os: ["ubuntu", "macos"]
-    continue-on-error: true
+    continue-on-error: false
 
     steps:
 
