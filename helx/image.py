@@ -42,16 +42,17 @@ def ensure_video_format(video: Array, channel_first: bool = True):
         (Array): the reshaped video with shape (time, channel, height, width),
         or None if `video.ndim < 3` or `video.ndim > 5`."""
     # Check shape first
-    if 3 < video.ndim < 5:
+    n_dim = video.ndim
+    if n_dim < 3 or n_dim > 5:
         logging.warning(
             "Video must have at least three and at most four dimensions, got {} instead.".format(
-                video.ndim
+                n_dim
             )
         )
         return None
 
     # video.ndim either 3 or 4
-    if video.ndim == 3:
+    if n_dim == 3:
         # add channel axis
         video = jnp.expand_dims(video, axis=1)
         video = jnp.repeat(video, repeats=3, axis=1)

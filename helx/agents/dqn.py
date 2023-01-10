@@ -15,7 +15,7 @@ import wandb
 
 from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork
+from ..networks.modules import AgentNetwork
 from .agent import Agent, Hparams
 
 

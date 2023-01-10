@@ -16,7 +16,7 @@ from optax import GradientTransformation
 
 from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork
+from ..networks.modules import AgentNetwork
 from .agent import Agent, Hparams
 
 
@@ -53,12 +53,13 @@ class SAC(Agent[SACHparams]):
     Args:
         network (AgentNetwork): the network to use for the agent.
             the `actor_net` is usually a `GaussianPolicy` for continuous action spaces.
-            the `critic_net` is usually a `Dense` layer with 1 output.
-            the `extra_net` is usually a `Temperature` layer to tune the entropy temperature
-            automatically.
-        optimiser (GradientTransformation): the optimiser to use for the agent.
-        hparams (SACHparams): the hyperparameters to use for the agent.
+            the `critic_net` is double Q network.
+            the `extra_net` is usually a `Temperature` layer to automatically
+            tune the entropy pull.
+        optimiser (GradientTransformation): an optax optimiser to perform gradient descent.
+        hparams (SACHparams): the hyperparameters for the agent.
         seed (int): the seed to use for the agent.
+            Using the same seed will result in reproducible agent results.
     """
 
     def __init__(
@@ -102,7 +103,6 @@ class SAC(Agent[SACHparams]):
         key: jax.random.KeyArray,
         params_critic_target: nn.FrozenDict,
     ):
-        print("{} compiles".format(self.__class__.__name__))
         s_0, _, r_1, s_1, d = transition
 
         # current estimates
@@ -111,11 +111,12 @@ class SAC(Agent[SACHparams]):
         _, logprobs_a_0 = self.network.actor(params, s_0, key)
         _, logprobs_a_1 = self.network.actor(params, s_1, key)
         probs_a_0 = jnp.exp(logprobs_a_0)
+        # critic is a double Q network
         qA_0, qB_0 = self.network.critic(params, s_0)
         qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
 
         # augment reward with policy entropy
-        policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)  # type: ignore
+        policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)
         # SACLite: https://arxiv.org/abs/2201.12434
         policy_entropy = policy_entropy * self.hparams.entropy_rewards
         r_1 = r_1 + alpha * policy_entropy
@@ -127,19 +128,14 @@ class SAC(Agent[SACHparams]):
         # critic losses
         q_1 = jnp.min(jnp.stack([qA_1, qB_1], axis=0), axis=0)
         v_1 = q_1 - alpha * logprobs_a_1
-        td_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
-        critic_loss = rlax.l2_loss(qA_0, td_target) + rlax.l2_loss(qB_0, td_target)  # type: ignore
+        q_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
+        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
 
         # temperature loss
         target_entropy = -self.hparams.dim_A
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         temperature_loss = -(temperature * (logprobs_a_0 + target_entropy))
 
-        # average over batches
-        actor_loss = actor_loss.mean()
-        critic_loss = critic_loss.mean()
-        temperature_loss = temperature_loss.mean()
-        policy_entropy = policy_entropy.mean()
         loss = actor_loss + critic_loss + temperature_loss
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
         return loss, aux
@@ -181,6 +177,7 @@ class SAC(Agent[SACHparams]):
             self.params_target,
         )
 
+        aux = jax.tree_map(jnp.mean, aux)  # reduce aux
         actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
         wandb.log({"train/total_loss": loss.item()})
         wandb.log({"train/actor_loss": actor_loss.item()})
