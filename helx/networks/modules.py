@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import NamedTuple, Sequence, Tuple
-import distrax
+from typing import Callable, Sequence, Tuple
 
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import optax
 from chex import Array, PyTreeDef
+from jax.random import KeyArray
 
-from .mdp import Action
+from ..mdp import Action
 
 
 @wraps(jax.jit)
@@ -66,12 +66,13 @@ class MLP(nn.Module):
         (1, 64)"""
 
     features: Sequence[int]
+    activation: Callable[[Array], Array] = nn.relu
 
     @nn.compact
-    def __call__(self, x: Array) -> Array:
+    def __call__(self, x: Array, *args, **kwargs) -> Array:
         for i in range(len(self.features)):
             x = nn.Dense(features=self.features[i])(x)
-            x = nn.relu(x)
+            x = self.activation(x)
         return x
 
 
@@ -130,95 +131,29 @@ class CNN(nn.Module):
             for i in range(len(self.features))
         ]
 
-    def __call__(self, x):
+    def __call__(self, x: Array, *args, **kwargs) -> Array:
         for module in self.modules:
             x = module(x)
             x = nn.relu(x)
         return x
 
 
-class PolicyHead(nn.Module):
-    """Defines the policy head of an agent.
-    Args:
-        n_variables (int): The number of variables in the policy, e.g., the number
-            of actions in a discrete policy, or the 2 variables in a
-            Gaussian policy, $\\mu$ and $\\log(\\sigma)$.
-        action_size (int): The size of the action space, e.g., the number of
-            discrete actions, or the dimensionality of each action
-            in a continuous action space.
-
-        Example:
-            >>> env = gym.make("CarRacing-v2")
-            >>> action_size = env.action_space.shape[0]
-            >>> policy_distr = distrax.Normal(loc=0., scale=1.)
-            >>> n_variables = 2  # mu, log(sigma)
-            >>> policy_head = PolicyHead(n_variables=n_variables, action_size=action_size)"""
-
-    n_variables: int
-    action_size: int
-
-    @nn.compact
-    def __call__(self, x: Array) -> Tuple[Array, ...]:
-        ys = []
-        for _ in range(self.n_variables):
-            y = nn.Dense(features=self.action_size)(x)
-            ys.append(y)
-        return tuple(ys)
-
-
-class CriticHead(nn.Module):
-    """Defines the critic head of an agent (i.e., the value function).
-    Args:
-        n_actions (int): The number of actions in the action space."""
-
-    n_actions: int
-
-    @nn.compact
-    def __call__(self, x: Array) -> Array:
-        y = nn.Dense(features=self.n_actions)(x)
-        return y
-
-
-class GaussianPolicy(nn.Module):
-    action_size: int
-
-    @nn.compact
-    def __call__(self, observation, key):
-        mu = nn.Dense(features=self.action_size)(observation)
-        log_sigma = nn.Dense(features=self.action_size)(observation)
-        # reparametrisation trick
-        noise = jax.random.normal(key, (self.hparams.dim_A,))
-        action = jnp.tanh(mu + log_sigma * noise)
-        log_prob = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(action)
-        return action, log_prob
-
-
-class AgentPrediction(NamedTuple):
-    """Defines the most general output of an agent, including both
-    model-free, model-based, and self-motivated agents."""
-
-    preferences: Action
-    values: Array
-    next_state: Array
-    reward: Array
-    extra: Array | PyTreeDef
-    state_representation: Array
-
-
 class AgentNetwork(nn.Module):
     """Defines the network architecture of an agent, and can be used as it is.
     Args:
         actor_net (nn.Module): A Flax module that defines the actor network.
-            The input signature of this module should be `(observation, rng)`.
+            The signature of this module should be `f(Array, KeyArray)`.
         critic_net (nn.Module): A Flax module that defines the critic network.
+            The signature of this module should be `f(Array)`.
         state_transition_net (nn.Module): A Flax module that defines the
             state-transition dynamics network. Used for model-based RL.
+            The signature of this module should be `f(Array, Action)`.
         reward_net (nn.Module): A Flax module that defines the reward network.
             Used for model-based RL.
+            The signature of this module should be `f(Array, Action)`.
         extra_net (nn.Module): A Flax module that computes custom, unstructured data
             (e.g. a log of the agent's actions, additional rewards, goals).
-            The __call__ method of this module should receive at least the
-            observation and the action as inputs, and return a PyTreeDef.
+            The signature of this module should be `f(Array, Action)`.
         state_representation_net (nn.Module): A Flax module that defines the state
             representation network. If the representation is shared between the actor
             and critic, then this module should be an instance of `Identity`, and
@@ -234,33 +169,31 @@ class AgentNetwork(nn.Module):
 
     @nn.compact
     def __call__(
-        self, observation: Array, action: Action, *args, **kwargs
+        self, observation: Array, action: Action, key
     ) -> Tuple[Array, Array, Array, Array, Array | PyTreeDef, Array]:
         representation = self.state_representation_net(observation)
 
         actor_out = jnp.empty((0,))
         if self.actor_net is not None:
-            actor_out = self.actor_net(representation, *args, **kwargs)
+            actor_out = self.actor_net(representation, key)
 
         critic_out = jnp.empty((0,))
         if self.critic_net is not None:
-            critic_out = self.critic_net(representation, *args, **kwargs)
+            critic_out = self.critic_net(representation)
 
         state_transition_out = jnp.empty((0,))
         if self.state_transition_net is not None:
-            state_transition_out = self.state_transition_net(
-                representation, action, *args, **kwargs
-            )
+            state_transition_out = self.state_transition_net(representation, action)
 
         reward_out = jnp.empty((0,))
         if self.reward_net is not None:
-            reward_out = self.reward_net(representation, action, *args, **kwargs)
+            reward_out = self.reward_net(representation, action)
 
         extra_out = jnp.empty((0,))
         if self.extra_net is not None:
-            extra_out = self.extra_net(observation, action, *args, **kwargs)
+            extra_out = self.extra_net(observation, action)
 
-        return AgentPrediction(
+        return (
             actor_out,
             critic_out,
             state_transition_out,
@@ -269,16 +202,13 @@ class AgentNetwork(nn.Module):
             representation,
         )
 
-    def state_representation(
-        self, params: nn.FrozenDict, observation: Array, **kwargs
-    ) -> Array:
+    def state_representation(self, params: nn.FrozenDict, observation: Array) -> Array:
         if "state_representation_net" not in params["params"]:
             return observation
         return jnp.asarray(
             self.state_representation_net.apply(
                 {"params": params["params"]["state_representation_net"]},
                 observation,
-                **kwargs,
             )
         )
 
@@ -286,16 +216,14 @@ class AgentNetwork(nn.Module):
         self,
         params: nn.FrozenDict,
         observation: Array,
-        **kwargs,
-    ) -> Array:
+        key: KeyArray,
+    ) -> Array | PyTreeDef:
         if self.actor_net is None:
             raise ValueError("Actor net not defined")
-        observation = self.state_representation(params, observation, **kwargs)
+        observation = self.state_representation(params, observation)
         return jnp.asarray(
             self.actor_net.apply(
-                {"params": params["params"]["actor_net"]},
-                observation,
-                **kwargs,
+                {"params": params["params"]["actor_net"]}, observation, key
             )
         )
 
@@ -303,16 +231,14 @@ class AgentNetwork(nn.Module):
         self,
         params: nn.FrozenDict,
         observation: Array,
-        **kwargs,
-    ) -> Array:
+    ) -> Array | PyTreeDef:
         if self.critic_net is None:
             raise ValueError("Critic net not defined")
-        observation = self.state_representation(params, observation, **kwargs)
+        observation = self.state_representation(params, observation)
         return jnp.asarray(
             self.critic_net.apply(
                 {"params": params["params"]["critic_net"]},
                 observation,
-                **kwargs,
             )
         )
 
@@ -321,17 +247,15 @@ class AgentNetwork(nn.Module):
         params: nn.FrozenDict,
         observation: Array,
         action: Action,
-        **kwargs,
-    ) -> Array:
+    ) -> Array | PyTreeDef:
         if self.state_transition_net is None:
             raise ValueError("State transition net not defined")
-        observation = self.state_representation(params, observation, **kwargs)
+        observation = self.state_representation(params, observation)
         return jnp.asarray(
             self.state_transition_net.apply(
                 {"params": params["params"]["state_transition_net"]},
                 observation,
                 action,
-                **kwargs,
             )
         )
 
@@ -340,33 +264,31 @@ class AgentNetwork(nn.Module):
         params: nn.FrozenDict,
         observation: Array,
         action: Action,
-        **kwargs,
     ) -> Array:
         if self.reward_net is None:
             raise ValueError("Reward net not defined")
-        observation = self.state_representation(params, observation, **kwargs)
+        observation = self.state_representation(params, observation)
         return jnp.asarray(
             self.reward_net.apply(
                 {"params": params["params"]["reward_net"]},
                 observation,
                 action,
-                **kwargs,
             )
         )
 
     def extra(
         self,
         params: nn.FrozenDict,
-        *args,
-        **kwargs,
+        observation: Array | None = None,
+        action: Action | None = None,
     ) -> Array | PyTreeDef:
         if self.extra_net is None:
             raise ValueError("Extra net not defined")
         return jnp.asarray(
             self.extra_net.apply(
                 {"params": params["params"]["extra_net"]},
-                *args,
-                **kwargs,
+                observation,
+                action,
             )
         )
 

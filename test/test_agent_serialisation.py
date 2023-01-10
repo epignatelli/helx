@@ -1,14 +1,17 @@
-import helx.agents
-import helx.spaces
-import helx.networks
-import optax
-from typing import cast
-import flax.linen as nn
 import os
+from typing import cast
+
+import flax.linen as nn
 import jax
+import optax
+
+import helx.agents
+import helx.networks.modules
+import helx.spaces
+
 
 def test_agent_serialisation():
-    hparams = helx.agents.DQNHparams(input_shape=(10, 5))
+    hparams = helx.agents.DQNHparams()
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -19,16 +22,16 @@ def test_agent_serialisation():
     )
 
     # agent
-    n_actions = len(cast(helx.spaces.Discrete, 3))
+    n_actions = cast(helx.spaces.Discrete, 3).n_bins
 
     critic_net = nn.Sequential(
         [
-            helx.networks.Flatten(),
-            helx.networks.MLP(features=[32, 16]),
+            helx.networks.modules.Flatten(),
+            helx.networks.modules.MLP(features=[32, 16]),
             nn.Dense(features=n_actions),
         ]
     )
-    network = helx.networks.AgentNetwork(critic_net=critic_net)
+    network = helx.networks.modules.AgentNetwork(critic_net=critic_net)
     agent = helx.agents.DQN(
         network=network, optimiser=optimiser, hparams=hparams, seed=0
     )

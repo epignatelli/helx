@@ -6,13 +6,12 @@ from typing import Any, Generic, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
-import jax.numpy as jnp
-from chex import Array, PyTreeDef, Shape, dataclass
+from chex import Array, Shape, dataclass
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
 from ..mdp import Action, Episode, Transition
-from ..networks import AgentNetwork, apply_updates
+from ..networks.modules import AgentNetwork, apply_updates
 from ..spaces import Space
 
 
@@ -55,17 +54,15 @@ class Agent(abc.ABC, Generic[T]):
         optimiser: GradientTransformation,
         hparams: T,
         seed: int,
-        **extra_init_kwargs,
     ):
         key: KeyArray = jax.random.PRNGKey(seed)
         obs = hparams.obs_space.sample(key)
         action = hparams.action_space.sample(key)
-        outputs, params = network.init_with_output(
-            key, obs, action, key=key, **extra_init_kwargs)
+        outputs, params = network.init_with_output(key, obs, action, key)
 
         # properties:
         self.key: KeyArray = key
-        self.network: nn.Module = network
+        self.network: AgentNetwork = network
         self.optimiser: GradientTransformation = optimiser
         self.hparams: T = hparams
         self.iteration: int = 0
@@ -137,9 +134,7 @@ class Agent(abc.ABC, Generic[T]):
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
 
-    def sample_action(
-        self, observation: Array, eval: bool = False, **kwargs
-    ) -> Action:
+    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
         """Samples an action from the agent's policy.
         Args:
             observation (Array): The observation to condition onto.
@@ -194,7 +189,19 @@ class Agent(abc.ABC, Generic[T]):
         batched_transitions: Transition,
         *args,
     ) -> Tuple[Array, Any]:
-        """A batched version of the loss function."""
+        """A batched version of the loss function.
+        The returned `loss` value is reduced with a `jnp.mean` operation,
+        while the returned `aux` value is returned as it is.
+
+        Args:
+            params (PyTreeDef): A Flax pytree of module parameters
+            batched_transitions (Transition): A tuple of 5 elements (s, a, r, s', d)
+            with an additional axis of size `batch_size` in position 0.
+
+        Returns (Tuple[Array, PyTreeDef]):
+            Returns a tuple of two elements containing, respectively:
+            the average loss across the minibatch, and a PyTreeDef containing the aux
+            variables returned."""
         # in_axis for named arguments is not supported yet by jax.vmap
         # see https://github.com/google/jax/issues/7465
         in_axes = (None, 0) + (None,) * len(args)
@@ -212,7 +219,7 @@ class Agent(abc.ABC, Generic[T]):
         """Performs a single SGD step on the agent's parameters.
         Args:
             params (PyTreeDef): A pytree of function parameters.
-            batched_transition (Tuple): A tuple of 5 elements (s, a, r, s', d)
+            batched_transition (Transition): A tuple of 5 elements (s, a, r, s', d)
             with an additional axis of size `batch_size` in position 0.
             opt_state (OptState): The optimiser state.
         Returns:

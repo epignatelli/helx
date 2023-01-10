@@ -1,9 +1,6 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from functools import partial
-
-import jax
 import jax.numpy as jnp
 import rlax
 from jax.lax import stop_gradient
@@ -24,67 +21,57 @@ class SACD(SAC):
             for the adaptation to discrete action spaces
     """
 
-    def policy(self, params_actor, observation, key):
-        logits = self.actor.apply(params_actor, observation)
-        logprobs = jax.nn.log_softmax(logits)
-        action = jax.random.categorical(key, logits)  # type: ignore
-        return action, logprobs
+    def policy(self, params, observation, key):
+        return self.network.actor(params, observation, key)
 
-    @partial(jax.value_and_grad, argnums=1, has_aux=True)
     def loss(
         self,
         params,
-        sarsd_batch,
+        transition,
         keys,
         params_critic_target,
     ):
-        print(f"{self.__class__.__name__}.loss compiles")  # prints only if compiled
-        s_0, _, r_1, s_1, d = sarsd_batch
-        (params_actor, params_critic, params_temperature) = params
-
-        _policy = jax.vmap(self.actor, in_axes=(None, 0, 0))  # type: ignore
-        _value = jax.vmap(self.critic.apply, in_axes=(None, 0))  # type: ignore
+        s_0, _, r_1, s_1, d = transition
         batch_matmul = lambda a, b: jnp.sum(a * b, axis=-1, keepdims=True)
 
         # current estimates
-        temperature = self.temperature.apply(params_temperature)
+        temperature = self.network.extra(params)
         alpha = stop_gradient(temperature)
-        _, logprobs_a_0 = _policy(params_actor, s_0, keys)
-        _, logprobs_a_1 = _policy(params_actor, s_1, keys)
+        _, logprobs_a_0 = self.network.actor(params, s_0, keys)
+        _, logprobs_a_1 = self.network.actor(params, s_1, keys)
         probs_a_0 = jnp.exp(logprobs_a_0)
         probs_a_1 = jnp.exp(logprobs_a_1)
-        qA_0, qB_0 = _value(params_critic, s_0)
-        qA_1, qB_1 = _value(params_critic_target, s_1)
+        # critic is a double Q network
+        qA_0, qB_0 = self.network.critic(params, s_0)
+        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
 
         # augment reward with policy entropy
-        policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)  # type: ignore
+        policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)
         # SACLite: https://arxiv.org/abs/2201.12434
         policy_entropy = policy_entropy * self.hparams.entropy_rewards
         r_1 = r_1 + alpha * policy_entropy
 
         # actor target: V(sₜ) = π(sₜ)ᵀ • [αlog(π(sₜ)) + Q(sₜ)]
         q_0 = stop_gradient(jnp.min(jnp.stack([qA_0, qB_0], axis=0), axis=0))
-        actor_loss = batch_matmul(probs_a_0, alpha * logprobs_a_0 - q_0)  # type: ignore
+        actor_loss = batch_matmul(probs_a_0, alpha * logprobs_a_0 - q_0)
 
         # critic target: V(sₜ₊₁) = π(sₜ₊₁)ᵀ • [Q(sₜ₊₁) - αlog(π(sₜ₊₁))]
         probs_a_1 = jnp.exp(logprobs_a_1)
         q_1 = jnp.min(jnp.stack([qA_1, qB_1], axis=0), axis=0)
-        v_1 = batch_matmul(probs_a_1, (q_1 - alpha * logprobs_a_1))  # type: ignore
+        # compared to SAC, which takes the expectation over the action
+        # because it doesn't have the probs over all possible actions
+        # here we can, so calculate the exact value of the state
+        v_1 = batch_matmul(probs_a_1, (q_1 - alpha * logprobs_a_1))
         q_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
-        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)  # type: ignore
+        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
 
         # temperature target: π(sₜ)ᵀ • [- αlog(π(sₜ)) + H]
-        target_entropy = -jnp.log(1 / self.dim_A)
+        target_entropy = -self.hparams.dim_A
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         probs_a_0 = stop_gradient(probs_a_0)
-        temperature_loss = -jnp.log(temperature) * (logprobs_a_0 + target_entropy)  # type: ignore
+        temperature_loss = -(temperature * logprobs_a_0 + target_entropy)
         temperature_loss = batch_matmul(probs_a_0, temperature_loss)
 
-        # average over batches
-        actor_loss = actor_loss.mean()  # type: ignore
-        critic_loss = critic_loss.mean()
-        temperature_loss = temperature_loss.mean()  # type: ignore
-        policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1).mean()  # type: ignore
         loss = actor_loss + critic_loss + temperature_loss
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
         return loss, aux

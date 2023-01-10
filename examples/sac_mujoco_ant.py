@@ -1,13 +1,20 @@
 from typing import cast
 
-import flax.linen as nn
 import gymnasium
 import optax
 from absl import app, flags, logging
 
 import helx
+from helx.networks import (
+    MLP,
+    Actor,
+    AgentNetwork,
+    DoubleQCritic,
+    GaussianPolicy,
+    Temperature,
+)
 
-helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
+helx.flags.define_flags_from_hparams(helx.agents.SACHparams)
 FLAGS = flags.FLAGS
 
 
@@ -16,7 +23,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gymnasium.make("Ant-v4")
+    env = gymnasium.make("BipedalWalker-v3")
     env = helx.environment.make_from(env)
 
     # optimiser
@@ -27,27 +34,26 @@ def main(argv):
     action_dim = action_space.shape[0]
     hparams = helx.flags.hparams_from_flags(
         helx.agents.SACHparams,
-        FLAGS,
-        input_shape=env.observation_space().shape,
+        obs_space=env.observation_space(),
+        action_space=env.action_space(),
         dim_A=action_dim,
+        replay_start=10,
+        batch_size=2,
     )
-    representation_net = nn.Sequential(
-        [
-            nn.Conv(features=32, kernel_size=(8, 8), strides=(4, 4)),
-            nn.relu,
-            nn.Conv(features=64, kernel_size=(4, 4), strides=(2, 2)),
-            nn.relu,
-            nn.Conv(features=64, kernel_size=(3, 3), strides=(1, 1)),
-            nn.relu,
-            helx.networks.Flatten(),
-        ]
+    actor_net = Actor(
+        representation_net=MLP(features=[128, 128]),
+        policy_head=GaussianPolicy(action_size=hparams.dim_A),
     )
-    actor_net = nn.Dense(features=action_space.shape[0])
-    critic_net = nn.Dense(features=1)
-    network = helx.networks.AgentNetwork(
-        state_representation_net=representation_net,
+    critic_net = DoubleQCritic(
+        representation_net_a=MLP(features=[128, 128]),
+        representation_net_b=MLP(features=[128, 128]),
+        n_actions=hparams.dim_A,
+    )
+    extra_net = Temperature()
+    network = AgentNetwork(
         actor_net=actor_net,
         critic_net=critic_net,
+        extra_net=extra_net,
     )
     agent = helx.agents.SAC(
         network=network, optimiser=optimiser, hparams=hparams, seed=0

@@ -108,7 +108,7 @@ def run(
             logging.info("Evaluating episode {} at iteration {}".format(j, i))
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
-            video = np.array(ensure_video_format(episode.s))
+            video = ensure_video_format(episode.s)
             if video is not None:
                 wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
 
