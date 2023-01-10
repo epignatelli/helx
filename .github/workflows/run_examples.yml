@@ -1,0 +1,35 @@
+name: Examples
+
+on: [push]
+
+jobs:
+  run_examples:
+    runs-on: ${{ matrix.os }}-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        os: ["ubuntu", "macos"]
+    continue-on-error: false
+
+    steps:
+
+    - uses: actions/checkout@v2
+
+    - uses: conda-incubator/setup-miniconda@v2
+      with:
+        miniforge-version: latest
+        environment-file: environment.yml
+        activate-environment: helx
+        auto-activate-base: false
+
+    - name: Run examples
+      run: |
+        conda info --envs
+        conda env list
+        conda list
+        pip install -e .
+        for f in examples/*.py; do python "$f"; done
