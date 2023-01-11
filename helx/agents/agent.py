@@ -6,7 +6,7 @@ from typing import Any, Generic, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
-from chex import Array, PyTreeDef, Shape, dataclass
+from chex import Array, Shape, dataclass
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
