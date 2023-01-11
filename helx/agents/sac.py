@@ -14,7 +14,7 @@ from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
-from ..mdp import Episode, Transition
+from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
 from ..networks.modules import AgentNetwork
 from .agent import Agent, Hparams
@@ -81,7 +81,7 @@ class SAC(Agent[SACHparams]):
         eval: bool = False,
         key: KeyArray = None,
         **kwargs,
-    ) -> Tuple[Array, Array]:
+    ) -> Tuple[Action, Array]:
         """
         Returns a sampled action and the log probability of the action under the
         policy distribution.

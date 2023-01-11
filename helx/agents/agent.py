@@ -6,7 +6,7 @@ from typing import Any, Generic, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
-from chex import Array, Shape, dataclass
+from chex import Array, PyTreeDef, Shape, dataclass
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
@@ -142,37 +142,6 @@ class Agent(abc.ABC, Generic[T]):
             Array: the action to take in the state s
         """
         return self.policy(self.params, observation, eval, self._new_key(), **kwargs)[0]
-
-    def actor(self, observation: Array, **kwargs) -> Action:
-        """The actor function to evaluate the agent's policy $\\pi(s)$.
-        Args:
-            observation (Array): The observation to condition onto.
-        Returns:
-            Array: the action to take in the state s
-        """
-        return self.network.actor(self.params, observation, **kwargs)
-
-    def critic(self, observation: Array, **kwargs) -> Array:
-        """The critic function to evaluate the agent's value function
-            $V(s)$ or $Q(s) \\forall a in \\mathcal{A}$.
-        Args:
-            observation (Array): The observation to condition onto.
-        Returns:
-            Array: the value of the state s
-        """
-        return self.network.critic(self.params, observation, **kwargs)
-
-    def state_transition(
-        self, observation: Array, action: Action, **kwargs
-    ) -> Tuple[Array, Array, Array]:
-        """The state transition function to evaluate the agent's dynamics model
-            $p(s' | s, a)$.
-        Args:
-            observation (Array): The observation to condition onto.
-        Returns:
-            Array: the value of the state s
-        """
-        return self.network.state_transition(self.params, observation, action, **kwargs)
 
     def save(self, path):
         # TODO(epignatelli): implement
