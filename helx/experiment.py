@@ -1,7 +1,6 @@
 import logging
 from pprint import pformat
 
-import numpy as np
 import wandb
 
 from .agents.agent import Agent
