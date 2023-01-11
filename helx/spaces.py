@@ -13,8 +13,13 @@ from jax.random import KeyArray
 
 
 class Space(abc.ABC):
-    shape: Shape = NotImplemented
-    dtype: Type = NotImplemented
+    @abc.abstractproperty
+    def shape(self) -> Shape:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
+    def dtype(self) -> Type:
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def sample(self, key: KeyArray) -> Array:
@@ -59,11 +64,21 @@ class Space(abc.ABC):
 class Discrete(Space):
     def __init__(self, n_dimensions: int):
         self.n_bins: int = n_dimensions
-        self.dtype: Type = jnp.int32
+        self._dtype: Type = jnp.int32
 
     @property
     def shape(self) -> Shape:
         return (1,)
+
+    @property
+    def dtype(self) -> Type:
+        return self._dtype
+
+    def __str__(self):
+        return "Discrete({})".format(self.n_bins)
+
+    def __repr__(self):
+        return self.__str__()
 
     def sample(self, key: KeyArray) -> Array:
         return jax.random.randint(key, self.shape, 0, self.n_bins + 1)
@@ -89,8 +104,8 @@ class Continuous(Space):
         minimum: float | Sequence[float] | Array = -1.0,
         maximum: float | Sequence[float] | Array = 1.0,
     ):
-        self.shape: Shape = shape
-        self.dtype = dtype
+        self._shape: Shape = shape
+        self._dtype = dtype
         self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
         self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
 
@@ -100,13 +115,27 @@ class Continuous(Space):
             self.min.shape, self.max.shape, shape
         )
 
+    @property
+    def shape(self) -> Shape:
+        return self._shape
+
+    @property
+    def dtype(self) -> Type:
+        return self._dtype
+
+    def __str__(self):
+        return "Continuous(shape={}, dtype={})".format(self._shape, self._dtype)
+
+    def __repr__(self):
+        return self.__str__()
+
     def sample(self, key: KeyArray) -> Array:
-        if (jnp.issubdtype(self.dtype, jnp.integer)):
+        if jnp.issubdtype(self.dtype, jnp.integer):
             out = jax.random.randint(
                 key, self.shape, self.min, self.max, dtype=self.dtype
             )
             return out
-        elif (jnp.issubdtype(self.dtype, jnp.floating)):
+        elif jnp.issubdtype(self.dtype, jnp.floating):
             return jax.random.uniform(
                 key, self.shape, minval=self.min, maxval=self.max, dtype=self.dtype
             )
