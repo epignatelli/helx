@@ -1,6 +1,9 @@
 black
 flake8
+typing-extensions
+pylint
 pytest
+absl-py
 jax
 jax_dataclasses
 chex
@@ -8,11 +11,9 @@ optax
 rlax
 flax
 dm_env
-wandb
-absl-py
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
 mujoco
+procgen
 bsuite
-typing-extensions
-pylint
+wandb

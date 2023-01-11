@@ -138,6 +138,18 @@ class CNN(nn.Module):
         return x
 
 
+class Temperature(nn.Module):
+    initial_temperature: float = 1.0
+
+    @nn.compact
+    def __call__(self, observation: Array, action: Array) -> Array:
+        log_temperature = self.param(
+            "log_temperature",
+            init_fn=lambda key: jnp.full((), jnp.log(self.initial_temperature)),
+        )
+        return jnp.exp(log_temperature)
+
+
 class AgentNetwork(nn.Module):
     """Defines the network architecture of an agent, and can be used as it is.
     Args:
@@ -291,15 +303,3 @@ class AgentNetwork(nn.Module):
                 action,
             )
         )
-
-
-class Temperature(nn.Module):
-    initial_temperature: float = 1.0
-
-    @nn.compact
-    def __call__(self, observation: Array, action: Array) -> Array:
-        log_temperature = self.param(
-            "log_temperature",
-            init_fn=lambda key: jnp.full((), jnp.log(self.initial_temperature)),
-        )
-        return jnp.exp(log_temperature)
