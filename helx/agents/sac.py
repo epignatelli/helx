@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import List, Tuple
 
-import distrax
 import jax
 import jax.numpy as jnp
 import rlax
