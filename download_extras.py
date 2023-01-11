@@ -2,7 +2,6 @@ import logging
 import os
 import platform
 import tarfile
-import zipfile
 
 import requests
 
@@ -16,10 +15,10 @@ MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)
+    logging.info("Downloading {} into P{".format(url, out_path))
     with open(out_path, "wb") as fd:
         chunks = 0
         for chunk in r.iter_content(chunk_size=chunk_size):
-            print("Downloading chunk {}".format(chunks), end="\t\t\t\t\r")
             chunks += 1
             fd.write(chunk)
 
