@@ -12,6 +12,7 @@ wandb
 absl-py
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
+mujoco
 bsuite
 typing-extensions
 pylint

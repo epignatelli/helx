@@ -1,9 +1,13 @@
+import logging
 import os
 import platform
+import tarfile
+import zipfile
 
 import requests
-import zipfile
-import logging
+
+
+logging.basicConfig(level=logging.INFO)
 
 
 MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
@@ -20,50 +24,43 @@ def _download_url(url, out_path, chunk_size=128):
             fd.write(chunk)
 
 
-def _download_mujoco_openai():
-    # check if mujoco is already installed
-    mujoco_version = "mujoco200"
-    mujoco_path = os.path.join(MUJOCO_ROOT, mujoco_version)
-    if os.path.exists(os.path.join(mujoco_path, "bin")):
-        return
+def _download_mujoco210():
+    # example_url: "https://mujoco.org/download/mujoco210-linux-x86_64.tar.gz"
+    base_url = "https://mujoco.org/download"
+    mujoco_version = "mujoco210"
 
     # get system version
-    muojoco_systems = {
+    mujoco_systems = {
         "Windows": "win64",
         "Linux": "linux",
         "Darwin": "macos",
     }
     system = platform.system()
-    if system not in muojoco_systems:
+    if system not in mujoco_systems:
         raise ValueError("Unsupported system: {}".format(system))
+    mujoco_system = mujoco_systems[system]
+
+    # get architecture version
+    machine = platform.machine().lower()
+    if machine != "x86_64":
+        raise ValueError("Unsupported architecture: {}".format(machine))
 
     # download mujoco
-    system = muojoco_systems[system]
-    url = "https://www.roboti.us/download/{}_{}.zip".format(mujoco_version, system)
-    mujoco_zip_filepath = os.path.join(MUJOCO_ROOT, os.path.basename(url))
-    logging.info(
-        "Downloading mujoco version {} into {}".format(url, mujoco_zip_filepath)
+    url = os.path.join(
+        base_url, "{}-{}-{}.tar.gz".format(mujoco_version, mujoco_system, machine)
     )
-    _download_url(url, mujoco_zip_filepath)
+    tar_path = os.path.join(MUJOCO_ROOT, os.path.basename(url))
+    _download_url(url, tar_path)
 
     # unzip mujoco
-    logging.info(
-        "Unzipping {} into {}".format(
-            mujoco_zip_filepath, MUJOCO_ROOT
-        )
-    )
-    with zipfile.ZipFile(mujoco_zip_filepath, "r") as zip_ref:
-        zip_ref.extractall(MUJOCO_ROOT)
-    path_before = os.path.join(MUJOCO_ROOT, "{}_{}".format(mujoco_version, system))
-    path_after = os.path.join(MUJOCO_ROOT, "{}".format(mujoco_version))
-    os.rename(path_before, path_after)
-    os.remove(mujoco_zip_filepath)
+    with tarfile.open(tar_path, "r:gz") as tar_ref:
+        tar_ref.extractall(MUJOCO_ROOT)
+    os.remove(tar_path)
 
     # install key
     key_url = "https://www.roboti.us/file/mjkey.txt"
     key_filepath = os.path.join(MUJOCO_ROOT, "mjkey.txt")
     _download_url(key_url, key_filepath)
-    return
 
 
 def _download_mujoco_dm_control():
@@ -85,5 +82,5 @@ def _download_mujoco_dm_control():
 
 
 if __name__ == "__main__":
-    _download_mujoco_openai()
+    _download_mujoco210()
     # _download_mujoco_dm_control()
