@@ -48,6 +48,7 @@ jobs:
         conda list
         pip install -e .
         python download_extras.py
+        sudo apt install libgl1-mesa-glx --reinstall
         export LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libGLEW.so
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin:/usr/lib/nvidia
         export CPATH=$CONDA_PREFIX/include

@@ -2,9 +2,6 @@ name: helx
 
 dependencies:
   - python=3.9
-  - conda-forge::glew
-  - conda-forge::mesalib
-  - menpo::glfw3
   - pip
   - pip:
      - -r requirements.txt
