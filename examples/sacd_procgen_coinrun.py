@@ -7,6 +7,7 @@ from absl import app, flags, logging
 import helx
 from helx.networks import (
     MLP,
+    CNN,
     Actor,
     AgentNetwork,
     DoubleQCritic,
@@ -39,13 +40,20 @@ def main(argv):
         replay_start=10,
         batch_size=2,
     )
+    unshared_representation_net = CNN(
+        features=(4, 4),
+        kernel_sizes=((8, 8), (4, 4)),
+        strides=((4, 4), (2, 2)),
+        paddings=("SAME", "SAME"),
+        flatten=True,
+    )
     actor_net = Actor(
-        representation_net=MLP(features=[128, 128]),
+        representation_net=unshared_representation_net,
         policy_head=SoftmaxPolicy(action_space.n_bins),
     )
     critic_net = DoubleQCritic(
-        representation_net_a=MLP(features=[128, 128]),
-        representation_net_b=MLP(features=[128, 128]),
+        representation_net_a=unshared_representation_net,
+        representation_net_b=unshared_representation_net,
         n_actions=hparams.dim_A,
     )
     extra_net = Temperature()
