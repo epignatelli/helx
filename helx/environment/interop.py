@@ -14,17 +14,22 @@ from .gym3 import FromGym3Env
 
 
 def make_from(env: Any) -> Any:
-    while hasattr(env, "unwrapped") and env.unwrapped != env:
-        env = env.unwrapped
-    if isinstance(env, gymnasium.core.Env):
+    # getting root env type for interop
+    env_for_type = env
+    while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
+        env_for_type = env_for_type.unwrapped
+
+    # converting the actual env, rather than the root env
+    # which would remove time limits and o
+    if isinstance(env_for_type, gymnasium.core.Env):
         return FromGymnasiumEnv(env)
-    elif isinstance(env, gym.core.Env):
+    elif isinstance(env_for_type, gym.core.Env):
         return FromGymEnv(env)
-    elif isinstance(env, gym3.interop.ToGymEnv):
+    elif isinstance(env_for_type, gym3.interop.ToGymEnv):
         return FromGym3Env(env)
-    elif isinstance(env, dm_env.Environment):
+    elif isinstance(env_for_type, dm_env.Environment):
         return FromDmEnv(env)
-    elif isinstance(env, bsuite.environments.Environment):
+    elif isinstance(env_for_type, bsuite.environments.Environment):
         return FromBsuiteEnv(env)
     else:
         raise TypeError(
