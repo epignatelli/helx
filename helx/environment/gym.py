@@ -65,7 +65,6 @@ class FromGymEnv(Environment[gym.Env]):
         action_ = np.asarray(action)
         next_step = self._env.step(action_)
         self._current_observation = jnp.asarray(next_step[0])
-        gym.core.ObsType
         return Timestep.from_gym(next_step)
 
     def seed(self, seed: int) -> None:
