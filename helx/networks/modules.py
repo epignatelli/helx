@@ -105,9 +105,10 @@ class CNN(nn.Module):
     """
 
     features: Tuple[int, ...] = (32,)
-    kernel_sizes: Tuple[Tuple[int, ...]] = ((3, 3),)
-    strides: Tuple[Tuple[int, ...]] = ((1, 1),)
-    padding: Tuple[nn.linear.PaddingLike] = ("SAME",)
+    kernel_sizes: Tuple[Tuple[int, ...], ...] = ((3, 3),)
+    strides: Tuple[Tuple[int, ...], ...] = ((1, 1),)
+    paddings: Tuple[nn.linear.PaddingLike, ...] = ("SAME",)
+    activation: Callable[[Array], Array] = nn.relu
 
     def setup(self):
         assert (
@@ -134,7 +135,7 @@ class CNN(nn.Module):
     def __call__(self, x: Array, *args, **kwargs) -> Array:
         for module in self.modules:
             x = module(x)
-            x = nn.relu(x)
+            x = self.activation(x)
         return x
 
 
