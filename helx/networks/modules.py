@@ -109,6 +109,7 @@ class CNN(nn.Module):
     strides: Tuple[Tuple[int, ...], ...] = ((1, 1),)
     paddings: Tuple[nn.linear.PaddingLike, ...] = ("SAME",)
     activation: Callable[[Array], Array] = nn.relu
+    flatten: bool = False
 
     def setup(self):
         assert (
@@ -136,6 +137,8 @@ class CNN(nn.Module):
         for module in self.modules:
             x = module(x)
             x = self.activation(x)
+        if self.flatten:
+            x = x.flatten()
         return x
 
 
