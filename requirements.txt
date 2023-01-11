@@ -4,6 +4,7 @@ typing-extensions
 pylint
 pytest
 absl-py
+numpy<0.24
 jax
 jax_dataclasses
 chex
