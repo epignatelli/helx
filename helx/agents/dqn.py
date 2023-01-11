@@ -72,7 +72,7 @@ class DQN(Agent[DQNHparams]):
         Returns:
             Tuple[Array, Array]: the action and the log probability of the action"""
         q_values = self.network.critic(params, observation)
-        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())
+        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())  # type: ignore
         action, log_probs = distr.sample_and_log_prob(seed=key)
         return action, log_probs
 
@@ -88,7 +88,7 @@ class DQN(Agent[DQNHparams]):
 
         # ignoring type because flax modules can return anything
         # we should either strongly type the network or cast the output
-        q_1 = jax.lax.stop_gradient(jnp.max(q_1))
+        q_1 = jax.lax.stop_gradient(jnp.max(q_1))  # type: ignore
         td_error = r_1 + (1 - d) * self.hparams.discount * q_1 - q_0[a_0]  # type: ignore
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()

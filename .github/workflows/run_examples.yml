@@ -34,5 +34,5 @@ jobs:
         pip install -e .
         python download_extras.py
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin:/usr/lib/nvidia
-        wandb disabled
+        wandb login ${{ secrets.WANDB_API_KEY }}
         for f in examples/*.py; do python "$f"; done
