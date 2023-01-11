@@ -111,8 +111,8 @@ class SAC(Agent[SACHparams]):
         _, logprobs_a_1 = self.network.actor(params, s_1, key)
         probs_a_0 = jnp.exp(logprobs_a_0)
         # critic is a double Q network
-        qA_0, qB_0 = self.network.critic(params, s_0)
-        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
+        qA_0, qB_0 = self.network.critic(params, s_0)  # type: ignore
+        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)  # type: ignore
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)
