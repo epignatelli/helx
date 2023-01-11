@@ -233,21 +233,39 @@ class AgentNetwork(nn.Module):
         params: nn.FrozenDict,
         observation: Array,
         key: KeyArray,
-    ) -> Array | PyTreeDef:
+    ) -> Tuple[Action, Array]:
+        """The actor function to evaluate the agent's policy $\\pi(s)$.
+        Args:
+            params (nn.FrozenDict): The agent's parameters.
+            observation (Array): The environment observation.
+            key (KeyArray): A random key for sampling from the policy
+                distribution.
+
+        Returns:
+            Tuple[Action, Array]: The sampled action and the log probability of the
+                action under the policy distribution."""
         if self.actor_net is None:
             raise ValueError("Actor net not defined")
         observation = self.state_representation(params, observation)
-        return jnp.asarray(
-            self.actor_net.apply(
-                {"params": params["params"]["actor_net"]}, observation, key
-            )
-        )
+        return self.actor_net.apply(
+            {"params": params["params"]["actor_net"]}, observation, key
+        )  # type: ignore
 
     def critic(
         self,
         params: nn.FrozenDict,
         observation: Array,
     ) -> Array | PyTreeDef:
+        """The critic function to evaluate the agent's value function
+        $V(s)$ or $Q(s) \\forall a in \\mathcal{A}
+        Args:
+            params (nn.FrozenDict): The agent's parameters.
+            observation (Array): The environment observation.
+
+        Returns:
+            Array | PyTreeDef: The value of the state under the value function.
+            Can be an Array representing the value, or a PyTreeDef, like a Tuple
+            of two Arrays for a Double-Q network ."""
         if self.critic_net is None:
             raise ValueError("Critic net not defined")
         observation = self.state_representation(params, observation)
@@ -263,7 +281,14 @@ class AgentNetwork(nn.Module):
         params: nn.FrozenDict,
         observation: Array,
         action: Action,
-    ) -> Array | PyTreeDef:
+    ) -> Array:
+        """The state transition function to evaluate the agent's dynamics model
+            $p(s' | s, a)$.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: The next state or the probability distribution for the next state over
+                a set of states"""
         if self.state_transition_net is None:
             raise ValueError("State transition net not defined")
         observation = self.state_representation(params, observation)
