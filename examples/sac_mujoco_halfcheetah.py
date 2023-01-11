@@ -23,7 +23,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gymnasium.make("BipedalWalker-v3")
+    env = gymnasium.make("HalfCheetah-v4", max_episode_steps=100)
     env = helx.environment.make_from(env)
 
     # optimiser
@@ -59,7 +59,7 @@ def main(argv):
         network=network, optimiser=optimiser, hparams=hparams, seed=0
     )
 
-    helx.experiment.run(agent, env, 100)
+    helx.experiment.run(agent, env, 2)
 
 
 if __name__ == "__main__":

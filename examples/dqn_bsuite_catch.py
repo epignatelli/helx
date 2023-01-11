@@ -51,7 +51,7 @@ def main(argv):
         network=network, optimiser=optimiser, hparams=hparams, seed=0
     )
 
-    helx.experiment.run(agent, env, 100)
+    helx.experiment.run(agent, env, 2)
 
 
 if __name__ == "__main__":
