@@ -1,7 +1,6 @@
 from typing import cast
 
-import gymnasium
-import bsuite
+import gym
 import optax
 from absl import app, flags, logging
 
@@ -24,7 +23,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = bsuite.load_from_id("catch/0")
+    env = gym.make("procgen:procgen-coinrun-v0", max_episode_steps=100)
     env = helx.environment.make_from(env)
 
     # optimiser
@@ -59,7 +58,7 @@ def main(argv):
         network=network, optimiser=optimiser, hparams=hparams, seed=0
     )
 
-    helx.experiment.run(agent, env, 100)
+    helx.experiment.run(agent, env, 2)
 
 
 if __name__ == "__main__":
