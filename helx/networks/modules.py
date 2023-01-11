@@ -115,19 +115,19 @@ class CNN(nn.Module):
             len(self.features)
             == len(self.kernel_sizes)
             == len(self.strides)
-            == len(self.padding)
+            == len(self.paddings)
         ), "All arguments must have the same length, got {} {} {} {}".format(
             len(self.features),
             len(self.kernel_sizes),
             len(self.strides),
-            len(self.padding),
+            len(self.paddings),
         )
         self.modules = [
             nn.Conv(
                 features=self.features[i],
                 kernel_size=self.kernel_sizes[i],
                 strides=self.strides[i],
-                padding=self.padding[i],
+                padding=self.paddings[i],
             )
             for i in range(len(self.features))
         ]
