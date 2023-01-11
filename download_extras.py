@@ -15,7 +15,7 @@ MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)
-    logging.info("Downloading {} into P{".format(url, out_path))
+    logging.info("Downloading {} into {}".format(url, out_path))
     with open(out_path, "wb") as fd:
         chunks = 0
         for chunk in r.iter_content(chunk_size=chunk_size):
