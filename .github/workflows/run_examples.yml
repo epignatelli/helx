@@ -32,4 +32,7 @@ jobs:
         conda env list
         conda list
         pip install -e .
+        python download_extras.py
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin:/usr/lib/nvidia
+        wandb disabled
         for f in examples/*.py; do python "$f"; done
