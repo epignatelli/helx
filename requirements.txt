@@ -6,6 +6,7 @@ pytest
 absl-py
 patchelf
 numpy<1.24  # bsuite 0.3.5 fails, see https://github.com/deepmind/bsuite/issues/47
+mujoco
 jax
 jax_dataclasses
 chex
@@ -15,7 +16,6 @@ flax
 dm_env
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
-mujoco
 procgen
 bsuite
 wandb
