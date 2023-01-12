@@ -6,7 +6,6 @@ from absl import app, flags, logging
 
 import helx
 from helx.networks import (
-    MLP,
     CNN,
     Actor,
     AgentNetwork,
