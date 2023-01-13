@@ -13,14 +13,13 @@ class Critic(nn.Module):
     Args:
         n_actions (int): The number of actions in the action space."""
 
-    n_actions: int
+    critic_head: nn.Module
     representation_net: nn.Module = Identity()
 
     @nn.compact
     def __call__(self, representation: Array, *args, **kwargs) -> Array:
         representation = self.representation_net(representation, *args, **kwargs)
-        y = nn.Dense(features=self.n_actions)(representation)
-        return y
+        return self.critic_head(representation)
 
 
 class DoubleQCritic(nn.Module):

@@ -50,9 +50,9 @@ class DQN(Agent[DQNHparams]):
     def __init__(
         self,
         hparams: DQNHparams,
-        representation_net: nn.Module,
         optimiser: GradientTransformation,
         seed: int,
+        representation_net: nn.Module,
     ):
         assert isinstance(hparams.action_space, Discrete)
         n_actions = hparams.action_space.n_bins
