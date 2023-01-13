@@ -15,7 +15,7 @@ from optax import GradientTransformation
 
 from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork
+from ..networks import AgentNetwork, Actor, GaussianPolicy, Critic
 from .agent import Agent, Hparams
 
 
@@ -63,37 +63,47 @@ class SAC(Agent[SACHparams]):
 
     def __init__(
         self,
-        network: AgentNetwork,
-        optimiser: GradientTransformation,
         hparams: SACHparams,
+        optimiser: GradientTransformation,
         seed: int,
+        actor_representation_net: nn.Module | None = None,
+        critic_representation_net: nn.Module | None = None,
+        shared_representation_net: nn.Module | None = None,
     ):
-        super().__init__(hparams, network, optimiser, seed)
+        actor_head = GaussianPolicy(action_size=hparams.dim_A)
+        critic_head = nn.Dense(features=1)
 
+        # if actor and critic share the same representation net
+        if shared_representation_net is not None:
+            shared_net = shared_representation_net
+            network = AgentNetwork(
+                actor_net=actor_head,
+                critic_net=critic_head,
+                shared_net=shared_net,
+            )
+        elif (
+            actor_representation_net is not None
+            and critic_representation_net is not None
+        ):
+            network = AgentNetwork(
+                actor_net=Actor(
+                    representation_net=actor_representation_net,
+                    policy_head=actor_head,
+                ),
+                critic_net=Critic(
+                    representation_net=critic_representation_net,
+                    critic_head=critic_head,
+                ),
+            )
+        else:
+            msg = "Either one between `shared_representation_net` or \
+            (`actor_representation_net` and `critic_representation_net`) \
+            must be provided."
+            raise ValueError(msg)
+
+        super().__init__(hparams, network, optimiser, seed)
         self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.params_target: nn.FrozenDict = self.params.copy({})
-
-    def policy(
-        self,
-        params: nn.FrozenDict,
-        observation: Array,
-        eval: bool = False,
-        key: KeyArray = None,
-        **kwargs,
-    ) -> Tuple[Action, Array]:
-        """
-        Returns a sampled action and the log probability of the action under the
-        policy distribution.
-
-        Args:
-            params: actor parameters
-            observation: the current observation to act on
-            key: a jax random key
-
-        Returns:
-            action: the action and the log probability of the action
-        """
-        return self.network.actor(params, observation, key)
 
     def loss(
         self,

@@ -42,10 +42,10 @@ def main(argv):
         ]
     )
     agent = helx.agents.DQN(
-        representation_net=representation_net,
         optimiser=optimiser,
         hparams=hparams,
         seed=0,
+        representation_net=representation_net,
     )
 
     helx.experiment.run(agent, env, 2)
