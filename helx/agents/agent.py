@@ -11,7 +11,7 @@ from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
 from ..mdp import Action, Episode, Transition
-from ..networks.modules import AgentNetwork, apply_updates
+from ..networks import AgentNetwork, apply_updates
 from ..spaces import Space
 
 
@@ -50,10 +50,10 @@ class Agent(abc.ABC, Generic[T]):
 
     def __init__(
         self,
+        hparams: T,
         network: AgentNetwork,
         optimiser: GradientTransformation,
-        hparams: T,
-        seed: int,
+        seed: int = 0,
     ):
         key: KeyArray = jax.random.PRNGKey(seed)
         obs = hparams.obs_space.sample(key)
@@ -72,24 +72,6 @@ class Agent(abc.ABC, Generic[T]):
 
         # methods:
         self.sgd_step = jax.jit(self._sgd_step)
-
-    @abc.abstractmethod
-    def policy(
-        self,
-        params: nn.FrozenDict,
-        observation: Array,
-        eval: bool = False,
-        key: KeyArray = None,
-        **kwargs,
-    ) -> Tuple[Action, Array]:
-        """The policy function to evaluate the agent's policy π(s).
-        Args:
-            params (PyTreeDef): A pytree of function parameters.
-            s (Array): The state to evaluate the policy on.
-        Returns:
-            Tuple[Array, Array]: the action to take in the state s, and the log-probability of the action.
-        """
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def loss(
@@ -141,7 +123,8 @@ class Agent(abc.ABC, Generic[T]):
         Returns:
             Array: the action to take in the state s
         """
-        return self.policy(self.params, observation, eval, self._new_key(), **kwargs)[0]
+        action, _ = self.network.actor(self.params, observation, self._new_key(), **kwargs)
+        return action
 
     def save(self, path):
         # TODO(epignatelli): implement
