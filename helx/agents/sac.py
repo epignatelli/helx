@@ -1,13 +1,12 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List
 
 import jax
 import jax.numpy as jnp
 import rlax
 import wandb
-from jax.random import KeyArray
 from chex import Array
 from flax import linen as nn
 from jax.lax import stop_gradient
@@ -19,16 +18,17 @@ from ..networks import (
     AgentNetwork,
     Actor,
     GaussianPolicy,
+    SoftmaxPolicy,
     Temperature,
     DoubleQCritic,
     deep_copy,
 )
+from ..spaces import Continuous, Discrete
 from .agent import Agent, Hparams
 
 
 class SACHparams(Hparams):
     # network
-    dim_A: int
     tau: float = 0.005
     # rl
     replay_start: int = 1000
@@ -73,44 +73,33 @@ class SAC(Agent[SACHparams]):
         hparams: SACHparams,
         optimiser: GradientTransformation,
         seed: int,
-        actor_representation_net: nn.Module | None = None,
-        critic_representation_net: nn.Module | None = None,
-        shared_representation_net: nn.Module | None = None,
+        actor_representation_net: nn.Module,
+        critic_representation_net: nn.Module,
     ):
-        actor_head = GaussianPolicy(action_size=hparams.dim_A)
-        critic_head = nn.Dense(features=1)
-        extra_net = Temperature()
-
-        # if actor and critic share the same representation net
-        if shared_representation_net is not None:
-            shared_net = shared_representation_net
-            network = AgentNetwork(
-                actor_net=actor_head,
-                critic_net=critic_head,
-                shared_net=shared_net,
-                extra_net=extra_net,
-            )
-        elif (
-            actor_representation_net is not None
-            and critic_representation_net is not None
-        ):
-            network = AgentNetwork(
-                actor_net=Actor(
-                    representation_net=actor_representation_net,
-                    policy_head=actor_head,
-                ),
-                critic_net=DoubleQCritic(
-                    n_actions=1,
-                    representation_net_a=deep_copy(critic_representation_net),
-                    representation_net_b=deep_copy(critic_representation_net),
-                ),
-                extra_net=extra_net,
-            )
+        # select heads for continuous or discrete action spaces
+        if isinstance(hparams.action_space, Continuous):
+            # one-action-out
+            policy_head = GaussianPolicy(action_shape=hparams.action_space.shape)
+            n_actions_out = 1
+        elif isinstance(hparams.action_space, Discrete):
+            # all-action-out
+            policy_head = SoftmaxPolicy(n_actions=hparams.action_space.n_bins)
+            n_actions_out =hparams.action_space.n_bins
         else:
-            msg = "Either `shared_representation_net` or \
-            (`actor_representation_net` and `critic_representation_net`) \
-            must be provided."
-            raise ValueError(msg)
+            raise TypeError("Unknwon action space type {}.".format(type(hparams.action_space)))
+
+        network = AgentNetwork(
+            actor_net=Actor(
+                representation_net=actor_representation_net,
+                policy_head=policy_head,
+            ),
+            critic_net=DoubleQCritic(
+                n_actions=n_actions_out,
+                representation_net_a=deep_copy(critic_representation_net),
+                representation_net_b=deep_copy(critic_representation_net),
+            ),
+            extra_net=Temperature(),
+        )
 
         super().__init__(hparams, network, optimiser, seed)
         self.memory = ReplayBuffer(hparams.replay_memory_size)
@@ -152,7 +141,7 @@ class SAC(Agent[SACHparams]):
         critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
 
         # temperature loss
-        target_entropy = -self.hparams.dim_A
+        target_entropy = -self.hparams.action_space.shape[0]
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         temperature_loss = -(temperature * (logprobs_a_0 + target_entropy))
 

@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import operator
+from functools import reduce
 from typing import Tuple
 
 import distrax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from chex import Array, Shape
 from jax.lax import stop_gradient
-from chex import Array
 from jax.random import KeyArray
 
 from ..mdp import Action
-
 from .modules import Identity
 
 
@@ -49,17 +50,20 @@ class EGreedyPolicy(nn.Module):
 
 
 class GaussianPolicy(nn.Module):
-    action_size: int
+    action_shape: Shape
 
     @nn.compact
     def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:
-        mu = nn.Dense(features=self.action_size)(representation)
-        log_sigma = nn.Dense(features=self.action_size)(representation)
+        action_size = reduce(operator.mul, self.action_shape, 1)
+        mu = nn.Dense(features=action_size)(representation)
+        log_sigma = nn.Dense(features=action_size)(representation)
         # reparametrisation trick: sample from normal and multiply by std
-        noise = jax.random.normal(key, (self.action_size,))
+        noise = jax.random.normal(key, (action_size,))
         action = jnp.tanh(mu + log_sigma * noise)
-        log_probs = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(action)
-        return action, log_probs
+        log_prob = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(action)
+        action = action.reshape(self.action_shape)
+        log_prob = log_prob.reshape(self.action_shape)
+        return action, log_prob
 
 
 class SoftmaxPolicy(nn.Module):
@@ -68,5 +72,5 @@ class SoftmaxPolicy(nn.Module):
     @nn.compact
     def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:
         logits = nn.Dense(features=self.n_actions)(representation)
-        action, log_probs = distrax.Softmax(logits).sample_and_log_prob(seed=key)
-        return action, log_probs
+        action, log_prob = distrax.Softmax(logits).sample_and_log_prob(seed=key)
+        return action, log_prob

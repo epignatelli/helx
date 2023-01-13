@@ -18,6 +18,10 @@ NEG_INF = -float(1e16)
 
 class Space(abc.ABC):
     @abc.abstractproperty
+    def n_dim(self) -> int:
+        raise NotImplementedError()
+
+    @abc.abstractproperty
     def shape(self) -> Shape:
         raise NotImplementedError()
 
@@ -71,6 +75,10 @@ class Discrete(Space):
         self._dtype: Type = jnp.int32
 
     @property
+    def n_dim(self) -> int:
+        return len(self.shape)
+
+    @property
     def shape(self) -> Shape:
         return (1,)
 
@@ -110,19 +118,18 @@ class Continuous(Space):
     ):
         self._shape: Shape = shape
         self._dtype = dtype
-        convert = lambda x: jnp.nan_to_num(
-            jnp.broadcast_to(jnp.asarray(x), shape=shape),
-            posinf=POS_INF,
-            neginf=NEG_INF,
-        )
-        self.min: Array = convert(minimum)
-        self.max: Array = convert(maximum)
+        self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
+        self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
 
         assert (
             self.min.shape == self.max.shape == shape
         ), "minimum and maximum must have the same length as n_dimensions, got {} and {} for n_dimensions={}".format(
             self.min.shape, self.max.shape, shape
         )
+
+    @property
+    def n_dim(self) -> int:
+        return len(self.shape)
 
     @property
     def shape(self) -> Shape:
@@ -139,13 +146,19 @@ class Continuous(Space):
         return self.__str__()
 
     def sample(self, key: KeyArray) -> Array:
-        minimum = jnp.nan_to_num(self.min)
-        maximum = jnp.nan_to_num(self.max)
+        minimum = self.min
+        maximum = self.max
         if jnp.issubdtype(self.dtype, jnp.integer):
             return jax.random.randint(
                 key, self.shape, minimum, maximum, dtype=self.dtype
             )
         elif jnp.issubdtype(self.dtype, jnp.floating):
+            # TODO(epignatelli): jax bug
+            # see: https://github.com/google/jax/issues/14003
+            if jnp.isinf(self.min).any():
+                minimum = jnp.nan_to_num(self.min)
+            if jnp.isinf(self.max).any():
+                maximum = jnp.nan_to_num(self.max)
             return jax.random.uniform(
                 key, self.shape, minval=minimum, maxval=maximum, dtype=self.dtype
             )
