@@ -24,13 +24,10 @@ def main(argv):
     optimiser = optax.adam(learning_rate=FLAGS.learning_rate)
 
     # agent
-    action_space = cast(helx.spaces.Continuous, env.action_space())
-    action_dim = action_space.shape[0]
     hparams = helx.flags.hparams_from_flags(
         helx.agents.SACHparams,
         obs_space=env.observation_space(),
         action_space=env.action_space(),
-        dim_A=action_dim,
         replay_start=10,
         batch_size=2,
     )

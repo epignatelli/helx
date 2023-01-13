@@ -1,11 +1,18 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
+import flax.linen as nn
+import jax
 import jax.numpy as jnp
 import rlax
 from jax.lax import stop_gradient
+from optax import GradientTransformation
+import wandb
 
-from .sac import SAC
+from helx.spaces import Discrete
+
+from ..mdp import Transition
+from .sac import SAC, SACHparams
 
 
 class SACD(SAC):
@@ -21,14 +28,28 @@ class SACD(SAC):
             for the adaptation to discrete action spaces
     """
 
-    def policy(self, params, observation, key):
-        return self.network.actor(params, observation, key)
+    def __init__(
+        self,
+        hparams: SACHparams,
+        optimiser: GradientTransformation,
+        seed: int,
+        actor_representation_net: nn.Module,
+        critic_representation_net: nn.Module,
+    ):
+        assert isinstance(hparams.action_space, Discrete)
+        super().__init__(
+            hparams,
+            optimiser,
+            seed,
+            actor_representation_net,
+            critic_representation_net,
+        )
 
     def loss(
         self,
-        params,
-        transition,
-        keys,
+        params: nn.FrozenDict,
+        transition: Transition,
+        keys: jax.random.KeyArray,
         params_critic_target,
     ):
         s_0, _, r_1, s_1, d = transition
@@ -40,10 +61,9 @@ class SACD(SAC):
         _, logprobs_a_0 = self.network.actor(params, s_0, keys)
         _, logprobs_a_1 = self.network.actor(params, s_1, keys)
         probs_a_0 = jnp.exp(logprobs_a_0)
-        probs_a_1 = jnp.exp(logprobs_a_1)
         # critic is a double Q network
-        qA_0, qB_0 = self.network.critic(params, s_0)
-        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)
+        qA_0, qB_0 = self.network.critic(params, s_0)  # type: ignore
+        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)  # type: ignore
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)
@@ -66,7 +86,7 @@ class SACD(SAC):
         critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
 
         # temperature target: π(sₜ)ᵀ • [- αlog(π(sₜ)) + H]
-        target_entropy = -self.hparams.dim_A
+        target_entropy = -self.hparams.action_space.shape[0]
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         probs_a_0 = stop_gradient(probs_a_0)
         temperature_loss = -(temperature * logprobs_a_0 + target_entropy)
