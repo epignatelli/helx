@@ -1,13 +1,10 @@
 import bsuite
-import jax
 import flax.linen as nn
 import optax
 from absl import app, flags, logging
 
 import helx
 
-
-jax.disable_jit(True)
 
 helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
 FLAGS = flags.FLAGS
@@ -30,7 +27,6 @@ def main(argv):
     )
 
     # agent
-    n_actions: int = env.action_space().n_bins
     hparams = helx.flags.hparams_from_flags(
         helx.agents.DQNHparams,
         obs_space=env.observation_space(),
@@ -39,16 +35,17 @@ def main(argv):
         batch_size=2,
     )
 
-    critic_net = nn.Sequential(
+    representation_net = nn.Sequential(
         [
             helx.networks.Flatten(),
             helx.networks.MLP(features=[32, 16]),
-            nn.Dense(features=n_actions),
         ]
     )
-    network = helx.networks.AgentNetwork(critic_net=critic_net)
     agent = helx.agents.DQN(
-        network=network, optimiser=optimiser, hparams=hparams, seed=0
+        representation_net=representation_net,
+        optimiser=optimiser,
+        hparams=hparams,
+        seed=0,
     )
 
     helx.experiment.run(agent, env, 2)

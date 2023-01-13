@@ -2,20 +2,21 @@ from __future__ import annotations
 
 from typing import Any, List, Tuple
 
-import distrax
 import jax
 import jax.numpy as jnp
 import rlax
 from chex import Array
-from jax.random import KeyArray
 from flax import linen as nn
 from optax import GradientTransformation
 
 import wandb
+from helx.networks.modules import Identity
+
+from helx.spaces import Discrete
 
 from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks.modules import AgentNetwork
+from ..networks import AgentNetwork, EGreedyPolicy
 from .agent import Agent, Hparams
 
 
@@ -48,33 +49,28 @@ class DQN(Agent[DQNHparams]):
 
     def __init__(
         self,
-        network: AgentNetwork,
-        optimiser: GradientTransformation,
         hparams: DQNHparams,
+        representation_net: nn.Module,
+        optimiser: GradientTransformation,
         seed: int,
     ):
-        super().__init__(network, optimiser, hparams, seed)
+        assert isinstance(hparams.action_space, Discrete)
+        n_actions = hparams.action_space.n_bins
+        critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
+        actor_net = EGreedyPolicy(
+            hparams.replay_start,
+            hparams.initial_exploration,
+            hparams.final_exploration,
+            hparams.final_exploration_frame,
+        )
+        network = AgentNetwork(
+            shared_net=critic_net,
+            actor_net=actor_net,
+            critic_net=Identity(),
+        )
+        super().__init__(hparams, network, optimiser, seed)
         self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
         self.params_target = self.params.copy({})
-
-    def policy(
-        self,
-        params: nn.FrozenDict,
-        observation: Array,
-        eval=False,
-        key: KeyArray = None,
-    ) -> Tuple[Array, Array]:
-        """Selects an action using an e-greedy policy
-
-        Args:
-            observation (Array): the current observation including the batch dimension
-            eval (bool, optional): whether to use the evaluation policy. Defaults to False.
-        Returns:
-            Tuple[Array, Array]: the action and the log probability of the action"""
-        q_values = self.network.critic(params, observation)
-        distr = distrax.EpsilonGreedy(q_values, self.epsilon(eval).item())  # type: ignore
-        action, log_probs = distr.sample_and_log_prob(seed=key)
-        return action, log_probs
 
     def loss(
         self,
@@ -133,14 +129,3 @@ class DQN(Agent[DQNHparams]):
         wandb.log({"train/total_loss": loss.item()})
         wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
         return loss
-
-    def epsilon(self, eval=False) -> Array:
-        x0, y0 = (self.hparams.replay_start, self.hparams.initial_exploration)
-        x1 = self.hparams.final_exploration_frame
-        y1 = self.hparams.final_exploration
-        x = self.iteration
-        y = ((y1 - y0) * (x - x0) / (x1 - x0)) + y0
-        eps = jnp.clip(
-            y, self.hparams.final_exploration, self.hparams.initial_exploration
-        )
-        return jax.lax.select(eval, 0.0, eps)

@@ -15,7 +15,7 @@ from optax import GradientTransformation
 
 from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks.modules import AgentNetwork
+from ..networks import AgentNetwork
 from .agent import Agent, Hparams
 
 
@@ -68,7 +68,7 @@ class SAC(Agent[SACHparams]):
         hparams: SACHparams,
         seed: int,
     ):
-        super().__init__(network, optimiser, hparams, seed)
+        super().__init__(hparams, network, optimiser, seed)
 
         self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.params_target: nn.FrozenDict = self.params.copy({})
