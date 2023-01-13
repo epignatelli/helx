@@ -151,6 +151,7 @@ class AgentNetwork(nn.Module):
             submodule_params,
             observation,
             action,
+            mutable="stats",
         )
         return out
 
@@ -167,6 +168,7 @@ class AgentNetwork(nn.Module):
             submodule_params,
             observation,
             action,
+            mutable="stats",
         )
         return out
 
@@ -185,6 +187,7 @@ class AgentNetwork(nn.Module):
             submodule_params,
             observation,
             action,
+            mutable="stats",
         )
         return out
 

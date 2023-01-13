@@ -12,6 +12,10 @@ import jax
 from jax.random import KeyArray
 
 
+POS_INF = float(1e16)
+NEG_INF = -float(1e16)
+
+
 class Space(abc.ABC):
     @abc.abstractproperty
     def shape(self) -> Shape:
@@ -106,8 +110,13 @@ class Continuous(Space):
     ):
         self._shape: Shape = shape
         self._dtype = dtype
-        self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
-        self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
+        convert = lambda x: jnp.nan_to_num(
+            jnp.broadcast_to(jnp.asarray(x), shape=shape),
+            posinf=POS_INF,
+            neginf=NEG_INF,
+        )
+        self.min: Array = convert(minimum)
+        self.max: Array = convert(maximum)
 
         assert (
             self.min.shape == self.max.shape == shape
@@ -130,14 +139,15 @@ class Continuous(Space):
         return self.__str__()
 
     def sample(self, key: KeyArray) -> Array:
+        minimum = jnp.nan_to_num(self.min)
+        maximum = jnp.nan_to_num(self.max)
         if jnp.issubdtype(self.dtype, jnp.integer):
-            out = jax.random.randint(
-                key, self.shape, self.min, self.max, dtype=self.dtype
+            return jax.random.randint(
+                key, self.shape, minimum, maximum, dtype=self.dtype
             )
-            return out
         elif jnp.issubdtype(self.dtype, jnp.floating):
             return jax.random.uniform(
-                key, self.shape, minval=self.min, maxval=self.max, dtype=self.dtype
+                key, self.shape, minval=minimum, maxval=maximum, dtype=self.dtype
             )
         else:
             raise NotImplementedError(

@@ -13,9 +13,16 @@ from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
-from ..mdp import Action, Episode, Transition
+from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork, Actor, GaussianPolicy, Critic
+from ..networks import (
+    AgentNetwork,
+    Actor,
+    GaussianPolicy,
+    Temperature,
+    DoubleQCritic,
+    deep_copy,
+)
 from .agent import Agent, Hparams
 
 
@@ -72,6 +79,7 @@ class SAC(Agent[SACHparams]):
     ):
         actor_head = GaussianPolicy(action_size=hparams.dim_A)
         critic_head = nn.Dense(features=1)
+        extra_net = Temperature()
 
         # if actor and critic share the same representation net
         if shared_representation_net is not None:
@@ -80,6 +88,7 @@ class SAC(Agent[SACHparams]):
                 actor_net=actor_head,
                 critic_net=critic_head,
                 shared_net=shared_net,
+                extra_net=extra_net,
             )
         elif (
             actor_representation_net is not None
@@ -90,13 +99,15 @@ class SAC(Agent[SACHparams]):
                     representation_net=actor_representation_net,
                     policy_head=actor_head,
                 ),
-                critic_net=Critic(
-                    representation_net=critic_representation_net,
-                    critic_head=critic_head,
+                critic_net=DoubleQCritic(
+                    n_actions=1,
+                    representation_net_a=deep_copy(critic_representation_net),
+                    representation_net_b=deep_copy(critic_representation_net),
                 ),
+                extra_net=extra_net,
             )
         else:
-            msg = "Either one between `shared_representation_net` or \
+            msg = "Either `shared_representation_net` or \
             (`actor_representation_net` and `critic_representation_net`) \
             must be provided."
             raise ValueError(msg)
@@ -110,7 +121,7 @@ class SAC(Agent[SACHparams]):
         params: nn.FrozenDict,
         transition: Transition,
         key: jax.random.KeyArray,
-        params_critic_target: nn.FrozenDict,
+        params_target: nn.FrozenDict,
     ):
         s_0, _, r_1, s_1, d = transition
 
@@ -122,7 +133,7 @@ class SAC(Agent[SACHparams]):
         probs_a_0 = jnp.exp(logprobs_a_0)
         # critic is a double Q network
         qA_0, qB_0 = self.network.critic(params, s_0)  # type: ignore
-        qA_1, qB_1 = self.network.critic(params_critic_target, s_1)  # type: ignore
+        qA_1, qB_1 = self.network.critic(params_target, s_1)  # type: ignore
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_0 * logprobs_a_0, axis=-1)
@@ -179,7 +190,7 @@ class SAC(Agent[SACHparams]):
         # update dqn state
         self.opt_state = opt_state
         self.params = params
-        self.params_critic_target = jax.tree_map(
+        self.params_target = jax.tree_map(
             lambda theta, theta_: theta * self.hparams.tau
             + (1 - self.hparams.tau) * theta_,
             self.params,

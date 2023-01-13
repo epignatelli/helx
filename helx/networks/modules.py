@@ -170,8 +170,8 @@ class Temperature(nn.Module):
 
     @nn.compact
     def __call__(self, *args, **kwargs) -> Array:
-        log_temperature = self.param(
-            "log_temperature",
-            init_fn=lambda key: jnp.full((), jnp.log(self.initial_temperature)),
+        temperature = self.param(
+            "temperature_value",
+            init_fn=lambda key: jnp.log(self.initial_temperature),
         )
-        return jnp.exp(log_temperature)
+        return jnp.exp(temperature)

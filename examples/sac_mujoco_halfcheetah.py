@@ -5,14 +5,8 @@ import optax
 from absl import app, flags, logging
 
 import helx
-from helx.networks import (
-    MLP,
-    Actor,
-    AgentNetwork,
-    DoubleQCritic,
-    GaussianPolicy,
-    Temperature,
-)
+from helx.networks import MLP
+
 
 helx.flags.define_flags_from_hparams(helx.agents.SACHparams)
 FLAGS = flags.FLAGS
@@ -40,23 +34,12 @@ def main(argv):
         replay_start=10,
         batch_size=2,
     )
-    actor_net = Actor(
-        representation_net=MLP(features=[128, 128]),
-        policy_head=GaussianPolicy(action_size=hparams.dim_A),
-    )
-    critic_net = DoubleQCritic(
-        representation_net_a=MLP(features=[128, 128]),
-        representation_net_b=MLP(features=[128, 128]),
-        n_actions=hparams.dim_A,
-    )
-    extra_net = Temperature()
-    network = AgentNetwork(
-        actor_net=actor_net,
-        critic_net=critic_net,
-        extra_net=extra_net,
-    )
     agent = helx.agents.SAC(
-        network=network, optimiser=optimiser, hparams=hparams, seed=0
+        hparams=hparams,
+        optimiser=optimiser,
+        seed=0,
+        actor_representation_net=MLP(features=[128, 128]),
+        critic_representation_net=MLP(features=[128, 128]),
     )
 
     helx.experiment.run(agent, env, 2)
