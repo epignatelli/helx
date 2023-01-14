@@ -18,6 +18,7 @@ def deep_copy(module: nn.Module):
     nn.errors.ScopeCollectionNotFound"""
     return copy.deepcopy(module)
 
+
 @wraps(jax.jit)
 def jit_bound(method, *args, **kwargs):
     """A wrapper for jax.jit that allows jitting bound methods, such as

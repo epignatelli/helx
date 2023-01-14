@@ -123,7 +123,9 @@ class Agent(abc.ABC, Generic[T]):
         Returns:
             Array: the action to take in the state s
         """
-        action, _ = self.network.actor(self.params, observation, self._new_key(), **kwargs)
+        action, _ = self.network.actor(
+            self.params, observation, self._new_key(), **kwargs
+        )
         return action
 
     def save(self, path):

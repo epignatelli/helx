@@ -111,6 +111,7 @@ def get_hparams_fields(type_):
         del fields["action_space"]
     return fields
 
+
 def define_flags_from_hparams(type_):
     # get_type_hints to get precise types than annotations
     fields = get_hparams_fields(type_)

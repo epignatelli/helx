@@ -7,7 +7,6 @@ import jax.numpy as jnp
 import rlax
 from jax.lax import stop_gradient
 from optax import GradientTransformation
-import wandb
 
 from helx.spaces import Discrete
 
