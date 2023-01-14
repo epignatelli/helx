@@ -3,6 +3,7 @@ from __future__ import annotations
 import operator
 from functools import reduce
 from typing import Tuple
+import chex
 
 import distrax
 import flax.linen as nn
@@ -45,7 +46,8 @@ class EGreedyPolicy(nn.Module):
         x.value += 1
 
         distr = distrax.EpsilonGreedy(q_values, eps)  # type: ignore
-        action, log_probs = stop_gradient(distr.sample_and_log_prob(seed=key))
+        action = stop_gradient(distr.sample(seed=key))
+        log_probs = jax.nn.log_softmax(q_values)
         return action, log_probs
 
 
@@ -57,12 +59,18 @@ class GaussianPolicy(nn.Module):
         action_size = reduce(operator.mul, self.action_shape, 1)
         mu = nn.Dense(features=action_size)(representation)
         log_sigma = nn.Dense(features=action_size)(representation)
+
         # reparametrisation trick: sample from normal and multiply by std
         noise = jax.random.normal(key, (action_size,))
         action = jnp.tanh(mu + log_sigma * noise)
         log_prob = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(action)
+
         action = action.reshape(self.action_shape)
         log_prob = log_prob.reshape(self.action_shape)
+
+        chex.assert_shape(action, self.action_shape)
+        chex.assert_shape(log_prob, self.action_shape)
+
         return action, log_prob
 
 
@@ -72,5 +80,11 @@ class SoftmaxPolicy(nn.Module):
     @nn.compact
     def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:
         logits = nn.Dense(features=self.n_actions)(representation)
-        action, log_prob = distrax.Softmax(logits).sample_and_log_prob(seed=key)
-        return action, log_prob
+
+        action = distrax.Softmax(logits).sample(seed=key)
+        log_probs = jax.nn.log_softmax(logits)
+
+        chex.assert_shape(action, ())
+        chex.assert_shape(log_probs, (self.n_actions,))
+
+        return action, log_probs
