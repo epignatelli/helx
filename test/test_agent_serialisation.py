@@ -37,6 +37,10 @@ def test_agent_serialisation():
     )
 
     agent.save(os.path.join(os.path.dirname(__file__), "tmp"))
-    agent_restored = helx.agents.DQN.load(os.path.join(os.path.dirname(__file__), "tmp"))
+    agent_restored = helx.agents.DQN.load(
+        os.path.join(os.path.dirname(__file__), "tmp")
+    )
 
-    assert jax.tree_util.tree_all(jax.tree_map(lambda x, y: (x == y).all(), agent.params, agent_restored))
+    assert jax.tree_util.tree_all(
+        jax.tree_map(lambda x, y: (x == y).all(), agent.params, agent_restored)
+    )

@@ -1,18 +1,10 @@
-from typing import cast
-
+import flax.linen as nn
 import gym
 import optax
 from absl import app, flags, logging
 
-import flax.linen as nn
-
-
 import helx
-from helx.networks import (
-    CNN,
-    deep_copy,
-    Flatten,
-)
+from helx.networks import CNN, Flatten, deep_copy
 
 helx.flags.define_flags_from_hparams(helx.agents.SACHparams)
 FLAGS = flags.FLAGS

@@ -16,8 +16,8 @@ from ..spaces import Continuous, Space
 
 class FromGym3Env(Environment[gym3.interop.ToGymEnv]):
     """Static class to convert between gym3 and helx environments.
-        An example of gym3 environments is
-        procgen: https://github.com/openai/procgen"""
+    An example of gym3 environments is
+    procgen: https://github.com/openai/procgen"""
 
     def __init__(self, env: gym3.interop.ToGymEnv):
         super().__init__(env)

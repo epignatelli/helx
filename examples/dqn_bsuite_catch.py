@@ -5,7 +5,6 @@ from absl import app, flags, logging
 
 import helx
 
-
 helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
 FLAGS = flags.FLAGS
 

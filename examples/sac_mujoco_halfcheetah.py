@@ -1,12 +1,9 @@
-from typing import cast
-
 import gymnasium
 import optax
 from absl import app, flags, logging
 
 import helx
 from helx.networks import MLP
-
 
 helx.flags.define_flags_from_hparams(helx.agents.SACHparams)
 FLAGS = flags.FLAGS

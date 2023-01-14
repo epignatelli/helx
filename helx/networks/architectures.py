@@ -56,9 +56,7 @@ class AgentNetwork(nn.Module):
 
         state_transition_out = jnp.empty((0,))
         if self.transition_net is not None:
-            state_transition_out = self.transition_net(
-                representation, action
-            )
+            state_transition_out = self.transition_net(representation, action)
 
         reward_out = jnp.empty((0,))
         if self.reward_net is not None:
@@ -108,10 +106,14 @@ class AgentNetwork(nn.Module):
         observation = self.state_representation(params, observation)
 
         submodule_params = self._submodule_params(params, "actor_net")
-        (action, log_probs), _ = self.actor_net.apply(submodule_params, observation, key, mutable="stats")
+        (action, log_probs), _ = self.actor_net.apply(
+            submodule_params, observation, key, mutable="stats"
+        )
         return action, log_probs
 
-    def critic(self, params: nn.FrozenDict, observation: Array, *args, **kwargs) -> Array | PyTreeDef:
+    def critic(
+        self, params: nn.FrozenDict, observation: Array, *args, **kwargs
+    ) -> Array | PyTreeDef:
         """The critic function to evaluate the agent's value function
         $V(s)$ or $Q(s) \\forall a in \\mathcal{A}
         Args:
@@ -128,7 +130,9 @@ class AgentNetwork(nn.Module):
         observation = self.state_representation(params, observation)
 
         submodule_params = self._submodule_params(params, "critic_net")
-        values, _ = self.critic_net.apply(submodule_params, observation, mutable="stats")
+        values, _ = self.critic_net.apply(
+            submodule_params, observation, mutable="stats"
+        )
         return values
 
     def state_transition(

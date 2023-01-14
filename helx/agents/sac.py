@@ -84,9 +84,11 @@ class SAC(Agent[SACHparams]):
         elif isinstance(hparams.action_space, Discrete):
             # all-action-out
             policy_head = SoftmaxPolicy(n_actions=hparams.action_space.n_bins)
-            n_actions_out =hparams.action_space.n_bins
+            n_actions_out = hparams.action_space.n_bins
         else:
-            raise TypeError("Unknwon action space type {}.".format(type(hparams.action_space)))
+            raise TypeError(
+                "Unknwon action space type {}.".format(type(hparams.action_space))
+            )
 
         network = AgentNetwork(
             actor_net=Actor(
