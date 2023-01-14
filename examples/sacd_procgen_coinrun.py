@@ -9,13 +9,7 @@ import flax.linen as nn
 
 import helx
 from helx.networks import (
-    MLP,
     CNN,
-    Actor,
-    AgentNetwork,
-    DoubleQCritic,
-    SoftmaxPolicy,
-    Temperature,
     deep_copy,
     Flatten,
 )
@@ -29,7 +23,11 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = gym.make("procgen:procgen-coinrun-v0", max_episode_steps=100)
+    env = gym.make(
+        "procgen:procgen-coinrun-v0",
+        apply_api_compatibility=True,
+        max_episode_steps=100,
+    )
     env = helx.environment.make_from(env)
 
     # optimiser
