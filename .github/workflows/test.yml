@@ -3,7 +3,7 @@ name: Linting
 on: [push]
 
 jobs:
-  linting:
+  Test:
     runs-on: ${{ matrix.os }}-latest
     defaults:
       run:
