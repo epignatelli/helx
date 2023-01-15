@@ -7,7 +7,7 @@
 
 # Helx
 
-Helx provides a single interface to interoperate between a variety of Reinforcement Learning environment and to code agents.
+Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning environment and to b) code interacting agents.
 It is an interface to jumpstart experiments
 
 
