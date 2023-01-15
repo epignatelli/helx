@@ -69,7 +69,7 @@ helx.experiment.run(env, agent, episodes=100)
 ---
 ## Supported libraries
 
-We currently support the current external environment models:
+We currently support these external environment models:
 - [dm_env](https://github.com/deepmind/dm_env)
 - [bsuite](https://github.com/deepmind/bsuite)
 - [dm_control](https://github.com/deepmind/dm_control), including
@@ -89,14 +89,14 @@ We currently support the current external environment models:
 ---
 ## Adding a new environment library
 
-Adding a new library requires three steps:
+To add a new library requires three steps:
 1. Implement the `helx.environment.Environment` interface for the new library.
 See the [dm_env](helx/environment/dm_env.py) implementation for an example.
 1. Implement (de)serialisation of the following objects:
     - `helx.environment.Timestep`
     - `helx.spaces.Discrete`
     - `helx.spaces.Continuous`
-2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py) function to tell `helx` about the new protocol.
+2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
 
 ---
 ## The `helx.agents.Agent` interface
