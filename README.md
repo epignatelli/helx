@@ -1,142 +1,127 @@
-[![Linting](https://github.com/epignatelli/helx/actions/workflows/linting.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/linting.yml)
+[![Test](https://github.com/epignatelli/helx/actions/workflows/test.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/linting.yml)
 [![Examples](https://github.com/epignatelli/helx/actions/workflows/run_examples.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/run_examples.yml)
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-Hi there!
-I am [Eduardo pignatelli](https://epignatelli.com/), I use this repository as a recipient of my research code in Deep Reinforcement Learning.
+--------------
 
 # Helx
-When I found code that I can abstract out and agnostify from an experiment I am running, I usually consolidate it into `helx`.
 
-Helx is a helper library for [JAX](https://github.com/google/jax) / [stax](https://github.com/google/jax/blob/master/jax/experimental/stax.py).
-Because this is research code, it is in continuous development, so expect changes.
-I do not have plan to consistently guarantee continuous support or proper deployment.
-If you want to use it, I suggest you fork the code and refer to that specific commit when creating an environment.
+Helx provides a single interface to interoperate between a variety of Reinforcement Learning environment and to code agents.
+It is an interface to jumpstart experiments
 
-For some fuctionalities see below.
 
-### Installation
-
+## Installation
 ```bash
 pip install git+https://github.com/epignatelli/helx
 ```
+---
+## Example
 
-Note that helx does not depend on JAX, even if it uses it.
-This allows you to use a version of JAX built for an arbitrary accelerator.
+A typical use case is to design an agent, and toy-test it on `catch` before evaluating it on more complex environments, such as atari, procgen or mujoco.
 
-### Contribute
-This library is intended as a container of shortcuts for jax and stax.
-Feel free to raise an issue, or pull request a new functionality.
-
-### The `module` decorator
-A `module` is a simple interface for stax functions. It takes a `stax` layer construction output - a tuple of callables - and returns a `Module` object - a `NamedTuple` with an `init` and an `apply` properties.
-Here's an example:
 ```python
-import jax
-from jax.experimental.stax import Dense, Relu
-from helx import Module, module
+import bsuite
+import gym
 
+import helx.environment
+import helx.experiment
+from helx.agents import RandomAgent, Hparams
 
-@module
-def Mlp() -> Module:
-    return serial(
-        Dense(16),
-        Relu,
-        Dense(32),
-        Relu,
-        Dense(8)
-    )
+# create the enviornment in you favourite way
+env = bsuite.load_from_id("catch/0")
+# convert it to an helx environment
+env = helx.environment.make_from(env)
+# create the agent
+hparams = Hparams(env.obs_space(), env.action_space())
+agent = RandomAgent(hparams)
 
-rng = jax.random.PRNGKey(0)
-input_shape = (128, 8)
-x = jax.random.normal(input_shape)
-
-mpl = Mpl()
-# note that the interface is standardised
-# you can call mlp.init
-output_shape, params = mlp.init(rng, input_shape)
-y_hat = mpl.apply(params, x)
-```
-
-### The `inject` decorator
-The `inject` decorator is the `jax.jit` for closures. It allows you to define and use a pure function in a class.
-It replicates the interface and functionality of `jax.jit`, you can use it in the same way.
-In addition, it grabs the class it is defined in and injects itself as a property of the class.
-
-Reusing the mlp example above:
-```python
-import jax
-from jax.experimental.optimizer import sdg
-from helx import Module, module, inject
-
-
-class Agent:
-    def __init__(self, network, optimiser, input_shape, seed):
-        self.iteration = 0
-        self.rng = jax.random.PRNGKey(seed)
-        params = network.init(rng, input_shape)
-        self.optimiser_state = optimiser.init_fn(self.params)
-
-        # Note that we define the functions in the init
-        # because they have to be pure (following the jax logic), they will not call other functions
-        @inject
-        def forward(
-            params: Params,
-            trajectory: Trajectory,
-        ) -> jnp.ndarray:
-            outputs = self.model.apply(trajectory.observations, prev_state)
-            return outputs
-
-        @partial(inject, static_argnums=(0, 1))
-        def sgd_step(
-            iteration: int,
-            optimiser_state: OptimizerState,
-            trajectory: jnp.ndarray,
-        ) -> Tuple[float, OptimizerState]:
-            params = optimiser.params_fn(optimiser_state)
-            grads, outputs = jax.grad(forward)(params, trajectory)
-            optimiser_state = optimiser.update_fn(iteration, grads, optimiser_state)
-            return outputs, optimiser_state
-
-    # update is defined using canonical python patterns
-    # note that it can call injected methods
-    def update(self, trajectory):
-        return self.sgd_step(self.iteration, self.optimiser_state, trajectory)
-
-
-mpl = Mpl()
-agent = Agent(mpl, adam(1e-3))
-
-output_shape, params = mlp.init(rng, input_shape)
-
-# you can call forward as a classmethod
-agent.forward(params, x)
-agent.sgd_step(params, x)
-
-# or use a class method that calls an injected function
-agent.update(x)
-```
-
-### The `batch` decorator
-The `batch` decorator is nothing more than a wrapper around `jax.jit` and `jax.vmap`: it re-jits a vmapped function.
-```python
-@batch(in_axes=1, out_axes=1)
-def forward(params, x):
-    return mlp.apply(params, x)
-
+# run the experiment
+helx.experiment.run(env, agent, episodes=100)
 ```
 
 
-### The `purify` decorator
-The `purify` decorator converts a classmethod into a jax pure function and jits it.
-It allows you to define a function in a class and use it with patterns we usually use in JAX
-```python
-class Agent:
-    @purify
-    def forward(x, y):
-        return x * y
+Switching to a different environment is as simple as changing the `env` variable.
+```diff
+import bsuite
+import gym
 
-agent = Agent()
-agent.forward(3, 4)
+import helx.environment
+import helx.experiment
+from helx.agents import RandomAgent, Hparams
+
+# create the enviornment in you favourite way
+-env = bsuite.load_from_id("catch/0")
++env = gym.make("procgen:procgen-coinrun-v0")
+# convert it to an helx environment
+env = helx.environment.make_from(env)
+# create the agent
+hparams = Hparams(env.obs_space(), env.action_space())
+agent = RandomAgent(hparams)
+
+# run the experiment
+helx.experiment.run(env, agent, episodes=100)
+```
+
+---
+## Supported libraries
+
+We currently support the current external environment models:
+- [dm_env](https://github.com/deepmind/dm_env)
+- [bsuite](https://github.com/deepmind/bsuite)
+- [dm_control](https://github.com/deepmind/dm_control), including
+  - [Mujoco](https://mujoco.org)
+- [gym](https://github.com/openai/gym) and [gymnasium](https://github.com/Farama-Foundation/Gymnasium), including
+  - The [minigrid]() family
+  - The [minihack]() family
+  - The [atari](https://github.com/mgbellemare/Arcade-Learning-Environment) family
+  - The legacy [mujoco](https://www.roboti.us/download.html) family
+  - And the standard gym family
+- [gym3](https://github.com/openai/gym3), including
+  - [procgen](https://github.com/openai/procgen)
+
+---
+## Adding a new environment library
+
+Adding a new library requires three steps:
+1. Implement the `helx.environment.Environment` interface for the new library.
+See the [dm_env](helx/environment/dm_env.py) implementation for an example.
+1. Implement (de)serialisation of the following objects:
+    - `helx.environment.Timestep`
+    - `helx.spaces.Discrete`
+    - `helx.spaces.Continuous`
+2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py) function to tell `helx` about the new protocol.
+
+---
+## The `helx.agents.Agent` interface
+
+An `helx` agent interface is designed as the minimal set of functions to interact with an environment and learning.
+
+```python
+class Agent(ABC):
+    """An agent interface."""
+
+    @abstractmethod
+    def update(self, timestep: Timestep) -> Any:
+        """Updates the agent's internal state (knowledge), such as a table,
+        or some function parameters, e.g., the parameters of a neural network."""
+
+    @abstractmethod
+    def sample_action(self, timestep: Timestep) -> Action:
+        """Applies the agent's policy to the current timestep to sample an action."""
+```
+
+---
+## Cite
+If you use `helx` please consider citing it as:
+
+```bibtex
+@misc{helx,
+  author = {Pignatelli, Eduardo},
+  title = {Helx: Interoperating between Reinforcement Learning Experimental Protocols},
+  year = {2021},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/epignatelli/helx}}
+  }
 ```
