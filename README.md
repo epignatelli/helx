@@ -7,9 +7,10 @@
 
 # Helx
 
-Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning environment and to b) code interacting agents.
-It is an interface to jumpstart experiments
+Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning (RL)environment and to b) code interacting agents.
+It is designed to be agnostic to both the enviornment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
 
+Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
 
 ## Installation
 ```bash
@@ -42,6 +43,8 @@ helx.experiment.run(env, agent, episodes=100)
 
 
 Switching to a different environment is as simple as changing the `env` variable.
+
+
 ```diff
 import bsuite
 import gym
@@ -80,6 +83,9 @@ We currently support the current external environment models:
 - [gym3](https://github.com/openai/gym3), including
   - [procgen](https://github.com/openai/procgen)
 
+#### On the road:
+- [gymnax](https://github.com/RobertTLange/gymnax)
+- [ivy_gym](https://github.com/unifyai/gym)
 ---
 ## Adding a new environment library
 
@@ -95,20 +101,20 @@ See the [dm_env](helx/environment/dm_env.py) implementation for an example.
 ---
 ## The `helx.agents.Agent` interface
 
-An `helx` agent interface is designed as the minimal set of functions to interact with an environment and learning.
+An `helx` agent interface is designed as the minimal set of functions necessary to *(i)* interact with an environment and *(ii)* reinforcement learn.
 
 ```python
 class Agent(ABC):
-    """An agent interface."""
+    """A minimal RL agent interface."""
+
+    @abstractmethod
+    def sample_action(self, timestep: Timestep) -> Action:
+        """Applies the agent's policy to the current timestep to sample an action."""
 
     @abstractmethod
     def update(self, timestep: Timestep) -> Any:
         """Updates the agent's internal state (knowledge), such as a table,
         or some function parameters, e.g., the parameters of a neural network."""
-
-    @abstractmethod
-    def sample_action(self, timestep: Timestep) -> Action:
-        """Applies the agent's policy to the current timestep to sample an action."""
 ```
 
 ---
