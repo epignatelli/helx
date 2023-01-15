@@ -158,7 +158,7 @@ class SAC(Agent[SACHparams]):
 
         # update memory
         transitions: List[Transition] = episode.transitions()
-        self.memory.add_range(transitions)  # makes self.loss recompile each time, why??
+        self.memory.add_range(transitions)
         wandb.log({"Buffer size": len(self.memory)})
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
