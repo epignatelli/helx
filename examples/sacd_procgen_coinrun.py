@@ -20,7 +20,7 @@ def main(argv):
         apply_api_compatibility=True,
         max_episode_steps=100,
     )
-    env = helx.environment.make_from(env)
+    env = helx.environment.to_helx(env)
 
     # optimiser
     optimiser = optax.adam(learning_rate=FLAGS.learning_rate)

@@ -13,7 +13,7 @@ from .gymnasium import FromGymnasiumEnv
 from .gym3 import FromGym3Env
 
 
-def make_from(env: Any) -> Any:
+def to_helx(env: Any) -> Any:
     # getting root env type for interop
     env_for_type = env
     while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
