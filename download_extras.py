@@ -2,6 +2,7 @@ import logging
 import os
 import platform
 import tarfile
+import rarfile
 
 import requests
 
@@ -80,6 +81,21 @@ def _download_mujoco_dm_control():
     _download_url(url, MUJOCO_ROOT)
 
 
+def _download_atari_roms():
+    if os.path.exists(os.path.join(os.path.expanduser("~"), ".atari", "roms")):
+        return
+    url = "http://www.atarimania.com/roms/Roms.rar"
+    out_path = os.path.join(os.path.expanduser("~"), ".atari", "roms.rar")
+    # downlaod the file
+    _download_url(url, out_path)
+
+    # extract the file
+    with rarfile.RarFile(out_path) as rar_ref:
+        rar_ref.extractall(os.path.dirname(out_path))
+    os.remove(out_path)
+
+
 if __name__ == "__main__":
     _download_mujoco210()
     # _download_mujoco_dm_control()
+    _download_atari_roms()
