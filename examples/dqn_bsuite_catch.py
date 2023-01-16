@@ -15,7 +15,7 @@ def main(argv):
 
     # environment
     env = bsuite.load_from_id("catch/0")
-    env = helx.environment.make_from(env)
+    env = helx.environment.to_helx(env)
 
     # optimiser
     optimiser = optax.rmsprop(

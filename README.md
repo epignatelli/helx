@@ -31,7 +31,7 @@ from helx.agents import RandomAgent, Hparams
 # create the enviornment in you favourite way
 env = bsuite.load_from_id("catch/0")
 # convert it to an helx environment
-env = helx.environment.make_from(env)
+env = helx.environment.to_helx(env)
 # create the agent
 hparams = Hparams(env.obs_space(), env.action_space())
 agent = RandomAgent(hparams)
@@ -56,7 +56,7 @@ from helx.agents import RandomAgent, Hparams
 -env = bsuite.load_from_id("catch/0")
 +env = gym.make("procgen:procgen-coinrun-v0")
 # convert it to an helx environment
-env = helx.environment.make_from(env)
+env = helx.environment.to_helx(env)
 # create the agent
 hparams = Hparams(env.obs_space(), env.action_space())
 agent = RandomAgent(hparams)
@@ -114,7 +114,7 @@ See the [dm_env](helx/environment/dm_env.py) implementation for an example.
     - `helx.environment.Timestep`
     - `helx.spaces.Discrete`
     - `helx.spaces.Continuous`
-2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
+2. Add the new library to the [`helx.environment.to_helx`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
 
 ---
 ## Cite

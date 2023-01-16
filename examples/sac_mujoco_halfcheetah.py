@@ -15,7 +15,7 @@ def main(argv):
 
     # environment
     env = gymnasium.make("HalfCheetah-v4", max_episode_steps=100)
-    env = helx.environment.make_from(env)
+    env = helx.environment.to_helx(env)
 
     # optimiser
     optimiser = optax.adam(learning_rate=FLAGS.learning_rate)
