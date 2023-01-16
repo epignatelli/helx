@@ -1,5 +1,4 @@
-[![Test](https://github.com/epignatelli/helx/actions/workflows/test.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/linting.yml)
-[![Examples](https://github.com/epignatelli/helx/actions/workflows/run_examples.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/run_examples.yml)
+[![Test](https://github.com/epignatelli/helx/actions/workflows/test.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/test.yml)
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -7,8 +6,8 @@
 
 # Helx
 
-Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning (RL)environment and to b) code interacting agents.
-It is designed to be agnostic to both the enviornment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
+Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning (RL) environments and to b) code interacting agents.
+It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
 
 Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
 
@@ -92,7 +91,7 @@ We currently support these external environment models:
 To add a new library requires three steps:
 1. Implement the `helx.environment.Environment` interface for the new library.
 See the [dm_env](helx/environment/dm_env.py) implementation for an example.
-1. Implement (de)serialisation of the following objects:
+1. Implement serialisation (to `helx`) of the following objects:
     - `helx.environment.Timestep`
     - `helx.spaces.Discrete`
     - `helx.spaces.Continuous`
