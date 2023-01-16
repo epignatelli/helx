@@ -134,10 +134,12 @@ If you use `helx` please consider citing it as:
 ---
 ## A note on maintainance
 This repository was born as the recipient of personal research code that was developed over the years.
-Its maintainance is limited by the time and the resources of a research project with a single person.
+Its maintainance is limited by the time and the resources of a research project resourced with a single person.
 Even if I would like to automate many actions, I do not have the time to maintain the whole body of automation that a well maintained package deserves.
 This is the reason of the WIP badge, which I do not plan to remove soon.
+Maintainance will prioritise the code functionality over documentation and automation.
 
+Any help is very welcome.
 A quick guide to interacting with this repository:
 - If you find a bug, please open an issue, and I will fix it as soon as I can.
 - If you want to request a new feature, please open an issue, and I will consider it as soon as I can.
