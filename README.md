@@ -86,18 +86,6 @@ We currently support these external environment models:
 - [gymnax](https://github.com/RobertTLange/gymnax)
 - [ivy_gym](https://github.com/unifyai/gym)
 ---
-## Adding a new environment library
-
-To add a new library requires three steps:
-1. Implement the `helx.environment.Environment` interface for the new library.
-See the [dm_env](helx/environment/dm_env.py) implementation for an example.
-1. Implement serialisation (to `helx`) of the following objects:
-    - `helx.environment.Timestep`
-    - `helx.spaces.Discrete`
-    - `helx.spaces.Continuous`
-2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
-
----
 ## The `helx.agents.Agent` interface
 
 An `helx` agent interface is designed as the minimal set of functions necessary to *(i)* interact with an environment and *(ii)* reinforcement learn.
@@ -115,6 +103,18 @@ class Agent(ABC):
         """Updates the agent's internal state (knowledge), such as a table,
         or some function parameters, e.g., the parameters of a neural network."""
 ```
+
+---
+## Adding a new environment library
+
+To add a new library requires three steps:
+1. Implement the `helx.environment.Environment` interface for the new library.
+See the [dm_env](helx/environment/dm_env.py) implementation for an example.
+1. Implement serialisation (to `helx`) of the following objects:
+    - `helx.environment.Timestep`
+    - `helx.spaces.Discrete`
+    - `helx.spaces.Continuous`
+2. Add the new library to the [`helx.environment.make_from`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
 
 ---
 ## Cite
