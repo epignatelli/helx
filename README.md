@@ -133,7 +133,7 @@ If you use `helx` please consider citing it as:
 
 ---
 ## A note on maintainance
-This repository was born as the recipient of research code that was developed over the years.
+This repository was born as the recipient of personal research code that was developed over the years.
 Its maintainance is limited by the time and the resources of a research project with a single person.
 Even if I would like to automate many actions, I do not have the time to maintain the whole body of automation that a well maintained package deserves.
 This is the reason of the WIP badge, which I do not plan to remove soon.
