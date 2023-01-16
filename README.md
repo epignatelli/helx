@@ -130,3 +130,17 @@ If you use `helx` please consider citing it as:
   howpublished = {\url{https://github.com/epignatelli/helx}}
   }
 ```
+
+---
+## A note on maintainance
+This repository was born as the recipient of research code that was developed over the years.
+Its maintainance is limited by the time and the resources of a research project with a single person.
+Even if I would like to automate many actions, I do not have the time to maintain the whole body of automation that a well maintained package deserves.
+This is the reason of the WIP badge, which I do not plan to remove soon.
+
+A quick guide to interacting with this repository:
+- If you find a bug, please open an issue, and I will fix it as soon as I can.
+- If you want to request a new feature, please open an issue, and I will consider it as soon as I can.
+- If you want to contribute yourself, please open an issue first, let's discuss objective, plan a proposal, and open a pull request to act on it.
+
+If you would like to be involved further in the development of this repository, please contact me directly at: `epignatelli at gmail dot com`.
