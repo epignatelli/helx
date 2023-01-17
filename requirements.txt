@@ -3,7 +3,6 @@ flake8
 typing-extensions
 pylint
 pytest
-rarfile
 absl-py
 numpy<1.24  # bsuite 0.3.5 fails, see https://github.com/deepmind/bsuite/issues/47
 mujoco

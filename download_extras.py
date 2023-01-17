@@ -130,11 +130,12 @@ def _download_atari_roms():
         return
 
     # downlaod the file
-    url = "http://www.atarimania.com/roms/Roms.rar"
+    url = "https://roms8.s3.us-east-2.amazonaws.com/Roms.tar.gz"
     _download_url(url, out_path)
 
     # extract the file
-    unrar(out_path, out_dir, remove_after=True)
+    with tarfile.open(out_path, "r:gz") as tar_ref:
+        tar_ref.extractall(out_dir)
 
     # try import the roms
     try:
