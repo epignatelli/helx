@@ -11,7 +11,6 @@ import helx.logging
 logging = helx.logging.get_logger()
 
 
-
 EXCLUDES = [
     "ALE/TicTacToe3D-v5",
     "ALE/TicTacToe3D-ram-v5",
@@ -36,7 +35,6 @@ def test_atari():
             logging.debug("Skipping excluded env: {}".format(env_id))
             continue
         test_env(env_id)
-
 
 
 if __name__ == "__main__":

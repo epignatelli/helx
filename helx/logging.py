@@ -39,7 +39,7 @@ class CustomFormatter(logging.Formatter):
         logging.INFO: grey + str(format) + reset,
         logging.WARNING: yellow + str(format) + reset,
         logging.ERROR: red + str(format) + reset,
-        logging.CRITICAL: bold_red + str(format) + reset
+        logging.CRITICAL: bold_red + str(format) + reset,
     }
 
     def format(self, record):
@@ -51,32 +51,34 @@ class CustomFormatter(logging.Formatter):
 class ColoredFormatter(logging.Formatter):
     """Special custom formatter for colorizing log messages!"""
 
-    BLACK = '\033[0;30m'
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    BROWN = '\033[0;33m'
-    BLUE = '\033[0;34m'
-    PURPLE = '\033[0;35m'
-    CYAN = '\033[0;36m'
-    GREY = '\033[0;37m'
+    BLACK = "\033[0;30m"
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    BROWN = "\033[0;33m"
+    BLUE = "\033[0;34m"
+    PURPLE = "\033[0;35m"
+    CYAN = "\033[0;36m"
+    GREY = "\033[0;37m"
 
-    DARK_GREY = '\033[1;30m'
-    LIGHT_RED = '\033[1;31m'
-    LIGHT_GREEN = '\033[1;32m'
-    YELLOW = '\033[1;33m'
-    LIGHT_BLUE = '\033[1;34m'
-    LIGHT_PURPLE = '\033[1;35m'
-    LIGHT_CYAN = '\033[1;36m'
-    WHITE = '\033[1;37m'
+    DARK_GREY = "\033[1;30m"
+    LIGHT_RED = "\033[1;31m"
+    LIGHT_GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    LIGHT_BLUE = "\033[1;34m"
+    LIGHT_PURPLE = "\033[1;35m"
+    LIGHT_CYAN = "\033[1;36m"
+    WHITE = "\033[1;37m"
 
     RESET = "\033[0m"
 
     def __init__(self, *args, **kwargs):
-        self._colors = {logging.DEBUG: self.DARK_GREY,
-                        logging.INFO: self.RESET,
-                        logging.WARNING: self.BROWN,
-                        logging.ERROR: self.RED,
-                        logging.CRITICAL: self.LIGHT_RED}
+        self._colors = {
+            logging.DEBUG: self.DARK_GREY,
+            logging.INFO: self.RESET,
+            logging.WARNING: self.BROWN,
+            logging.ERROR: self.RED,
+            logging.CRITICAL: self.LIGHT_RED,
+        }
         super(ColoredFormatter, self).__init__(*args, **kwargs)
 
     def format(self, record):
@@ -90,37 +92,39 @@ class ColoredFormatter(logging.Formatter):
 
 class ColorizingStreamHandler(logging.StreamHandler):
 
-    BLACK = '\033[0;30m'
-    RED = '\033[0;31m'
-    GREEN = '\033[0;32m'
-    BROWN = '\033[0;33m'
-    BLUE = '\033[0;34m'
-    PURPLE = '\033[0;35m'
-    CYAN = '\033[0;36m'
-    GREY = '\033[0;37m'
+    BLACK = "\033[0;30m"
+    RED = "\033[0;31m"
+    GREEN = "\033[0;32m"
+    BROWN = "\033[0;33m"
+    BLUE = "\033[0;34m"
+    PURPLE = "\033[0;35m"
+    CYAN = "\033[0;36m"
+    GREY = "\033[0;37m"
 
-    DARK_GREY = '\033[1;30m'
-    LIGHT_RED = '\033[1;31m'
-    LIGHT_GREEN = '\033[1;32m'
-    YELLOW = '\033[1;33m'
-    LIGHT_BLUE = '\033[1;34m'
-    LIGHT_PURPLE = '\033[1;35m'
-    LIGHT_CYAN = '\033[1;36m'
-    WHITE = '\033[1;37m'
+    DARK_GREY = "\033[1;30m"
+    LIGHT_RED = "\033[1;31m"
+    LIGHT_GREEN = "\033[1;32m"
+    YELLOW = "\033[1;33m"
+    LIGHT_BLUE = "\033[1;34m"
+    LIGHT_PURPLE = "\033[1;35m"
+    LIGHT_CYAN = "\033[1;36m"
+    WHITE = "\033[1;37m"
 
     RESET = "\033[0m"
 
     def __init__(self, *args, **kwargs):
-        self._colors = {logging.DEBUG: self.DARK_GREY,
-                        logging.INFO: self.RESET,
-                        logging.WARNING: self.BROWN,
-                        logging.ERROR: self.RED,
-                        logging.CRITICAL: self.LIGHT_RED}
+        self._colors = {
+            logging.DEBUG: self.DARK_GREY,
+            logging.INFO: self.RESET,
+            logging.WARNING: self.BROWN,
+            logging.ERROR: self.RED,
+            logging.CRITICAL: self.LIGHT_RED,
+        }
         super(ColorizingStreamHandler, self).__init__(*args, **kwargs)
 
     @property
     def is_tty(self):
-        isatty = getattr(self.stream, 'isatty', None)
+        isatty = getattr(self.stream, "isatty", None)
         return isatty and isatty()
 
     def emit(self, record):
@@ -132,7 +136,7 @@ class ColorizingStreamHandler(logging.StreamHandler):
             else:
                 message = self._colors[record.levelno] + message + self.RESET
                 stream.write(message)
-            stream.write(getattr(self, 'terminator', '\n'))
+            stream.write(getattr(self, "terminator", "\n"))
             self.flush()
         except (KeyboardInterrupt, SystemExit):
             raise

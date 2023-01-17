@@ -18,8 +18,12 @@ def unrar(file_path, out_dir, remove_after=True, override=False):
     try:
         subprocess.call(command, shell=True)
     except Exception as e:
-        logging.error("Error while extracting rar file: {}. \
-        `unrar` is currently a pre-requisite".format(e))
+        logging.error(
+            "Error while extracting rar file: {}. \
+        `unrar` is currently a pre-requisite".format(
+                e
+            )
+        )
     else:
         if remove_after:
             os.remove(file_path)
@@ -122,7 +126,6 @@ def _download_mujoco_dm_control():
     os.remove(out_path)
 
 
-
 def _download_atari_roms():
     out_path = os.path.join(ATARI_ROOT, "roms.rar")
     out_dir = os.path.dirname(out_path)
@@ -143,7 +146,9 @@ def _download_atari_roms():
     except Exception as e:
         msg = "ALE ROMs have been downloaded and extracted but there \
         was an error with ale-py while importing roms: {}. \
-        Please install helx first and try download the extra requirements again".format(e)
+        Please install helx first and try download the extra requirements again".format(
+            e
+        )
         logging.error(msg)
 
 

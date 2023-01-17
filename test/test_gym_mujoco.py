@@ -2,19 +2,15 @@ import logging
 
 import gym
 import jax
-from gym.envs.registration import registry
 
-from helx.environment.gym import list_envs
 import helx.environment
 import helx.logging
-
+from helx.environment.gym import list_envs
 
 logging = helx.logging.get_logger()
 
 
-
-EXCLUDES = [
-]
+EXCLUDES = []
 
 
 def test_mujoco():
