@@ -9,6 +9,7 @@ from helx.spaces import Continuous, Discrete
 
 logging = helx.logging.get_logger()
 
+
 def test_flag_type():
     hparams_list = [agents.DQNHparams, agents.SACHparams]
     for hparams in hparams_list:
