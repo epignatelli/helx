@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import re
+from collections import defaultdict
+from typing import Dict, List
+
 import gym
 import gym.core
 import gym.utils.seeding
@@ -7,8 +11,10 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from chex import Array
+from gym.envs.registration import parse_env_id, registry
 from gym_minigrid.minigrid import MiniGridEnv
 from gym_minigrid.wrappers import ImgObsWrapper
+from gym.envs.registration import EnvSpec
 
 from ..logging import get_logger
 from ..mdp import Action, StepType, Timestep
@@ -95,3 +101,10 @@ class FromGymEnv(Environment[gym.Env]):
 
     def name(self) -> str:
         return self._env.unwrapped.__class__.__name__
+
+
+def list_envs(namespace: str) -> List[str]:
+    env_specs: Dict[str, EnvSpec] = {
+        k: v for k, v in registry.items() if namespace.lower() in v.entry_point.lower()
+    }
+    return list(env_specs.keys())
