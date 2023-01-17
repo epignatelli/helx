@@ -1,8 +1,15 @@
 import logging
 
 
-def get_logger(name=None):
-    logger = logging.getLogger(name)
+_logger = None
+
+
+def get_logger():
+    global _logger
+    if _logger is not None:
+        return _logger
+
+    logger = logging.getLogger("helx")
     logger.setLevel(logging.DEBUG)
 
     # create console handler and set level to debug
@@ -11,6 +18,9 @@ def get_logger(name=None):
 
     # add ch to logger
     logger.addHandler(ch)
+
+    # set logger
+    _logger = logger
 
     return logger
 
