@@ -19,6 +19,7 @@ EXCLUDES = [
 
 def test_atari():
     def test_env(env_id):
+        logging.info("Testing env: {}".format(env_id))
         env = gym.make(env_id)
         env = helx.environment.to_helx(env)
         env.reset()
@@ -30,7 +31,6 @@ def test_atari():
     atari_env_ids = list(filter(lambda x: "ale/" in x.lower(), registry.keys()))
 
     for i, env_id in enumerate(atari_env_ids):
-        logging.info("Testing Atari env: {}".format(env_id))
         if env_id in EXCLUDES:
             logging.debug("Skipping excluded env: {}".format(env_id))
             continue

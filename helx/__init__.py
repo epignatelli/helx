@@ -15,3 +15,7 @@ from . import (
     spaces,
     stax,
 )
+
+# Make sure that the gym registry is populated
+# with exteral environments.
+import procgen, minigrid, gym_minigrid

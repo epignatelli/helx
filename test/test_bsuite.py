@@ -12,6 +12,7 @@ logging = helx.logging.get_logger()
 
 def test_bsuite():
     def test_env(env_id):
+        logging.info("Testing env: {}".format(env_id))
         env = bsuite.load_from_id(env_id)
         env = helx.environment.to_helx(env)
         env.reset()
@@ -21,7 +22,6 @@ def test_bsuite():
 
     # get all bsuite envs
     for i, env_id in enumerate(BSUITE_IDS):
-        logging.info("Testing bsuite env: {}".format(env_id))
         test_env(env_id)
 
 
