@@ -16,6 +16,7 @@ flax
 dm_env
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
+gym_minigrid
 procgen
 bsuite
 wandb
