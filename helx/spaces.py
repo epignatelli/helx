@@ -6,11 +6,10 @@ from typing import Sequence, Type
 import dm_env.specs
 import gym.spaces
 import gymnasium.spaces
+import jax
 import jax.numpy as jnp
 from chex import Array, Shape
-import jax
 from jax.random import KeyArray
-
 
 POS_INF = float(1e16)
 NEG_INF = -float(1e16)
@@ -80,7 +79,7 @@ class Discrete(Space):
 
     @property
     def shape(self) -> Shape:
-        return (1,)
+        return ()
 
     @property
     def dtype(self) -> Type:
@@ -93,7 +92,7 @@ class Discrete(Space):
         return self.__str__()
 
     def sample(self, key: KeyArray) -> Array:
-        return jax.random.randint(key, self.shape, 0, self.n_bins + 1)
+        return jax.random.randint(key, self.shape, 0, self.n_bins, dtype=self.dtype)
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Discrete) -> Discrete:
@@ -111,7 +110,7 @@ class Discrete(Space):
 class Continuous(Space):
     def __init__(
         self,
-        shape: Shape = (1,),
+        shape: Shape = (),
         dtype: Type = jnp.float32,
         minimum: float | Sequence[float] | Array = -1.0,
         maximum: float | Sequence[float] | Array = 1.0,
