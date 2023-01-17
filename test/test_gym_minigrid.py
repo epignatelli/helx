@@ -17,6 +17,8 @@ EXCLUDES = []
 """These environments are currently not supported
 because they make use of string arrays, which are not
 supported by jax."""
+
+
 def test_gym_minigrid():
     def test_env(env_id):
         env = gym.make(env_id)
