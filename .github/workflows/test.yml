@@ -33,10 +33,10 @@ jobs:
         MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
         echo "$MESSAGE"
 
-    - name: Check for reproducibility
+    - name: Run unit tests with pytest
       run: |
         conda info --envs
         conda env list
         conda list
         pip install -e .
-        python -c "import helx"
+        pytest test/
