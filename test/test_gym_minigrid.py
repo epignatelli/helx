@@ -6,6 +6,7 @@ import jax
 from gym.envs.registration import registry as gym_registry
 
 import helx.environment
+from helx.environment.gym import list_envs
 import helx.logging
 
 logging = helx.logging.get_logger()
@@ -29,8 +30,7 @@ def test_gym_minigrid():
         env.close()
 
     # get all minigrid envs
-
-    minigrid_env_ids = filter(lambda x: x.startswith("MiniGrid-"), gym_registry.keys())
+    minigrid_env_ids = list_envs("minigrid")
 
     for i, env_id in enumerate(minigrid_env_ids):
         logging.info("Testing MiniGrid env: {}".format(env_id))
