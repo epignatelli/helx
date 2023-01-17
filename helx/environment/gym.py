@@ -1,24 +1,38 @@
 from __future__ import annotations
 
-from typing import cast
-
 import gym
 import gym.core
 import gym.utils.seeding
 import jax
 import jax.numpy as jnp
-from chex import Array
 import numpy as np
+from chex import Array
+from gym_minigrid.minigrid import MiniGridEnv
+from gym_minigrid.wrappers import ImgObsWrapper
 
-from .base import Environment
+from ..logging import get_logger
 from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
+from .base import Environment
+
+logging = get_logger()
 
 
 class FromGymEnv(Environment[gym.Env]):
     """Static class to convert between gym and helx environments."""
 
     def __init__(self, env: gym.core.Env):
+        if isinstance(env.unwrapped, MiniGridEnv):
+            msg = (
+                "String arrays are not supported by helx yet."
+                " The `mission` field of the observations returned by"
+                " MiniGrid environments contain string arrays."
+                " We get rid of the `mission` field by wrapping `env`"
+                " around an `ImgObsWrapper`."
+            )
+            logging.warning(msg)
+            env = ImgObsWrapper(env)
+
         super().__init__(env)
 
     def action_space(self) -> Space:
