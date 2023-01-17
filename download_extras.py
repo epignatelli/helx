@@ -2,15 +2,28 @@ import logging
 import os
 import platform
 import tarfile
-import UnRAR2 as rarfile
+import subprocess
 
 import requests
-
 
 logging.basicConfig(level=logging.INFO)
 
 
 MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
+ATARI_ROOT = os.path.join(os.path.expanduser("~"), ".atari")
+
+
+def unrar(file_path, out_dir, remove_after=True, override=False):
+    command = "unrar {} x {} {}".format("-f" if override else "", file_path, out_dir)
+    try:
+        subprocess.call(command, shell=True)
+    except Exception as e:
+        logging.error("Error while extracting rar file: {}. \
+        `unrar` is currently a pre-requisite".format(e))
+    else:
+        if remove_after:
+            os.remove(file_path)
+    return
 
 
 def _download_url(url, out_path, chunk_size=128):
@@ -49,13 +62,18 @@ def _download_mujoco210():
     url = os.path.join(
         base_url, "{}-{}-{}.tar.gz".format(mujoco_version, mujoco_system, machine)
     )
-    tar_path = os.path.join(MUJOCO_ROOT, os.path.basename(url))
-    _download_url(url, tar_path)
+    out_filename = os.path.basename(url)
+    out_path = os.path.join(MUJOCO_ROOT, out_filename)
+    out_dir = os.path.splitext(out_path)[0]
+    if os.path.exists(out_dir) and len(os.listdir(out_dir)) > 0:
+        return
+
+    _download_url(url, out_path)
 
     # unzip mujoco
-    with tarfile.open(tar_path, "r:gz") as tar_ref:
+    with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(MUJOCO_ROOT)
-    os.remove(tar_path)
+    os.remove(out_path)
 
     # install key
     key_url = "https://www.roboti.us/file/mjkey.txt"
@@ -64,25 +82,49 @@ def _download_mujoco210():
 
 
 def _download_mujoco_dm_control():
-    if os.path.exists(MUJOCO_ROOT) and os.path.exists(os.path.join(MUJOCO_ROOT, "bin")):
-        return
+    # example url: https://github.com/deepmind/mujoco/releases/download/2.3.1/mujoco-2.3.1-linux-x86_64.tar.gz
+
+    # get operating system
     systems = {
         "Windows": "windows",
         "Linux": "linux",
         "Darwin": "macos-universal2",
     }
-    url = "https://github.com/deepmind/mujoco/releases/download/2.3.1/mujoco-2.3.1-{}-{}.tar.gz"
     system = platform.system()
     if system not in systems:
         raise ValueError("Unsupported system: {}".format(system))
-    url = url.format(systems[system])
-    if system != "Darwin":
-        url = url.format(platform.machine().lower())
-    _download_url(url, MUJOCO_ROOT)
+
+    # get architecture
+    architectures = {
+        "x86_64": "x86_64",
+        "AMD64": "x86_64",
+        "i386": "x86_32",
+        "i686": "x86_32",
+        "aarch64": "aarch64",
+    }
+    arch = platform.machine().lower()
+    if arch not in architectures:
+        raise ValueError("Unsupported architecture: {}".format(arch))
+
+    # download mujoco
+    url = "https://github.com/deepmind/mujoco/releases/download/2.3.1/mujoco-2.3.1-{}-{}.tar.gz"
+    url = url.format(systems[system], arch)
+    out_filename = os.path.basename(url)
+    out_path = os.path.join(MUJOCO_ROOT, out_filename)
+    out_dir = os.path.join(MUJOCO_ROOT, os.path.splitext(out_filename)[0])
+    if os.path.exists(out_dir) and len(os.listdir(out_dir)) > 0:
+        return
+    _download_url(url, out_path)
+
+    # untar mujoco
+    with tarfile.open(out_path, "r:gz") as tar_ref:
+        tar_ref.extractall(MUJOCO_ROOT)
+    os.remove(out_path)
+
 
 
 def _download_atari_roms():
-    out_path = os.path.join(os.path.expanduser("~"), ".atari", "roms.rar")
+    out_path = os.path.join(ATARI_ROOT, "roms.rar")
     out_dir = os.path.dirname(out_path)
     if os.path.exists(out_dir) and len(os.listdir(out_dir)) > 0:
         return
@@ -92,9 +134,16 @@ def _download_atari_roms():
     _download_url(url, out_path)
 
     # extract the file
-    with rarfile.RarFile(out_path) as rar_ref:
-        rar_ref.extract('*', os.path.dirname(out_path), False)
-    os.remove(out_path)
+    unrar(out_path, out_dir, remove_after=True)
+
+    # try import the roms
+    try:
+        subprocess.call("ale-import-roms {}".format(out_dir), shell=True)
+    except Exception as e:
+        msg = "ALE ROMs have been downloaded and extracted but there \
+        was an error with ale-py while importing roms: {}. \
+        Please install helx first and try download the extra requirements again".format(e)
+        logging.error(msg)
 
 
 if __name__ == "__main__":
