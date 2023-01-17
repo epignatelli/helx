@@ -6,6 +6,7 @@ from . import (
     experiment,
     flags,
     image,
+    logging,
     mdp,
     memory,
     networks,
