@@ -1,15 +1,18 @@
 from __future__ import annotations
 
-import numpy as np
 import gymnasium
 import gymnasium.utils.seeding
 import jax
 import jax.numpy as jnp
+import numpy as np
 from chex import Array
 
-from ..mdp import Action, GymnasiumTimestep, StepType, Timestep
+from ..logging import get_logger
+from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
 from .base import Environment
+
+logging = get_logger()
 
 
 class FromGymnasiumEnv(Environment[gymnasium.Env]):
