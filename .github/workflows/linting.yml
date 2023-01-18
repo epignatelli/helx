@@ -4,8 +4,6 @@ on:
   workflow_call:
 
 jobs:
-  setup:
-    uses: ./.github/workflows/setup.yml
   linting:
     runs-on: ubuntu-latest
     steps:

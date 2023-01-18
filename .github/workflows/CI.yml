@@ -7,14 +7,15 @@
 name: CI
 
 on:
-  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
 
 jobs:
   setup:
     uses: ./.github/workflows/setup.yml
 
   linting:
-
     needs: setup
     uses: ./.github/workflows/linting.yml
 
