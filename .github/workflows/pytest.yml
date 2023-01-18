@@ -1,0 +1,13 @@
+name: Pytest
+
+on:
+  workflow_call:
+
+jobs:
+  setup:
+    uses: epignatelli/helx/workflows/setup.yml@main
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run unit tests with pytest
+      run: pytest test/

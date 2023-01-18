@@ -1,0 +1,16 @@
+name: Code quality
+
+on:
+  workflow_call:
+
+jobs:
+  setup:
+    uses: epignatelli/helx/workflows/setup.yml@main
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check code quality
+      run: |
+        pip install pylint
+        MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
+        echo "$MESSAGE"

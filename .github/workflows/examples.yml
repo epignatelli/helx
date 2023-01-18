@@ -1,0 +1,15 @@
+name: Pytest
+
+on:
+  workflow_call:
+
+jobs:
+  setup:
+    uses: epignatelli/helx/workflows/setup.yml@main
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Run examples
+      run: |
+        wandb login ${{ secrets.WANDB_API_KEY }}
+        for f in examples/*.py; do python $f; done
