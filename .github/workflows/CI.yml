@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  setup:
+    uses: ./.github/workflows/setup.yml
+
+  linting:
+    needs: setup
+    uses: ./.github/workflows/linting.yml
+
+  pytest:
+    needs: setup
+    uses: ./.github/workflows/pytest.yml
+
+  examples:
+    needs: setup
+    uses: ./.github/workflows/examples.yml
