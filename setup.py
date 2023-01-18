@@ -7,6 +7,7 @@ import tarfile
 import requests
 from setuptools import find_packages, setup
 from setuptools.command.install import install
+from setuptools.command.develop import develop
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -29,7 +30,7 @@ ch.setFormatter(
 logger.addHandler(ch)
 
 
-class PostInstall(install):
+class PostInstallDeploy(install):
     def run(self):
         install.run(self)
 
@@ -39,6 +40,19 @@ class PostInstall(install):
         _download_mujoco_dm_control()
         # TODO(epignatelli): switch to autorom when pipeline is fixed
         _download_atari_roms()
+
+
+class PostInstallDevelop(develop):
+    def run(self):
+        develop.run(self)
+
+        # download engines
+        logger.info("Installing extra requirements: mujoco, atari.")
+        _download_mujoco210()
+        _download_mujoco_dm_control()
+        # TODO(epignatelli): switch to autorom when pipeline is fixed
+        _download_atari_roms()
+
 
 
 def _download_url(url, out_path, chunk_size=128):
@@ -195,5 +209,5 @@ setup(
     packages=find_packages(exclude=["experiments", "test", "examples"]),
     python_requires=">=3.9",
     install_requires=_parse_requirements(),
-    cmdclass={"install": PostInstall, "develop": PostInstall},
+    cmdclass={"install": PostInstallDeploy, "develop": PostInstallDevelop},
 )

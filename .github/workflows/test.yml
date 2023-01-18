@@ -39,7 +39,7 @@ jobs:
         ls $HOME/.mujoco/mujoco210/
 
         ls $HOME/.atari
-        ls $HOME/.atari/ROMS
+        ls $HOME/.atari/ROM
 
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
         export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
