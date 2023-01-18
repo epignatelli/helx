@@ -31,19 +31,16 @@ jobs:
         pip install pylint
         pip install . -v
 
-        echo $LD_LIBRARY_PATH
-        echo $MJLIB_PATH
-        echo $MUJOCO_PY_MUJOCO_PATH
-
-        ls $HOME/.mujoco/
-        ls $HOME/.mujoco/mujoco210/
-
-        ls $HOME/.atari
-        ls $HOME/.atari/ROM
-
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
         export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
         export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
+
+        echo $LD_LIBRARY_PATH
+        echo -e '\n'
+        echo $MJLIB_PATH
+        echo -e '\n'
+        echo $MUJOCO_PY_MUJOCO_PATH
+        echo -e '\n'
 
     - name: Check code quality
       run: |
