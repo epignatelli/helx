@@ -1,7 +1,8 @@
 name: Pytest
 
 on:
-  workflow_call:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   setup:
