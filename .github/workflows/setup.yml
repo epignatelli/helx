@@ -5,16 +5,10 @@ on:
 
 jobs:
   setup:
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: "ubuntu-latest"
     defaults:
       run:
         shell: bash -l {0}
-    strategy:
-      fail-fast: false
-      max-parallel: 5
-      matrix:
-        os: ["ubuntu"]
-    continue-on-error: false
 
     steps:
 
