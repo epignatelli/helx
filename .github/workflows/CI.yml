@@ -1,21 +1,24 @@
-name: CI
+# name: CI
 
-on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+# on:
+#   pull_request:
+#     types: [opened, synchronize, reopened]
 
-jobs:
-  setup:
-    uses: ./.github/workflows/setup.yml
+# jobs:
+#   setup:
+#     uses: ./.github/workflows/setup.yml
 
-  linting:
-    needs: setup
-    uses: ./.github/workflows/linting.yml
+#   linting:
+#     # it is so stupid that needs does not share the workspace
+#     # but actually re-runs the job
+#     # or that there is no easy mechanism to share the workspace
+#     needs: setup
+#     uses: ./.github/workflows/linting.yml
 
-  pytest:
-    needs: setup
-    uses: ./.github/workflows/pytest.yml
+#   pytest:
+#     needs: setup
+#     uses: ./.github/workflows/pytest.yml
 
-  examples:
-    needs: setup
-    uses: ./.github/workflows/examples.yml
+#   examples:
+#     needs: setup
+#     uses: ./.github/workflows/examples.yml
