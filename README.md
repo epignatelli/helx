@@ -15,6 +15,14 @@ Why using `helx`? It allows to easily switch between different RL libraries, and
 ```bash
 pip install git+https://github.com/epignatelli/helx
 ```
+
+And tell the system where the mujoco binaries are:
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
+export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
+export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
+```
+
 ---
 ## Example
 
