@@ -37,6 +37,11 @@ jobs:
         conda env config vars set MUJOCO_PY_MUJOCO_PATH=$HOME/.mujoco/mujoco210
         conda env config vars set LD_PRELOAD=$CONDA_PREFIX/include/
 
+        ls -l /usr/lib/x86_64-linux-gnu/
+
+        sudo ln -s /usr/lib/x86_64-linux-gnu/libGL.so.1 /usr/lib/x86_64-linux-gnu/libGL.so
+
+
     - name: Check code quality
       run: |
         pip install pylint
