@@ -46,3 +46,7 @@ jobs:
     - name: Run unit tests with pytest
       run: |
         pytest test/
+
+    - name: Run examples
+      run: |
+        for f in examples/*.py; do python $f; done
