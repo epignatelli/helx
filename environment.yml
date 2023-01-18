@@ -4,6 +4,8 @@ dependencies:
   - python=3.9
   - conda-forge::glew
   - conda-forge::mesalib
+  - conda-forge::libglvnd-glx-cos7-x86_64
+  - conda-forge::xvfbwrapper
   - anaconda::mesa-libgl-cos6-x86_64
   - menpo::glfw3
   - pip
