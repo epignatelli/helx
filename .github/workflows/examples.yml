@@ -5,7 +5,7 @@ on:
 
 jobs:
   setup:
-    uses: epignatelli/helx/workflows/setup.yml@main
+    uses: ./.github/workflows/setup.yml
   examples:
     runs-on: ubuntu-latest
     steps:
