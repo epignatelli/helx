@@ -49,4 +49,5 @@ jobs:
 
     - name: Run examples
       run: |
+        wandb login ${{ secrets.WANDB_API_KEY }}
         for f in examples/*.py; do python $f; done
