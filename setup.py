@@ -8,7 +8,14 @@ import requests
 from setuptools import find_packages, setup
 from setuptools.command.install import install
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("helx setup")
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+BOLD = '\033[1m'
+DARK_GREY = "\033[1;30m"
+END = '\033[0m'
+ch.setFormatter(logging.Formatter(BOLD + DARK_GREY + '%(asctime)s | %(name)s | %(levelname)s | %(message)s' + END))
+logger.addHandler(ch)
 
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +29,7 @@ class PostInstall(install):
         install.run(self)
 
         # download engines
-        logging.info("Installing extra requirements: mujoco, atari.")
+        logger.info("Installing extra requirements: mujoco, atari.")
         _download_mujoco210()
         _download_mujoco_dm_control()
         # TODO(epignatelli): switch to autorom when pipeline is fixed
@@ -32,7 +39,7 @@ class PostInstall(install):
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)
-    logging.info("Downloading {} into {}".format(url, out_path))
+    logger.info("Downloading {} into {}".format(url, out_path))
     with open(out_path, "wb") as fd:
         chunks = 0
         for chunk in r.iter_content(chunk_size=chunk_size):
@@ -148,7 +155,7 @@ def _download_atari_roms():
         Please install helx first and try download the extra requirements again".format(
             e
         )
-        logging.error(msg)
+        logger.error(msg)
 
 
 def _get_version():
@@ -180,5 +187,5 @@ setup(
     packages=find_packages(exclude=["experiments", "test", "examples"]),
     python_requires=">=3.9",
     install_requires=_parse_requirements(),
-    cmdclass={"install": PostInstall},
+    cmdclass={"install": PostInstall, "develop": PostInstall},
 )

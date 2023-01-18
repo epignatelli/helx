@@ -29,7 +29,7 @@ jobs:
     - name: Setup helx
       run: |
         pip install pylint
-        pip install .
+        pip install . -v
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
         export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
         export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
