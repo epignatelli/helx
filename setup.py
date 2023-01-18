@@ -8,20 +8,25 @@ import requests
 from setuptools import find_packages, setup
 from setuptools.command.install import install
 
-logger = logging.getLogger("helx setup")
-ch = logging.StreamHandler()
-ch.setLevel(logging.INFO)
-BOLD = '\033[1m'
-DARK_GREY = "\033[1;30m"
-END = '\033[0m'
-ch.setFormatter(logging.Formatter(BOLD + DARK_GREY + '%(asctime)s | %(name)s | %(levelname)s | %(message)s' + END))
-logger.addHandler(ch)
-
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
 MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 ATARI_ROOT = os.path.join(os.path.expanduser("~"), ".atari")
+BOLD = "\033[1m"
+DARK_GREY = "\033[1;30m"
+END = "\033[0m"
+
+
+logger = logging.getLogger("helx setup")
+ch = logging.StreamHandler()
+ch.setLevel(logging.INFO)
+ch.setFormatter(
+    logging.Formatter(
+        BOLD + DARK_GREY + "%(asctime)s | %(name)s | %(levelname)s | %(message)s" + END
+    )
+)
+logger.addHandler(ch)
 
 
 class PostInstall(install):
@@ -81,6 +86,7 @@ def _download_mujoco210():
     _download_url(url, out_path)
 
     # unzip mujoco
+    logger.info("Extracting {} into {}".format(out_path, MUJOCO_ROOT))
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(MUJOCO_ROOT)
     os.remove(out_path)
@@ -127,6 +133,7 @@ def _download_mujoco_dm_control():
     _download_url(url, out_path)
 
     # untar mujoco
+    logger.info("Extracting {} into {}".format(out_path, MUJOCO_ROOT))
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(MUJOCO_ROOT)
     os.remove(out_path)
@@ -143,6 +150,7 @@ def _download_atari_roms():
     _download_url(url, out_path)
 
     # extract the file
+    logger.info("Extracting {} into {}".format(out_path, out_dir))
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(out_dir)
 
