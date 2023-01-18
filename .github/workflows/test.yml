@@ -27,6 +27,7 @@ jobs:
         auto-activate-base: false
 
     - name: Setup helx
+      run: |
         pip install pylint
         pip install -e .
         python download_extras.py
