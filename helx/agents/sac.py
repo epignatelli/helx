@@ -6,29 +6,30 @@ from typing import List
 import jax
 import jax.numpy as jnp
 import rlax
-import wandb
 from chex import Array
 from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 
+import wandb
+
 from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
 from ..networks import (
-    AgentNetwork,
     Actor,
-    GaussianPolicy,
-    SoftmaxPolicy,
-    Temperature,
+    AgentNetwork,
     DoubleQCritic,
+    GaussianPolicy,
+    Temperature,
     deep_copy,
 )
-from ..spaces import Continuous, Discrete
+from ..spaces import Continuous
 from .agent import Agent, Hparams
 
 
 class SACHparams(Hparams):
     # network
+    action_space: Continuous
     tau: float = 0.005
     # rl
     replay_start: int = 1000
@@ -76,27 +77,13 @@ class SAC(Agent[SACHparams]):
         actor_representation_net: nn.Module,
         critic_representation_net: nn.Module,
     ):
-        # select heads for continuous or discrete action spaces
-        if isinstance(hparams.action_space, Continuous):
-            # one-action-out
-            policy_head = GaussianPolicy(action_shape=hparams.action_space.shape)
-            n_actions_out = 1
-        elif isinstance(hparams.action_space, Discrete):
-            # all-action-out
-            policy_head = SoftmaxPolicy(n_actions=hparams.action_space.n_bins)
-            n_actions_out = hparams.action_space.n_bins
-        else:
-            raise TypeError(
-                "Unknwon action space type {}.".format(type(hparams.action_space))
-            )
-
         network = AgentNetwork(
             actor_net=Actor(
                 representation_net=actor_representation_net,
-                policy_head=policy_head,
+                policy_head=GaussianPolicy(action_shape=hparams.action_space.shape),
             ),
             critic_net=DoubleQCritic(
-                n_actions=n_actions_out,
+                n_actions=1,
                 representation_net_a=deep_copy(critic_representation_net),
                 representation_net_b=deep_copy(critic_representation_net),
             ),
@@ -106,6 +93,7 @@ class SAC(Agent[SACHparams]):
         super().__init__(hparams, network, optimiser, seed)
         self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.params_target: nn.FrozenDict = self.params.copy({})
+        self.dim_actions = hparams.action_space.shape[0]
 
     def loss(
         self,
@@ -143,7 +131,7 @@ class SAC(Agent[SACHparams]):
         critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
 
         # temperature loss
-        target_entropy = -self.hparams.action_space.shape[0]
+        target_entropy = -self.hparams.action_space.n_dim
         logprobs_a_0 = stop_gradient(logprobs_a_0)
         temperature_loss = -(temperature * (logprobs_a_0 + target_entropy))
 
