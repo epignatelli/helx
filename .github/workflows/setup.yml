@@ -6,7 +6,7 @@ on:
   workflow_call:
 
 jobs:
-  Test:
+  setup:
     runs-on: ${{ matrix.os }}-latest
     defaults:
       run:

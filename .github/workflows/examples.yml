@@ -1,4 +1,4 @@
-name: Pytest
+name: Examples
 
 on:
   workflow_call:
@@ -6,7 +6,7 @@ on:
 jobs:
   setup:
     uses: epignatelli/helx/workflows/setup.yml@main
-  pytest:
+  examples:
     runs-on: ubuntu-latest
     steps:
     - name: Run examples
