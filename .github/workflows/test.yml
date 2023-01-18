@@ -26,17 +26,16 @@ jobs:
         activate-environment: helx
         auto-activate-base: false
 
-    - name: Check code quality
-      id: linting
-      run: |
+    - name: Setup helx
         pip install pylint
+        pip install -e .
+        python download_extras.py
+
+    - name: Check code quality
+      run: |
         MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
         echo "$MESSAGE"
 
     - name: Run unit tests with pytest
       run: |
-        conda info --envs
-        conda env list
-        conda list
-        pip install -e .
         pytest test/
