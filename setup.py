@@ -181,14 +181,9 @@ def _download_atari_roms():
 
 
 def _get_version():
-    filepath = os.path.join(CURRENT_DIR, "helx", "__init__.py")
+    filepath = os.path.join(CURRENT_DIR, "VERSION")
     with open(filepath) as f:
-        for line in f:
-            if line.startswith("__version__") and "=" in line:
-                version = line[line.find("=") + 1 :].strip(" '\"\n")
-                if version:
-                    return version
-    raise ValueError("`__version__` not defined in {}".format(filepath))
+        return f.read().strip()
 
 
 def _parse_requirements():

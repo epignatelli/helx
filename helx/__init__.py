@@ -1,4 +1,7 @@
-__version__ = "0.2.0"
+from .info import get_version
+
+__version__ = get_version()
+
 
 from . import (
     agents,
@@ -18,4 +21,6 @@ from . import (
 
 # Make sure that the gym registry is populated
 # with exteral environments.
-import procgen, minigrid, gym_minigrid
+import procgen
+import gym_minigrid
+import minigrid

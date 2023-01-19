@@ -1,5 +1,8 @@
-from .__init__ import __version__
+import os
 
 
 def get_version():
-    return __version__
+    current_dir = os.path.dirname(__file__)
+    filepath = os.path.join(current_dir, "..", "VERSION")
+    with open(filepath) as f:
+        return f.read().strip()

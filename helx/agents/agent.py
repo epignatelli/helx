@@ -14,7 +14,7 @@ from optax import GradientTransformation, OptState
 from ..mdp import Action, Episode, Transition
 from ..networks import AgentNetwork, apply_updates
 from ..spaces import Space
-from ..info import get_version
+from .. import __version__
 from ..logging import get_logger
 
 
@@ -135,7 +135,7 @@ class Agent(abc.ABC, Generic[T]):
         return action
 
     def save(self, path):
-        obj: Dict[str, Any] = {"version": get_version(), "value": self}
+        obj: Dict[str, Any] = {"version": __version__, "value": self}
         with open(path, "wb") as f:
             pickle.dump(obj, f)
         return True
@@ -159,12 +159,12 @@ class Agent(abc.ABC, Generic[T]):
             raise ValueError(msg)
 
         # case 3: version mismatch, warn the user
-        if obj["version"] != get_version():
+        if obj["version"] != __version__:
             msg = (
                 "The agent was saved with a version of helx ({})"
                 "that is different from the current version ({})"
                 "Some functionality may not work as expected."
-            ).format(obj["version"], get_version())
+            ).format(obj["version"], __version__)
             logging.warning(msg)
 
         return obj["value"]
