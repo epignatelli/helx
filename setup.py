@@ -54,7 +54,6 @@ class PostInstallDevelop(develop):
         _download_atari_roms()
 
 
-
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)

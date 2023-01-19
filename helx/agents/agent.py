@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, Generic, Tuple, TypeVar
+from typing import Any, Generic, NamedTuple, Tuple, TypeVar
 import pickle
+import flax
 
 import flax.linen as nn
+from flax.struct import PyTreeNode
 import jax
-from chex import Array, Shape, dataclass
+from chex import Array, Shape
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
@@ -21,8 +23,7 @@ from ..logging import get_logger
 logging = get_logger()
 
 
-@dataclass
-class Hparams:
+class Hparams(NamedTuple):
     """A base dataclass to define the hyperparameters of an agent."""
 
     obs_space: Space
@@ -135,39 +136,11 @@ class Agent(abc.ABC, Generic[T]):
         return action
 
     def save(self, path):
-        obj: Dict[str, Any] = {"version": __version__, "value": self}
-        with open(path, "wb") as f:
-            pickle.dump(obj, f)
-        return True
+        raise NotImplementedError()
 
     @classmethod
     def load(cls, path):
-        with open(path, "rb") as f:
-            obj = pickle.load(f)
-
-        # case 1: invalid object, deserialisation fails
-        if "version" not in obj or "value" not in obj:
-            raise ValueError(
-                "The serialised object is not a valid {} type.".format(cls.__name__)
-            )
-
-        # case 2: the object is not an helx agent, deserialisation fails
-        if not isinstance(obj["value"], cls):
-            msg = (
-                "The serialised object is not a valid helx type. Expected {}, but got {}"
-            ).format(cls.__name__, type(obj["value"]))
-            raise ValueError(msg)
-
-        # case 3: version mismatch, warn the user
-        if obj["version"] != __version__:
-            msg = (
-                "The agent was saved with a version of helx ({})"
-                "that is different from the current version ({})"
-                "Some functionality may not work as expected."
-            ).format(obj["version"], __version__)
-            logging.warning(msg)
-
-        return obj["value"]
+        raise NotImplementedError()
 
     def _loss_batched(
         self,
