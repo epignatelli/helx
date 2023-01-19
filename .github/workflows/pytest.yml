@@ -7,11 +7,5 @@ jobs:
   pytest:
     runs-on: ubuntu-latest
     steps:
-
-    - uses: actions/download-artifact@master
-      with:
-        name: "setup"
-        path: ./artifacts
-
     - name: Run unit tests with pytest
       run: pytest test/

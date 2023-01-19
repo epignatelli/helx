@@ -7,12 +7,6 @@ jobs:
   linting:
     runs-on: ubuntu-latest
     steps:
-
-    - uses: actions/download-artifact@master
-      with:
-        name: "setup"
-        path: ./artifacts
-
     - name: Check code quality
       run: |
         pip install pylint

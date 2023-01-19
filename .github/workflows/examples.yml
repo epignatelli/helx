@@ -7,12 +7,6 @@ jobs:
   examples:
     runs-on: ubuntu-latest
     steps:
-
-    - uses: actions/download-artifact@master
-      with:
-        name: "setup"
-        path: ./artifacts
-
     - name: Run examples
       run: |
         wandb login ${{ secrets.WANDB_API_KEY }}
