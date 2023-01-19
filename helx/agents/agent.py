@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, Tuple, TypeVar
+from typing import Any, Dict, Generic, Tuple, TypeVar
+import pickle
 
 import flax.linen as nn
 import jax
@@ -13,6 +14,11 @@ from optax import GradientTransformation, OptState
 from ..mdp import Action, Episode, Transition
 from ..networks import AgentNetwork, apply_updates
 from ..spaces import Space
+from ..info import get_version
+from ..logging import get_logger
+
+
+logging = get_logger()
 
 
 @dataclass
@@ -129,13 +135,39 @@ class Agent(abc.ABC, Generic[T]):
         return action
 
     def save(self, path):
-        # TODO(epignatelli): implement
-        raise NotImplementedError()
+        obj: Dict[str, Any] = {"version": get_version(), "value": self}
+        with open(path, "wb") as f:
+            pickle.dump(obj, f)
+        return True
 
     @classmethod
     def load(cls, path):
-        # TODO(epignatelli): implement
-        raise NotImplementedError()
+        with open(path, "rb") as f:
+            obj = pickle.load(f)
+
+        # case 1: invalid object, deserialisation fails
+        if "version" not in obj or "value" not in obj:
+            raise ValueError(
+                "The serialised object is not a valid {} type.".format(cls.__name__)
+            )
+
+        # case 2: the object is not an helx agent, deserialisation fails
+        if not isinstance(obj["value"], cls):
+            msg = (
+                "The serialised object is not a valid helx type. Expected {}, but got {}"
+            ).format(cls.__name__, type(obj["value"]))
+            raise ValueError(msg)
+
+        # case 3: version mismatch, warn the user
+        if obj["version"] != get_version():
+            msg = (
+                "The agent was saved with a version of helx ({})"
+                "that is different from the current version ({})"
+                "Some functionality may not work as expected."
+            ).format(obj["version"], get_version())
+            logging.warning(msg)
+
+        return obj["value"]
 
     def _loss_batched(
         self,
