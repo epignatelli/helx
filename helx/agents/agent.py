@@ -2,16 +2,17 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, NamedTuple, Tuple, TypeVar
-import pickle
-import flax
+from pydoc import locate
+from typing import Any, Callable, Generic, NamedTuple, Tuple, TypeVar
+import inspect
 
 import flax.linen as nn
-from flax.struct import PyTreeNode
 import jax
 from chex import Array, Shape
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
+
+from ..networks.modules import Identity
 
 from ..mdp import Action, Episode, Transition
 from ..networks import AgentNetwork, apply_updates
@@ -67,52 +68,36 @@ class Agent(abc.ABC, Generic[T]):
         action = hparams.action_space.sample(key)
         outputs, params = network.init_with_output(key, obs, action, key)
 
-        # properties:
-        self.key: KeyArray = key
+        # static:
+        self.seed = seed
+        self.hparams: T = hparams
         self.network: AgentNetwork = network
         self.optimiser: GradientTransformation = optimiser
-        self.hparams: T = hparams
-        self.iteration: int = 0
-        self.params: nn.FrozenDict = params
-        self.opt_state: OptState = optimiser.init(params)
         self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))
 
-        # methods:
-        self.sgd_step = jax.jit(self._sgd_step)
+        # dynamic:
+        self.state = AgentState(
+            params=params,
+            opt_state=optimiser.init(params),
+            key=key,
+            step=0,
+        )
+
+    @abc.abstractmethod
+    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
+        """Samples an action from the agent's policy.
+        Args:
+            observation (Array): The observation to condition onto.
+        Returns:
+            Array: the action to take in the state s
+        """
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def loss(
-        self,
-        params: nn.FrozenDict,
-        transition: Transition,
-        **kwargs,
+        self, params: nn.FrozenDict, transition: Transition, **kwargs
     ) -> Tuple[Array, Any]:
-        """The loss function to differentiate through for Deep RL agents.
-            This function can be used for heavy computation and can be xla-compiled,
-            and is always *jitted by default*.
-            A possible design pattern is with decorators:
-        Example:
-        ```
-            >>> @partial(jax.value_and_grad, argnums=1, has_aux=True)
-            >>> def loss(self, params, sarsa, *, **kwargs):
-            >>>     s, a, r_tp1, s_tp1, d_tp1, a_tp1 = sarsa
-            >>>     return rlax.l2_loss(self.network.apply(params, s)).mean()
-        ```
-        Args:
-            params (PyTreeDef): A pytree of function parameters.
-            transition (Transition): A tuple of 6 elements (s, a, r, s', d, a')
-                that defines MDP transitions from a state `s` through action aₜ,
-                to a state `s'`, while collecting reward `r`. The term `d`
-                indicates whether the state `s` is terminal,
-                and aₜ₊₁ is an optional on-policy action.
-
-        Returns:
-            Returns a tuple of two elements containing, respectively:
-            the calculated loss as a scalar, and any auxiliary variable to carry forward
-            in the computation. Notice that once wrapped around `jax.value_and_grad`, the return
-            type becomes a nested tuple `Tuple[Tuple[float, Any], PyTreeDef]`, with the last term
-            being a `PyTree` of gradients with the same structure of `params`
-        """
+        """Returns the loss of the agent on the given episode."""
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -123,76 +108,54 @@ class Agent(abc.ABC, Generic[T]):
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
 
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
-        """Samples an action from the agent's policy.
-        Args:
-            observation (Array): The observation to condition onto.
-        Returns:
-            Array: the action to take in the state s
-        """
-        action, _ = self.network.actor(
-            self.params, observation, self._new_key(), **kwargs
-        )
-        return action
+    def serialise(self):
+        # get static fields
+        ctor_args = inspect.signature(self.__init__).parameters
+        static_args = [ctor_args[k].name for k in ctor_args if k != "self"]
 
-    def save(self, path):
-        raise NotImplementedError()
+        # get values of those fields
+        init_args = {k: getattr(self, k) for k in static_args}
+
+        # get dynamic fields
+        dynamic_args = [
+            k for k in self.__dict__ if k not in static_args and not k.startswith("_")
+        ]
+
+        obj = {
+            "__version__": __version__,
+            "__class__": self.__class__,
+            "init_args": init_args,
+            "dynamic_args": {k: getattr(self, k) for k in dynamic_args},
+        }
+        return obj
 
     @classmethod
-    def load(cls, path):
-        raise NotImplementedError()
+    def deserialise(cls, obj):
+        # read static fields
+        init_args = obj["init_args"]
 
-    def _loss_batched(
-        self,
-        params: nn.FrozenDict,
-        batched_transitions: Transition,
-        *args,
-    ) -> Tuple[Array, Any]:
-        """A batched version of the loss function.
-        The returned `loss` value is reduced with a `jnp.mean` operation,
-        while the returned `aux` value is returned as it is.
+        # make sure we are loading the same class
+        if locate(obj["__class__"]) != cls:
+            logging.warning(
+                "Trying to load a different class than the one that was saved, expected {}, but received {}".format(
+                    cls.__name__, obj["__class__"]
+                )
+            )
+            cls = locate(obj["__class__"])
 
-        Args:
-            params (PyTreeDef): A Flax pytree of module parameters
-            batched_transitions (Transition): A tuple of 5 elements (s, a, r, s', d)
-            with an additional axis of size `batch_size` in position 0.
+        # make sure we are loading the same version
+        if obj["__version__"] == __version__:
+            logging.warning(
+                "Trying to load a different version of the library, expected {}, but received {}".format(
+                    __version__, obj["__version__"]
+                )
+            )
 
-        Returns (Tuple[Array, PyTreeDef]):
-            Returns a tuple of two elements containing, respectively:
-            the average loss across the minibatch, and a PyTreeDef containing the aux
-            variables returned."""
-        # in_axis for named arguments is not supported yet by jax.vmap
-        # see https://github.com/google/jax/issues/7465
-        in_axes = (None, 0) + (None,) * len(args)
-        batch_loss = jax.vmap(self.loss, in_axes=in_axes)
-        loss, aux = batch_loss(params, batched_transitions, *args)
-        return loss.mean(), aux
+        # try create the object
+        instance = cls.__init__(**init_args)
 
-    def _sgd_step(
-        self,
-        params: nn.FrozenDict,
-        batched_transition: Transition,
-        opt_state: OptState,
-        *args,
-    ) -> Tuple[nn.FrozenDict, OptState, Array, Any]:
-        """Performs a single SGD step on the agent's parameters.
-        Args:
-            params (PyTreeDef): A pytree of function parameters.
-            batched_transition (Transition): A tuple of 5 elements (s, a, r, s', d)
-            with an additional axis of size `batch_size` in position 0.
-            opt_state (OptState): The optimiser state.
-        Returns:
-            Returns a tuple of two elements containing, respectively:
-            the updated parameters as a pytree of the same structure as params,
-            and the updated optimiser state.
-        """
-        backward = jax.value_and_grad(self._loss_batched, argnums=0, has_aux=True)
-        (loss, aux), grads = backward(params, batched_transition, *args)
-        updates, opt_state = self.optimiser.update(grads, opt_state, params)
-        params = apply_updates(params, updates)
-        return params, opt_state, loss, aux
+        # set dynamic state
+        for k, v in obj["dynamic_args"].items():
+            setattr(instance, k, v)
 
-    def _new_key(self, n: int = 1):
-        """Returns a new key from the PRNGKey."""
-        self.key, k = jax.random.split(self.key)
-        return jax.random.split(k, n).squeeze()
+        return instance

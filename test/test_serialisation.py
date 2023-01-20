@@ -10,7 +10,10 @@ import helx.spaces
 
 
 def test_agent_serialisation():
-    hparams = helx.agents.DQNHparams()
+    hparams = helx.agents.DQNHparams(
+        obs_space=helx.spaces.Continuous((84, 84, 3), dtype=jax.numpy.float32),
+        action_space=helx.spaces.Discrete(4),
+    )
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -31,14 +34,16 @@ def test_agent_serialisation():
         hparams=hparams,
         optimiser=optimiser,
         seed=0,
-        representation_net=representation_net
+        representation_net=representation_net,
     )
 
-    agent.save(os.path.join(os.path.dirname(__file__), "tmp"))
-    agent_restored = helx.agents.DQN.load(
-        os.path.join(os.path.dirname(__file__), "tmp")
-    )
+    serialised = agent.serialise()
+    agent_restored = helx.agents.DQN.deserialise(serialised)
 
     assert jax.tree_util.tree_all(
         jax.tree_map(lambda x, y: (x == y).all(), agent.params, agent_restored)
     )
+
+
+if __name__ == "__main__":
+    test_agent_serialisation()

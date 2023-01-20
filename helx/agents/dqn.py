@@ -4,19 +4,21 @@ from typing import Any, List, Tuple
 
 import jax
 import jax.numpy as jnp
+import optax
 import rlax
 from chex import Array
 from flax import linen as nn
+from jax.random import KeyArray
 from optax import GradientTransformation
 
 import wandb
-from helx.networks.modules import Identity
 
-from helx.spaces import Discrete
-
-from ..mdp import Episode, Transition
+from ..agents.base import IAgent, IDeep, IStateless, IValueBased, SGDState
+from ..mdp import Action, Episode, Transition
 from ..memory import ReplayBuffer
 from ..networks import AgentNetwork, EGreedyPolicy
+from ..networks.modules import Identity
+from ..spaces import Discrete
 from .agent import Agent, Hparams
 
 
@@ -38,39 +40,70 @@ class DQNHparams(Hparams):
     learning_rate: float = 0.00025
     gradient_momentum: float = 0.95
     squared_gradient_momentum: float = 0.95
-    min_squared_gradient: float = 0.01
+    min_squared_gradient: float = 0.0
 
 
-class DQN(Agent[DQNHparams]):
-    """Implements a Deep Q-Network:
-    Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
-    Nature 518.7540 (2015): 529-533.
-    https://www.nature.com/articles/nature14236"""
+class DQNState(SGDState):
+    """The state of a DQN agent."""
+
+    params_target: nn.FrozenDict
+    memory: ReplayBuffer
+
+
+# Example implementation
+class DQN(IDeep, IAgent):
+    """A Deep Q-Network agent.
+    This agent uses a neural network to approximate the Q-function.
+    """
 
     def __init__(
         self,
         hparams: DQNHparams,
-        optimiser: GradientTransformation,
-        seed: int,
         representation_net: nn.Module,
+        optimiser: GradientTransformation,
+        seed: int = 0,
+        **kwargs,
     ):
+        """Initialises the agent.
+        Args:
+            network (AgentNetwork): The network to use for the agent.
+            optimiser (GradientTransformation): The optimiser to use for the agent.
+            gamma (float, optional): The discount factor. Defaults to 0.99.
+            key (KeyArray, optional): The JAX PRNG key. Defaults to jax.random.PRNGKey(0).
+        """
         assert isinstance(hparams.action_space, Discrete)
-        n_actions = hparams.action_space.n_bins
-        critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
-        actor_net = EGreedyPolicy(
+
+        # static:
+        self.hparams = hparams
+        self.network = nn.Sequential(
+            [representation_net, nn.Dense(hparams.action_space.n_bins)]
+        )
+        self.policy = EGreedyPolicy(
             hparams.replay_start,
             hparams.initial_exploration,
             hparams.final_exploration,
             hparams.final_exploration_frame,
         )
-        network = AgentNetwork(
-            shared_net=critic_net,
-            actor_net=actor_net,
-            critic_net=Identity(),
+        self.optimiser = optimiser
+        self.sgd_step = jax.jit(self.sgd_step)
+
+        # dynamic:
+        key = jax.random.PRNGKey(seed)
+        params = self.network.init(key, hparams.obs_space.sample(key))
+        opt_state = self.optimiser.init(self.params)
+        self.state = DQNState(
+            step=0,
+            key=key,
+            params=params,
+            opt_state=opt_state,
+            params_target=params.copy({}),
+            memory=ReplayBuffer(hparams.replay_memory_size),
         )
-        super().__init__(hparams, network, optimiser, seed)
-        self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
-        self.params_target = self.params.copy({})
+    def sample_action(
+        self, observation: Array, key: KeyArray, eval: bool = False, **kwargs
+    ) -> Action:
+        values = self.critic(observation)
+        return self.policy(values, key)  # type: ignore
 
     def loss(
         self,
@@ -89,41 +122,77 @@ class DQN(Agent[DQNHparams]):
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
 
-    def update(self, episode: Episode) -> Array:
-        # increment iteration
-        self.iteration += 1
-        wandb.log({"Iteration": self.iteration})
+    def sgd_step(
+        self,
+        state: SGDState,
+        transition: Transition,
+        params_target: nn.FrozenDict,
+    ) -> Tuple[SGDState, Array, Any]:
+        def _batched_loss(
+            params: nn.FrozenDict,
+            batched_transitions: Transition,
+            *args,
+        ) -> Tuple[Array, Any]:
+            # in_axis for named arguments is not supported yet by jax.vmap
+            # see https://github.com/google/jax/issues/7465
+            in_axes = (None, 0) + (None,) * len(args)
+            fun = jax.vmap(self.loss, in_axes=in_axes)
+            loss, aux = fun(params, batched_transitions, *args)
+            return loss.mean(), aux
+
+        params = state.params
+        grads, (loss, aux) = jax.value_and_grad(_batched_loss, has_aux=True)(
+            params, transition, params_target
+        )
+        updates, opt_state = self.optimiser.update(grads, state.opt_state, params)
+        params = optax.apply_updates(params, updates)
+
+        new_state = SGDState(
+            step=state.step + 1,
+            key=jax.random.split(state.key, 2)[1],
+            params=params,  # type: ignore
+            opt_state=opt_state,
+        )
+        return new_state, loss, aux
+
+    def update(self, episode: Episode, state: DQNState) -> Array:
+        wandb.log({"Iteration": self.state.step})
 
         # update memory
         transitions: List[Transition] = episode.transitions()
-        self.memory.add_range(transitions)
-        wandb.log({"Buffer size": len(self.memory)})
+        self.state.memory.add_range(transitions)
+        wandb.log({"Buffer size": len(self.state.memory)})
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
-        if len(self.memory) < self.hparams.replay_start:
+        if len(self.state.memory) < self.hparams.replay_start:
             return jnp.asarray([])
 
         # update every `update_frequency` steps
-        if self.iteration % self.hparams.update_frequency != 0:
+        if self.state.step % self.hparams.update_frequency != 0:
             return jnp.asarray([])
 
-        episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
+        episode_batch: Transition = self.state.memory.sample(self.hparams.batch_size)
 
-        params, opt_state, loss, _ = self.sgd_step(
-            self.params,
+        sgd_state, loss, _ = self.sgd_step(
+            self.state,
             episode_batch,
-            self.opt_state,
             self.params_target,
         )
 
         # update dqn state
-        self.opt_state = opt_state
-        self.params = params
-        self.params_target = rlax.periodic_update(
-            self.params,
+        params_target = rlax.periodic_update(
+            self.state.params,
             self.params_target,
             jnp.asarray(self.iteration),
             self.hparams.target_network_update_frequency,
+        )
+        self.state = self.state.replace(
+            step=sgd_state.step,
+            key=sgd_state.key,
+            params=sgd_state.params,
+            opt_state=sgd_state.opt_state,
+            params_target=self.params_target,
+            memory=self.state.memory,
         )
 
         wandb.log({"train/total_loss": loss.item()})
