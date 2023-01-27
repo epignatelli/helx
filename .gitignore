@@ -1,3 +1,6 @@
+# setuptools_scm
+helx/version.py
+
 # vscode
 .vscode/
 wandb/
