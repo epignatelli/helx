@@ -115,7 +115,7 @@ class Episode:
         >>> $d_1, d_2, d_3, ..., d_t$
     ```
     And corresponds to the following sarsa unroll:
-    $\langle s_0, a_0, r_1, s_1, d_1, a_1 \rangle$
+    $\\langle s_0, a_0, r_1, s_1, d_1, a_1 \\rangle$
 
     Where, $a_0$ corresponds to the action taken with respect to
     observation $s_0$, and $r_1$ is the reward received during the transition

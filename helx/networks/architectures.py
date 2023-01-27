@@ -105,7 +105,7 @@ class AgentNetwork(nn.Module):
     def actor(
         self, params: nn.FrozenDict, observation: Array, key: KeyArray
     ) -> Tuple[Action, Array]:
-        """The actor function to evaluate the agent's policy $\pi(s)$.
+        """The actor function to evaluate the agent's policy $\\pi(s)$.
         Args:
             params (nn.FrozenDict): The agent's parameters.
             observation (Array): The environment observation.
@@ -130,7 +130,7 @@ class AgentNetwork(nn.Module):
         self, params: nn.FrozenDict, observation: Array, *args, **kwargs
     ) -> Array | PyTreeDef:
         """The critic function to evaluate the agent's value function
-        $V(s)$ or $Q(s) \forall a in \mathcal{A}
+        $V(s)$ or $Q(s) \\forall a in \\mathcal{A}
         Args:
             params (nn.FrozenDict): The agent's parameters.
             observation (Array): The environment observation.
