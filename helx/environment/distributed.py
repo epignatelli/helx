@@ -176,7 +176,6 @@ class MultiprocessEnv(Environment):
         assert (
             len(actions) == self.n_actors
         ), "The number of actions must be equal to the number of parallel environments.\
-            
-Received {} actions for {} environments. ".format(
+            \nReceived {} actions for {} environments. ".format(
             len(actions), self.n_actors
         )
