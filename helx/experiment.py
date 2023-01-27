@@ -82,7 +82,7 @@ def run(
     )
 
     logging.info(
-"Starting experiment {}.\nThe scheduled number of episode is {}".format(
+        "Starting experiment {}.\nThe scheduled number of episode is {}".format(
             run_name, num_episodes
         )
     )
