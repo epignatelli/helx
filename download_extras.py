@@ -45,30 +45,6 @@ ch.setFormatter(
 logger.addHandler(ch)
 
 
-class PostInstallDeploy(install):
-    def run(self):
-        install.run(self)
-
-        # download engines
-        logger.info("Installing extra requirements: mujoco, atari.")
-        _download_mujoco210()
-        _download_mujoco_dm_control()
-        # TODO(epignatelli): switch to autorom when pipeline is fixed
-        _download_atari_roms()
-
-
-class PostInstallDevelop(develop):
-    def run(self):
-        develop.run(self)
-
-        # download engines
-        logger.info("Installing extra requirements: mujoco, atari.")
-        _download_mujoco210()
-        _download_mujoco_dm_control()
-        # TODO(epignatelli): switch to autorom when pipeline is fixed
-        _download_atari_roms()
-
-
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)
@@ -195,33 +171,11 @@ def _download_atari_roms():
 
 
 def _get_version():
-    filepath = os.path.join(CURRENT_DIR, "helx", "__init__.py")
+    filepath = os.path.join(CURRENT_DIR, "helx", "version.py")
     with open(filepath) as f:
         for line in f:
             if line.startswith("__version__") and "=" in line:
                 version = line[line.find("=") + 1 :].strip(" '\"\n")
-                if version:
+                if version and isinstance(version, str):
                     return version
     raise ValueError("`__version__` not defined in {}".format(filepath))
-
-
-def _parse_requirements():
-    filepath = os.path.join(CURRENT_DIR, REQUIREMENTS_PATH)
-    with open(filepath) as f:
-        return [
-            line.rstrip() for line in f if not (line.isspace() or line.startswith("#"))
-        ]
-
-
-setup(
-    name="Helx",
-    version=_get_version(),
-    description="Helx is a helper library for Reinforcement Learning for JAX",
-    author="Eduardo Pignatelli",
-    author_email="edu.pignatelli@gmail.com",
-    url="https://github.com/epignatelli/helx",
-    packages=find_packages(exclude=["experiments", "test", "examples"]),
-    python_requires=">=3.9",
-    install_requires=_parse_requirements(),
-    cmdclass={"install": PostInstallDeploy, "develop": PostInstallDevelop},
-)
