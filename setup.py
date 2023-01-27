@@ -29,9 +29,9 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
 MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 ATARI_ROOT = os.path.join(os.path.expanduser("~"), ".atari")
-BOLD = "[1m"
-DARK_GREY = "[1;30m"
-END = "[0m"
+BOLD = "\033[1m"
+DARK_GREY = "\033[1;30m"
+END = "\033[0m"
 
 
 logger = logging.getLogger("helx setup")
@@ -200,8 +200,7 @@ def _get_version():
     with open(filepath) as f:
         for line in f:
             if line.startswith("__version__") and "=" in line:
-                version = line[line.find("=") + 1 :].strip(" '\"
-")
+                version = line[line.find("=") + 1 :].strip(" '\"\n")
                 if version:
                     return version
     raise ValueError("`__version__` not defined in {}".format(filepath))
