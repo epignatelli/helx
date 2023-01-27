@@ -1,3 +1,18 @@
+# Copyright [2023] The Helx Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 from __future__ import annotations
 
 from enum import IntEnum
@@ -100,7 +115,7 @@ class Episode:
         >>> $d_1, d_2, d_3, ..., d_t$
     ```
     And corresponds to the following sarsa unroll:
-    $\\langle s_0, a_0, r_1, s_1, d_1, a_1 \\rangle$
+    $\langle s_0, a_0, r_1, s_1, d_1, a_1 \rangle$
 
     Where, $a_0$ corresponds to the action taken with respect to
     observation $s_0$, and $r_1$ is the reward received during the transition

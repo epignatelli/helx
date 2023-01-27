@@ -1,3 +1,18 @@
+# Copyright [2023] The Helx Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
 import logging
 import os
 import platform
@@ -14,9 +29,9 @@ CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
 MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 ATARI_ROOT = os.path.join(os.path.expanduser("~"), ".atari")
-BOLD = "\033[1m"
-DARK_GREY = "\033[1;30m"
-END = "\033[0m"
+BOLD = "[1m"
+DARK_GREY = "[1;30m"
+END = "[0m"
 
 
 logger = logging.getLogger("helx setup")
@@ -185,7 +200,8 @@ def _get_version():
     with open(filepath) as f:
         for line in f:
             if line.startswith("__version__") and "=" in line:
-                version = line[line.find("=") + 1 :].strip(" '\"\n")
+                version = line[line.find("=") + 1 :].strip(" '\"
+")
                 if version:
                     return version
     raise ValueError("`__version__` not defined in {}".format(filepath))
