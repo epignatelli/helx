@@ -69,8 +69,9 @@ all = [
     ]
 
 
-[tool.setuptools_scm]
-write_to = "helx/version.py"
+[project.scripts]
+helx-download-extras = "helx.download:download_all"
+
 
 [tool.setuptools.dynamic]
 dependencies = {file = "./requirements.txt"}
@@ -79,6 +80,10 @@ dependencies = {file = "./requirements.txt"}
 [tool.setuptools.packages.find]
 include = ["helx*"]
 exclude = ["test", "examples"]
+
+
+[tool.setuptools_scm]
+write_to = "helx/version.py"
 
 
 [tool.black]
