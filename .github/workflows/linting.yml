@@ -5,10 +5,12 @@ on:
 
 jobs:
   linting:
-    runs-on: ubuntu-latest
+    runs-on:
+      ubuntu-latest
     steps:
     - name: Check code quality
       run: |
         pip install pylint
         MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
         echo "$MESSAGE"
+
