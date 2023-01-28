@@ -30,13 +30,10 @@ jobs:
         activate-environment: helx
         auto-activate-base: false
 
-    - name: where-are-we
-      run: pwd
+    - uses: ./.github/actions/setup.yml
 
-    - uses: ./.github/workflows/setup.yml
+    - uses: ./.github/actions/linting.yml
 
-    - uses: ./.github/workflows/linting.yml
+    - uses: ./.github/actions/pytest.yml
 
-    - uses: ./.github/workflows/pytest.yml
-
-    - uses: ./.github/workflows/examples.yml
+    - uses: ./.github/actions/examples.yml
