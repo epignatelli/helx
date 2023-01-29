@@ -18,11 +18,6 @@ jobs:
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           default_bump: "minor"
-      - name: Fix tag name
-        run: |
-          FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '(\d+.\d+\.\d+)')
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
