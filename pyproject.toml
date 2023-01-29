@@ -2,7 +2,7 @@
 # However, setuptools support for these is only in Beta
 # For now, `setup.py` is still the first option for pip
 [build-system]
-build_backend = "setuptools.build_meta"
+build-backend = "setuptools.build_meta"
 requires = ["setuptools >= 50", "setuptools-scm[toml]>=6.2", "wheel"]
 
 [project]
