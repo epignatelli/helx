@@ -20,14 +20,9 @@ jobs:
           default_bump: "minor"
       - name: Fix tag name
         run: |
-          CURRENT_TAG_NAME="${{ steps.tag_version.outputs.new_tag }}"
           FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '(\d+.\d+\.\d+)')
-          echo $CURRENT_TAG_NAME
-          echo $FIXED_TAG_NAME
-
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git tag -a $FIXED_TAG_NAME
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
