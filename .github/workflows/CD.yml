@@ -29,12 +29,12 @@ jobs:
   publish:
     needs: release
     runs-on: ubuntu-latest
+    continue-on-error: true
     strategy:
       max-parallel: 5
       matrix:
         python_version: ["3.8", "3.9", "3.10", "3.11"]
     steps:
-      - uses: actions/checkout@v3
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
