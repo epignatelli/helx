@@ -25,24 +25,19 @@ jobs:
           FIXED_TAG_NAME="$(echo $CURRENT_TAG_NAME | grep -Eo '([0-9]+.[0-9]+\.[0-9]+)')"
           CHANGELOG="${{ steps.tag_version.outputs.changelog }}"
 
-          echo $CURRENT_TAG_NAME
-          echo $FIXED_TAG_NAME
-          echo $CHANGELOG
-
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git tag -a $FIXED_TAG_NAME -m "$CHANGELOG"
-          git push origin $FIXED_TAG_NAME
+          echo 'CHANGELOG<<EOF' >> $GITHUB_ENV
+          echo "$CHANGELOG" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
 
           echo 'FIXED_TAG_NAME<<EOF' >> $GITHUB_ENV
-          echo "<pre><code>$FIXED_TAG_NAME</code></pre>" >> $GITHUB_ENV
+          echo "$FIXED_TAG_NAME" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.FIXED_TAG_NAME }}
-          name: Release ${{ env.FIXED_TAG_NAME }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+          name: ${{ env.FIXED_TAG_NAME }}
+          body: ${{ env.CHANGELOG }}
 
 
   publish:
