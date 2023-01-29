@@ -23,6 +23,8 @@ jobs:
         run: |
           CURRENT_TAG_NAME=${{ steps.tag_version.outputs.new_tag }}
           FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '(\d+.\d+\.\d+)')
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
           git tag -a $FIXED_TAG_NAME -m ${{ steps.tag_version.outputs.changelog }}
           git push origin $FIXED_TAG_NAME
       - name: Create GitHub release
