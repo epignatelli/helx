@@ -82,6 +82,10 @@ include = ["helx*"]
 exclude = ["test", "examples"]
 
 
+[tool.distutils.bdist_wheel]
+universal = true
+
+
 [tool.setuptools_scm]
 write_to = "helx/version.py"
 
