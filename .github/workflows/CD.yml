@@ -21,8 +21,8 @@ jobs:
           dry_run: true
       - name: Fix tag name
         run: |
-          CURRENT_TAG_NAME = ${{ steps.tag_version.outputs.new_tag }}
-          FIXED_TAG_NAME=$(echo "v0.36.0-30-fix-cd-workflow.1" | grep -Eo '(\d+.\d+\.\d+)')
+          CURRENT_TAG_NAME=${{ steps.tag_version.outputs.new_tag }}
+          FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '(\d+.\d+\.\d+)')
           git tag -a "$FIXED_TAG_NAME" -m "${{ steps.tag_version.outputs.changelog }}""
           git push origin "$FIXED_TAG_NAME"
       - name: Create GitHub release
