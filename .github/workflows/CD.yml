@@ -22,7 +22,7 @@ jobs:
       - name: Fix tag name
         run: |
           CURRENT_TAG_NAME="${{ steps.tag_version.outputs.new_tag }}"
-          FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '([0-9]+.[0-9]+\.[0-9]+)')
+          FIXED_TAG_NAME="$(echo $CURRENT_TAG_NAME | grep -Eo '([0-9]+.[0-9]+\.[0-9]+)')"
           CHANGELOG="${{ steps.tag_version.outputs.changelog }}"
           echo $FIXED_TAG_NAME >> $GITHUB_ENV
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
