@@ -16,8 +16,11 @@ jobs:
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
         with:
-          default_bump: "minor"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: "minor"
+          tag_prefix: ""
+          create_annotated_tag: false
+          append_to_pre_release_tag: ""
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
