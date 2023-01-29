@@ -20,7 +20,7 @@ jobs:
           default_bump: "minor"
       - name: Tag to semantic versioning
         run: |
-          TAG_NAME=$(echo ${{ steps.tag_version.outputs.new_tag }} | grep -Eo '(\d+.\d+\.\d+)')
+          TAG_NAME="0.0.0"
           echo $TAG_NAME
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
