@@ -21,16 +21,7 @@ jobs:
           dry_run: true
       - name: Fix tag name
         run: |
-
           FIXED_TAG_NAME=$(echo ${{ steps.tag_version.outputs.new_tag }} | grep -Eo '(\d+.\d+\.\d+)')
-          CHANGELOG="${{ steps.tag_version.outputs.changelog }}"
-          echo $CURRENT_TAG_NAME
-          echo $FIXED_TAG_NAME
-          echo $CHANGELOG
-
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git tag -a $FIXED_TAG_NAME -m $CHANGELOG
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
