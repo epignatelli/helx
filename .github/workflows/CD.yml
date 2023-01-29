@@ -7,7 +7,6 @@ on:
 
 jobs:
   tag:
-    needs: tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -21,6 +20,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   release:
+    needs: tag
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
