@@ -16,12 +16,15 @@ jobs:
         id: tag_version
         uses: mathieudutour/github-tag-action@v6.1
         with:
-          release_branches: "main"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           default_bump: "minor"
-          tag_prefix: ""
-          create_annotated_tag: false
-          append_to_pre_release_tag: ""
+          dry_run: true
+      - name: Fix tag name
+        run: |
+          CURRENT_TAG_NAME = ${{ steps.tag_version.outputs.new_tag }}
+          FIXED_TAG_NAME=$(echo "v0.36.0-30-fix-cd-workflow.1" | grep -Eo '(\d+.\d+\.\d+)')
+          git tag -a "$FIXED_TAG_NAME" -m "${{ steps.tag_version.outputs.changelog }}""
+          git push origin "$FIXED_TAG_NAME"
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
