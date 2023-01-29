@@ -3,10 +3,21 @@ name: CD
 on:
   push:
     branches:
-      - "main"
+      - "30-fix-cd-workflow"
 
 jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag_version.outputs.new_tag }}
+          name: Release ${{ steps.tag_version.outputs.new_tag }}
+          body: ${{ steps.tag_version.outputs.changelog }}
+
   release:
+    needs: tag
     runs-on: ubuntu-latest
     steps:
       - name: Bump version and push tag
@@ -15,12 +26,7 @@ jobs:
         with:
           default_bump: "minor"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Create GitHub release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ steps.tag_version.outputs.new_tag }}
-          name: Release ${{ steps.tag_version.outputs.new_tag }}
-          body: ${{ steps.tag_version.outputs.changelog }}
+
 
   publish:
     needs: release
