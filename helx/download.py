@@ -36,7 +36,7 @@ logging = get_logger()
 def _download_url(url, out_path, chunk_size=128):
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     r = requests.get(url, stream=True)
-    logging.info("Downloading {} into {}".format(url, out_path))
+    logging.info(f"Downloading {url} into {out_path}")
     with open(out_path, "wb") as fd:
         chunks = 0
         for chunk in r.iter_content(chunk_size=chunk_size):
@@ -57,17 +57,17 @@ def download_mujoco210():
     }
     system = platform.system()
     if system not in mujoco_systems:
-        raise ValueError("Unsupported system: {}".format(system))
+        raise ValueError(f"Unsupported system: {system}")
     mujoco_system = mujoco_systems[system]
 
     # get architecture version
     machine = platform.machine().lower()
     if machine != "x86_64":
-        raise ValueError("Unsupported architecture: {}".format(machine))
+        raise ValueError(f"Unsupported architecture: {machine}")
 
     # download mujoco
     url = os.path.join(
-        base_url, "{}-{}-{}.tar.gz".format(mujoco_version, mujoco_system, machine)
+        base_url, f"{mujoco_version}-{mujoco_system}-{machine}.tar.gz"
     )
     out_filename = os.path.basename(url)
     out_path = os.path.join(MUJOCO_ROOT, out_filename)
@@ -78,7 +78,7 @@ def download_mujoco210():
     _download_url(url, out_path)
 
     # unzip mujoco
-    logging.info("Extracting {} into {}".format(out_path, MUJOCO_ROOT))
+    logging.info(f"Extracting {out_path} into {MUJOCO_ROOT}")
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(MUJOCO_ROOT)
     os.remove(out_path)
@@ -100,7 +100,7 @@ def download_mujoco_dm_control():
     }
     system = platform.system()
     if system not in systems:
-        raise ValueError("Unsupported system: {}".format(system))
+        raise ValueError(f"Unsupported system: {system}")
 
     # get architecture
     architectures = {
@@ -112,7 +112,7 @@ def download_mujoco_dm_control():
     }
     arch = platform.machine().lower()
     if arch not in architectures:
-        raise ValueError("Unsupported architecture: {}".format(arch))
+        raise ValueError(f"Unsupported architecture: {arch}")
 
     # download mujoco
     url = "https://github.com/deepmind/mujoco/releases/download/2.3.1/mujoco-2.3.1-{}-{}.tar.gz"
@@ -125,7 +125,7 @@ def download_mujoco_dm_control():
     _download_url(url, out_path)
 
     # untar mujoco
-    logging.info("Extracting {} into {}".format(out_path, MUJOCO_ROOT))
+    logging.info(f"Extracting {out_path} into {MUJOCO_ROOT}")
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(MUJOCO_ROOT)
     os.remove(out_path)
@@ -142,19 +142,17 @@ def download_atari_roms():
     _download_url(url, out_path)
 
     # extract the file
-    logging.info("Extracting {} into {}".format(out_path, out_dir))
+    logging.info(f"Extracting {out_path} into {out_dir}")
     with tarfile.open(out_path, "r:gz") as tar_ref:
         tar_ref.extractall(out_dir)
 
     # try import the roms
     try:
-        subprocess.call("ale-import-roms {}".format(out_dir), shell=True)
+        subprocess.call(f"ale-import-roms {out_dir}", shell=True)
     except Exception as e:
-        msg = "ALE ROMs have been downloaded and extracted but there \
-        was an error with ale-py while importing roms: {}. \
-        Please install helx first and try download the extra requirements again".format(
-            e
-        )
+        msg = f"ALE ROMs have been downloaded and extracted but there \
+        was an error with ale-py while importing roms: {e}. \
+        Please install helx first and try download the extra requirements again"
         logging.error(msg)
 
 
