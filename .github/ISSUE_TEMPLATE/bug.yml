@@ -1,0 +1,77 @@
+---
+name: Bug report
+description: >-
+  Report a bug or unexpected behavior to help us improve the package
+labels:
+- bug
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      ## Thank you for helping with Helx!
+
+      * Please first verify that your issue is not already reported using the
+      [issue search][https://github.com/epignatelli/helx/search?q=is%3Aissue&type=issues].
+
+      * If you would like a new feature, please consider
+      [requesting one](https://github.com/epignatelli/helx/issues/new?template=feature.yml)
+
+      * If you would like to ask a question, please consider
+      [opening a discussion](https://github.com/epignatelli/helx/discussions)
+
+      * If you prefer a non-templated issue report, click [here][http://github.com/epignatelli/helx/issues/new].
+
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of the bug, preferably including self-contained
+      code to reproduce the issue.
+      ```
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: What helx version are you using?
+    placeholder: e.g, helx v0.3.0
+- type: textarea
+  attributes:
+    label: Python environment
+    description: >-
+      If you are using `conda``, what is the output of `conda list`?
+      If you are using `pip`, what is the output of `pip freeze`?
+    placeholder: |
+      <details>
+      <summary>Python environment</summary>
+      ```
+      ...
+      ```
+      </details>
+- type: input
+  attributes:
+    label: Python version
+    description: >-
+      What is the output of `python --version`?
+    placeholder: e.g., Python 3.9.15
+- type: input
+  attributes:
+    label: OS version
+    description: >-
+      What is the output of `cat /etc/os-release`?
+    placeholder: |
+      e.g,
+      ````
+      NAME="Ubuntu"
+      VERSION="20.04.1 LTS (Focal Fossa)"
+      ID=ubuntu
+      ID_LIKE=debian
+      PRETTY_NAME="Ubuntu 20.04.1 LTS"
+      VERSION_ID="20.04"
+      HOME_URL="https://www.ubuntu.com/"
+      SUPPORT_URL="https://help.ubuntu.com/"
+      BUG_REPORT_URL="https://bugs.launchpad.net/ubuntu/"
+      PRIVACY_POLICY_URL="https://www.ubuntu.com/legal/terms-and-policies/privacy-policy"
+      VERSION_CODENAME=focal
+      UBUNTU_CODENAME=focal
+      ````
