@@ -1,0 +1,9 @@
+name: Pytest
+author: Eduardo Pignatelli
+description: Runs pytest on test folder
+
+runs:
+  using: "composite"
+  steps:
+  - run: pytest test/
+    shell: bash -l {0}
