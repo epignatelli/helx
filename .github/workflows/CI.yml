@@ -56,7 +56,7 @@ jobs:
         pip install pylint
         PR_BRANCH=${{ github.event.pull_request.target.ref }}
         MAIN_BRANCH=origin/${{ github.event.pull_request.base.ref }}
-        MESSAGE=$(pylint --disable=E0401 `git diff --name-only --diff-filter=d $MAIN_BRANCH $PR_BRANCH | grep -E '\.py$' | tr '\n' ' '` ||:)
+        MESSAGE=$(pylint -ry --disable=E0401 `git diff --name-only --diff-filter=d $MAIN_BRANCH $PR_BRANCH | grep -E '\.py$' | tr '\n' ' '` ||:)
         echo 'MESSAGE<<EOF' >> $GITHUB_ENV
         echo "<pre><code>$MESSAGE</code></pre>" >> $GITHUB_ENV
         echo 'EOF' >> $GITHUB_ENV
