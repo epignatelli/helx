@@ -1,0 +1,42 @@
+---
+name: Bug report
+description: >-
+  Report a bug or unexpected behavior to help us improve the package
+labels:
+- bug
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      ## Thank you for helping with Helx!
+
+      * Please first verify that your issue is not already reported using the
+      [issue search][https://github.com/epignatelli/helx/search?q=is%3Aissue&type=issues].
+
+      * If something does not work as expected, please consider
+      [reporting a bug](https://github.com/epignatelli/helx/issues/new?template=bug.yml)
+
+      * If you would like to ask a question, please consider
+      [opening a discussion](https://github.com/epignatelli/helx/discussions)
+
+      * If you prefer a non-templated issue report, click [here][http://github.com/epignatelli/helx/issues/new].
+
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what is currently missing in helx,
+      preferably with the reason of why the missing feature is required.
+- type: textarea
+  attributes:
+    label: Proposal
+    description: >-
+      Please provide a minimal example of how the *usage* of the new, finished API would look like.
+      For example, if I'd wish to include a new environment suite, like `gymnax``,
+      I'd type a use case I'd like to test:
+      ```python
+      env, env_params = gymnax.make("Pendulum-v1")
+      env = helx.environment.to_helx(env)
+      helx.experiment.run(env, helx.agents.Random(env.observation_space, action_space), 10)
+      ````
