@@ -21,7 +21,7 @@ jobs:
 
     steps:
 
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - uses: conda-incubator/setup-miniconda@v2
       with:
@@ -30,10 +30,10 @@ jobs:
         activate-environment: helx
         auto-activate-base: false
 
-    - uses: ./.github/actions/setup.yml
+    - uses: ./.github/actions/setup
 
-    - uses: ./.github/actions/linting.yml
+    - uses: ./.github/actions/linting
 
-    - uses: ./.github/actions/pytest.yml
+    - uses: ./.github/actions/pytest
 
-    - uses: ./.github/actions/examples.yml
+    - uses: ./.github/actions/examples
