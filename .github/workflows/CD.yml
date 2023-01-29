@@ -21,9 +21,9 @@ jobs:
           dry_run: true
       - name: Fix tag name
         run: |
-          CURRENT_TAG_NAME=${{ steps.tag_version.outputs.new_tag }}
+          CURRENT_TAG_NAME="${{ steps.tag_version.outputs.new_tag }}"
           FIXED_TAG_NAME=$(echo $CURRENT_TAG_NAME | grep -Eo '(\d+.\d+\.\d+)')
-          CHANGELOG=${{ steps.tag_version.outputs.changelog }}
+          CHANGELOG="${{ steps.tag_version.outputs.changelog }}""
           echo $CURRENT_TAG_NAME
           echo $FIXED_TAG_NAME
           echo $CHANGELOG
