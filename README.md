@@ -45,15 +45,15 @@ import gym
 
 import helx.environment
 import helx.experiment
-from helx.agents import RandomAgent, Hparams
+import helx.agents
 
 # create the enviornment in you favourite way
 env = bsuite.load_from_id("catch/0")
 # convert it to an helx environment
 env = helx.environment.to_helx(env)
 # create the agent
-hparams = Hparams(env.obs_space(), env.action_space())
-agent = RandomAgent(hparams)
+hparams = helx.agents.Hparams(env.obs_space(), env.action_space())
+agent = helx.agents.Random(hparams)
 
 # run the experiment
 helx.experiment.run(env, agent, episodes=100)
@@ -69,7 +69,7 @@ import gym
 
 import helx.environment
 import helx.experiment
-from helx.agents import RandomAgent, Hparams
+import helx.agents
 
 # create the enviornment in you favourite way
 -env = bsuite.load_from_id("catch/0")
@@ -77,8 +77,8 @@ from helx.agents import RandomAgent, Hparams
 # convert it to an helx environment
 env = helx.environment.to_helx(env)
 # create the agent
-hparams = Hparams(env.obs_space(), env.action_space())
-agent = RandomAgent(hparams)
+hparams = helx.agents.Hparams(env.obs_space(), env.action_space())
+agent = helx.agents.Random(hparams)
 
 # run the experiment
 helx.experiment.run(env, agent, episodes=100)
