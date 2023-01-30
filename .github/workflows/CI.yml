@@ -43,6 +43,7 @@ jobs:
     - name: Run examples
       run: |
         wandb login ${{ secrets.WANDB_API_KEY }}
+        wandb disabled
         for f in examples/*.py; do python $f; done
 
   Compliance:
