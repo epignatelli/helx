@@ -66,9 +66,7 @@ def download_mujoco210():
         raise ValueError(f"Unsupported architecture: {machine}")
 
     # download mujoco
-    url = os.path.join(
-        base_url, f"{mujoco_version}-{mujoco_system}-{machine}.tar.gz"
-    )
+    url = os.path.join(base_url, f"{mujoco_version}-{mujoco_system}-{machine}.tar.gz")
     out_filename = os.path.basename(url)
     out_path = os.path.join(MUJOCO_ROOT, out_filename)
     out_dir = os.path.splitext(out_path)[0]
