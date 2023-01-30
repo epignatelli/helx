@@ -37,7 +37,3 @@ def test_flag_type():
         )
         logging.debug(hparams)
         flagsaver.restore_flag_values(saved_flag_values)
-
-
-if __name__ == "__main__":
-    test_flag_type()

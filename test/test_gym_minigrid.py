@@ -40,7 +40,3 @@ def test_gym_minigrid():
 
     for i, env_id in enumerate(minigrid_env_ids):
         test_env(env_id)
-
-
-if __name__ == "__main__":
-    test_gym_minigrid()
