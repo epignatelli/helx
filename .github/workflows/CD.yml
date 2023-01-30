@@ -56,7 +56,9 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
       - name: Build package
-        run: python -m build
+        run: |
+          pip install build
+          python -m build .
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_API_KEY }}
