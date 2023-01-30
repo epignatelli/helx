@@ -9,7 +9,7 @@ body:
 - type: markdown
   attributes:
     value: >
-      ## Thank you for helping with Helx!
+      ## A bug found is a bug fixed, thank you for helping with Helx!
 
       * Please first verify that your issue is not already reported using the
       [issue search][https://github.com/epignatelli/helx/search?q=is%3Aissue&type=issues].
