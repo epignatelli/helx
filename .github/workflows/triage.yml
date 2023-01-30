@@ -10,7 +10,7 @@ jobs:
   assign-project:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/add-to-project@RELEASE_VERSION
+    - uses: actions/add-to-project@v0.4.0
       with:
         project-url: https://github.com/users/epignatelli/projects/7
         github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -21,4 +21,4 @@ jobs:
       - uses: actions-ecosystem/action-add-assignees@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          assignee: ${{ github.actor }}
+          assignees: ${{ github.actor }}
