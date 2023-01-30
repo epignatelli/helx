@@ -9,19 +9,10 @@ Closes #123
 Closes #
 
 <!--
-Add a brief description of what your PR does.
-This will be included as a changelog.
+Add a brief description of what your PR does,
+and any information that can improve and speed-up the review process.
 
 For example:
 - Add a way to do X
 - Fix a bug with Y
--->
-
-
-<!--
-Include any other additional information below a label `Additional-information`
-
-For example:
-Additional-information:
-The code tests only linux platforms and ...
 -->
