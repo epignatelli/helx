@@ -38,7 +38,3 @@ def test_bsuite():
     # get all bsuite envs
     for i, env_id in enumerate(BSUITE_IDS):
         test_env(env_id)
-
-
-if __name__ == "__main__":
-    test_bsuite()

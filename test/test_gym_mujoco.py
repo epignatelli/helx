@@ -39,7 +39,3 @@ def test_mujoco():
 
     for i, env_id in enumerate(mujoco_env_ids):
         test_env(env_id)
-
-
-if __name__ == "__main__":
-    test_mujoco()

@@ -50,7 +50,3 @@ def test_atari():
             logging.debug("Skipping excluded env: {}".format(env_id))
             continue
         test_env(env_id)
-
-
-if __name__ == "__main__":
-    test_atari()
