@@ -18,5 +18,18 @@ import gym_minigrid
 import minigrid
 import procgen
 
-from . import (agents, environment, experiment, flags, image, logging, mdp,
-               memory, networks, preprocess, random, spaces, stax)
+from . import (
+    agents,
+    environment,
+    experiment,
+    flags,
+    image,
+    logging,
+    mdp,
+    memory,
+    networks,
+    preprocess,
+    random,
+    spaces,
+    stax,
+)
