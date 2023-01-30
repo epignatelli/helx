@@ -5,15 +5,28 @@ on:
     types: [opened]
   pull_request:
     types: [opened]
+env:
+  GITHUB_TOKEN: ${{ secrets.TRIAGE_KEY }}
 
 jobs:
   assign-project:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/add-to-project@v0.4.0
+    - name: Get column name
+      run: |
+        if [[ ${{ github.event_name }} == "pull_request" ]]; then
+          COLUMN="In Progress"
+        else
+          COLUMN="Triage"
+        fi
+
+        echo 'COLUMN_NAME<<EOF' >> $GITHUB_ENV
+        echo "<pre><code>$COLUMN_NAME</code></pre>" >> $GITHUB_ENV
+        echo 'EOF' >> $GITHUB_ENV
+    - uses: srggrs/assign-one-project-github-action@1.2.1
       with:
-        project-url: https://github.com/users/epignatelli/projects/7
-        github-token: ${{ secrets.TRIAGE_KEY }}
+        project: https://github.com/users/epignatelli/projects/7
+        column_name: ${{ env.COLUMN_NAME }}
   assign-assignee:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
