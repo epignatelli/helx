@@ -39,7 +39,7 @@ body:
   attributes:
     label: Python environment
     description: >-
-      If you are using `conda``, what is the output of `conda list`?
+      If you are using `conda`, what is the output of `conda list`?
       If you are using `pip`, what is the output of `pip freeze`?
     placeholder: |
       <details>
