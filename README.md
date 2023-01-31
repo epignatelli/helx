@@ -12,7 +12,10 @@
 
 # Helx
 
-Helx provides a single interface to a) interoperate between a variety of Reinforcement Learning (RL) environments and to b) code interacting agents.
+Helx provides a single **interface** to
+a. interoperate between a variety of Reinforcement Learning (RL) environments and
+b. interact with them through a unified agent interface.
+
 It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
 
 Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
@@ -105,7 +108,7 @@ We currently support these external environment models:
 - [gymnax](https://github.com/RobertTLange/gymnax)
 - [ivy_gym](https://github.com/unifyai/gym)
 ---
-## The `helx.agents.Agent` interface
+## Adding a new agent (`helx.agents.Agent`)
 
 An `helx` agent interface is designed as the minimal set of functions necessary to *(i)* interact with an environment and *(ii)* reinforcement learn.
 
@@ -124,7 +127,7 @@ class Agent(ABC):
 ```
 
 ---
-## Adding a new environment library
+## Adding a new environment library (`helx.environment.Environment`)
 
 To add a new library requires three steps:
 1. Implement the `helx.environment.Environment` interface for the new library.
@@ -164,4 +167,4 @@ A quick guide to interacting with this repository:
 - If you want to request a new feature, please open an issue, and I will consider it as soon as I can.
 - If you want to contribute yourself, please open an issue first, let's discuss objective, plan a proposal, and open a pull request to act on it.
 
-If you would like to be involved further in the development of this repository, please contact me directly at: `epignatelli at gmail dot com`.
+If you would like to be involved further in the development of this repository, please contact me directly at: `edu dot pignatelli at gmail dot com`.
