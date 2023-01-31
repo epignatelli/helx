@@ -12,9 +12,10 @@
 
 # Helx
 
-Helx provides a single **interface** to
-a. interoperate between a variety of Reinforcement Learning (RL) environments and
-b. interact with them through a unified agent interface.
+Helx provides a single **interface** to:
+
+**a.** interoperate between a variety of Reinforcement Learning (RL) environments and.  
+**b.** interact with them through a unified agent interface.
 
 It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
 
