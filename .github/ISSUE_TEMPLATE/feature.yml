@@ -33,7 +33,8 @@ body:
     label: Proposal
     description: >-
       Please provide a minimal example of how the *usage* of the new, finished API would look like.
-      For example, if I'd wish to include a new environment suite, like `gymnax``,
+    placeholder: |
+      For example, if I'd wish to include a new environment suite, like `gymnax`,
       I'd type a use case I'd like to test:
       ```python
       env, env_params = gymnax.make("Pendulum-v1")
