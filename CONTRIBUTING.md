@@ -12,15 +12,16 @@ Please, read and follow our [Code of conduct](https://github.com/epignatelli/hel
 This applied to both humans and bots.   
 
 
-## Pull requests
-Contributing to the codebase or any operational support material must happen through pull requests.   
-If you have already a pull request in mind, there must be an underlying motivation for the change.   
+## Pull requests (PRs)
+Contributing to the codebase or any operational support material must happen through PRs.   
+If you have already a PR in mind, there must be an underlying motivation for the change.   
 Please open an appropriate issue that explains it.   
 
 We follow a couple of standards to make our life easier and develop with more agility and less debt:
 - Please use one of the [issue forms]() to submit a new issue.
 - If you want to ask a question, please use the [discussions]() area, instead.
-- You can title the pull requests as you want.
+- When you open a PR, the title, the label, and the milestone can be of your choice.
+- Please assign yourself to the PR you opened, and request a review from @epignatelli.
 - The commits must follow the standards detailed in the [next section](./#Commit-standards)
 - The code must follow the standards detailed in the [next section](./#Code-standards)
 
