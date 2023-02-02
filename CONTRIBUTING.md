@@ -28,12 +28,20 @@ We follow a couple of standards to make our life easier and develop with more ag
 
 ## Commit standards
 We employ the [conventional commit](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional) standard for commit messages.
-Following this format allows automating the deployment of new releases.
+These standards automatically trigger the next semantic versioning, and its corresponding release.
+Check the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#how-does-this-relate-to-semver) description for more.
+
 
 ## Code standards
+#### Python code
+
+#### Documentation
 
 
-
-### Release
-A new version is release at every PR merge to the main branch.
-When new commits are added to the main branch, their respective messages are analyses, and can lead to either a new patch, a new minor or a new major version.
+### New releases
+A new version is release at every new commit to the main branch.
+When one or more new commits are added to the main branch, the following happens:
+- Their respective messages are analyses
+- Based on the messages, the CD calculates the next version number (see [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#how-does-this-relate-to-semver) for more)
+- The CD pushes a new tag, whose name is the new version number
+- The CD creataes a corresponding release, and pushes it to mypi
