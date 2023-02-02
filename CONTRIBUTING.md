@@ -1,6 +1,3 @@
-This guidelines are inspired at those from [@angular/angular](https://github.com/angular/angular/blob/22b96b9/CONTRIBUTING.md).
-
-
 # Contributing to helx
 If you are reading this, it is likely that your are interested in contributing -- and time is precious, so thank you for your time.
 This guidelines are designed to guide you through how to submit commits to `helx`.
@@ -34,9 +31,18 @@ Check the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#h
 
 ## Code standards
 #### Python code
+We follow the [PEP8 Python style guide](https://peps.python.org/pep-0008/), and a big handful of good old common sense.   
+Please, keep your code:
+- DRY
+- Modular
+- Readable
+- Clear of typos
+
+The code should be [`black`](https://github.com/psf/black) formatted, and is usually [pylint-ed](https://pypi.org/project/pylint/).
+
 
 #### Documentation
-
+We follow the [Goole Python docstrings style guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) to format our documentation.
 
 ### New releases
 A new version is release at every new commit to the main branch.
