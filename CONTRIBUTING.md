@@ -30,7 +30,7 @@ Check the [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/#h
 
 
 ## Code standards
-#### Python code
+### - Python code
 We follow the [PEP8 Python style guide](https://peps.python.org/pep-0008/), and a big handful of good old common sense.   
 Please, keep your code:
 - DRY
@@ -41,10 +41,11 @@ Please, keep your code:
 The code should be [`black`](https://github.com/psf/black) formatted, and is usually [pylint-ed](https://pypi.org/project/pylint/).
 
 
-#### Documentation
-We follow the [Goole Python docstrings style guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) to format our documentation.
+### - Documentation
+Docstrings follow the [Goole Python docstrings style guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
 
-### New releases
+
+## New releases
 A new version is release at every new commit to the main branch.
 When one or more new commits are added to the main branch, the following happens:
 - Their respective messages are analyses
