@@ -12,7 +12,7 @@ body:
       ## A bug found is a bug fixed, thank you for helping with Helx!
 
       * Please first verify that your issue is not already reported using the
-      [issue search][https://github.com/epignatelli/helx/search?q=is%3Aissue&type=issues].
+      [issue search](https://github.com/epignatelli/helx/search?q=is%3Aissue&type=issues).
 
       * If you would like a new feature, please consider
       [requesting one](https://github.com/epignatelli/helx/issues/new?template=feature.yml)
@@ -20,7 +20,7 @@ body:
       * If you would like to ask a question, please consider
       [opening a discussion](https://github.com/epignatelli/helx/discussions)
 
-      * If you prefer a non-templated issue report, click [here][http://github.com/epignatelli/helx/issues/new].
+      * If you prefer a non-templated issue report, click [here](http://github.com/epignatelli/helx/issues/new).
 
 - type: textarea
   attributes:
