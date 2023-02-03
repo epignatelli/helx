@@ -3,7 +3,7 @@ name: Feature or improvement request
 description: >-
   Request a missing feature, or an improvement to an existing feature that is not a bug
 labels:
-- bug
+- feature
 
 body:
 - type: markdown
