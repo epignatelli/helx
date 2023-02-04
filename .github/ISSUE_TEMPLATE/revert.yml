@@ -1,0 +1,13 @@
+---
+name: Revert a previous change
+description: >-
+  Revert a change made in a previous commit.
+labels:
+- revert
+
+body:
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what of what you would like to add or change.

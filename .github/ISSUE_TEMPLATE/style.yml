@@ -1,0 +1,13 @@
+---
+name: Style
+description: >-
+  Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons)
+labels:
+- style
+
+body:
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what of what you would like to add or change.

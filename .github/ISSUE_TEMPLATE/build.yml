@@ -1,0 +1,13 @@
+---
+name: Installation or build issue
+description: >-
+  A problem with the installation or build process.
+labels:
+- installation/build
+
+body:
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what of what you would like to add or change.

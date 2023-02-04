@@ -1,0 +1,13 @@
+---
+name: Refactor
+description: >-
+  A code change that restructures the existing code, like namespace changes.
+labels:
+- refactor
+
+body:
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what of what you would like to add or change.
