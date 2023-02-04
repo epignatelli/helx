@@ -10,6 +10,23 @@ jobs:
   assign-project:
     runs-on: ubuntu-latest
     steps:
+    - name: Get priority
+      run: |
+        LABEL=${{ github.event.issue.label }}
+        case $LABEL in
+          'bug' || 'installation/build' || 'performance')
+            echo "PRIORITY=P0" >> $GITHUB_ENV
+            ;;
+          'feature' || 'documentation' || 'test' || 'ci')
+            echo "PRIORITY=P1" >> $GITHUB_ENV
+            ;;
+          'style' || 'refactor' || 'revert' || 'chore')
+            echo "PRIORITY=4" >> $GITHUB_ENV
+            ;;
+          *)
+            echo "PRIORITY=5" >> $GITHUB_ENV
+            ;;
+        esac
     - uses: actions/add-to-project@v0.4.0
       with:
         project-url: https://github.com/users/epignatelli/projects/7
