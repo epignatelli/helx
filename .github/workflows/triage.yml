@@ -13,6 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Get priority
+      if: ${{ github.event_name == 'issue' }}
       run: |
         case ${{ github.event.issue.label }} in
           'bug' || 'installation/build' || 'performance')
@@ -31,7 +32,7 @@ jobs:
     - uses: srggrs/assign-one-project-github-action@1.2.1
       with:
         project: 'https://github.com/users/epignatelli/projects/7'
-        column_name: ${{ env.PRIORITY }}
+        column_name: ${{ env.PRIORITY || 'Triage' }}
   assign-assignee:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
