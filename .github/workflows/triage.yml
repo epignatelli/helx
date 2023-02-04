@@ -5,6 +5,8 @@ on:
     types: [opened]
   pull_request:
     types: [opened]
+env:
+  GITHUB_TOKEN: ${{ secrets.TRIAGE_KEY }}
 
 jobs:
   assign-project:
@@ -27,10 +29,10 @@ jobs:
             echo "PRIORITY=5" >> $GITHUB_ENV
             ;;
         esac
-    - uses: actions/add-to-project@v0.4.0
+    - uses: srggrs/assign-one-project-github-action@1.2.1
       with:
-        project-url: https://github.com/users/epignatelli/projects/7
-        github-token: ${{ secrets.TRIAGE_KEY }}
+        project: 'https://github.com/users/epignatelli/projects/7'
+        column_name: ${{ env.PRIORITY }}
   assign-assignee:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
