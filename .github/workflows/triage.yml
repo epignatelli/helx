@@ -5,6 +5,9 @@ on:
     types: [opened]
   pull_request:
     types: [opened]
+  push:
+    branches:
+      - "53-add-contributing-guidelines-and-improve-triage"
 env:
   GITHUB_TOKEN: ${{ secrets.TRIAGE_KEY }}
 
