@@ -5,41 +5,15 @@ on:
     types: [opened]
   pull_request:
     types: [opened]
-  push:
-    branches:
-      - "53-add-contributing-guidelines-and-improve-triage"
-env:
-  GITHUB_TOKEN: ${{ secrets.TRIAGE_KEY }}
 
 jobs:
   assign-project:
     runs-on: ubuntu-latest
     steps:
-    - name: Get issue priority
-      if: ${{ github.event_name == 'issue' }}
-      run: |
-        case ${{ github.event.issue.label }} in
-          bug || installation/build || performance)
-            echo "PRIORITY=P0" >> $GITHUB_ENV
-            ;;
-          feature || documentation || test || ci)
-            echo "PRIORITY=P1" >> $GITHUB_ENV
-            ;;
-          style || refactor || revert || chore)
-            echo "PRIORITY=P2" >> $GITHUB_ENV
-            ;;
-          *)
-            echo "PRIORITY=Triage" >> $GITHUB_ENV
-            ;;
-        esac
-    - name: Get PR column
-      if: ${{ github.event_name == 'pull_request' }}
-      run: |
-        "PRIORITY=In progress" >> $GITHUB_ENV
-    - uses: srggrs/assign-one-project-github-action@1.2.1
+    - uses: actions/add-to-project@v0.4.0
       with:
-        project: 'https://github.com/users/epignatelli/projects/7'
-        column_name: ${{ env.PRIORITY || 'Triage' }}
+        project-url: https://github.com/users/epignatelli/projects/7
+        github-token: ${{ secrets.TRIAGE_KEY }}
   assign-assignee:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' }}
