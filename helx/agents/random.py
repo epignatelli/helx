@@ -41,7 +41,9 @@ class Random(Agent[Hparams]):
         self.hparams: Hparams = hparams
         self.iteration: int = 0
 
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
+    def sample_action(
+        self, observation: Array, eval: bool = False, **kwargs
+    ) -> Action:
         return self.hparams.action_space.sample(self.key)
 
     def loss(

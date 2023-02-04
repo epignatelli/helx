@@ -27,7 +27,8 @@ from .base import Environment
 
 
 class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
-    """Static class to convert between bsuite.Environment and helx environments."""
+    """Static class to convert between bsuite.Environment and helx environments.
+    """
 
     def __init__(self, env: bsuite.environments.Environment):
         super().__init__(env)
@@ -62,7 +63,8 @@ class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
 
         if self._current_observation is None:
             raise ValueError(
-                "Environment not initialized. Run `reset` first to produce a starting state."
+                "Environment not initialized. Run `reset` first to produce a"
+                " starting state."
             )
         return self._current_observation
 

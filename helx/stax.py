@@ -34,10 +34,11 @@ def Rnn(cell):
         prev_state = kwargs.pop("prev_state", None)
         if prev_state is None:
             msg = (
-                "Recurrent layers require apply_fun to be called with a prev_state "
-                "argument. That is, instead of `apply_fun(params, inputs)`, "
-                "call it like apply_fun(params, inputs, prev_state=prev_state)` "
-                "where `prev_state` is the rnn hidden state."
+                "Recurrent layers require apply_fun to be called with a"
+                " prev_state argument. That is, instead of `apply_fun(params,"
+                " inputs)`, call it like apply_fun(params, inputs,"
+                " prev_state=prev_state)` where `prev_state` is the rnn hidden"
+                " state."
             )
             raise ValueError(msg)
         prev_state, outputs = jax.lax.scan(
@@ -70,7 +71,9 @@ def LSTMCell(
     def initial_state(rng):
         shape = (hidden_size,)
         k1, k2 = jax.random.split(rng)
-        return LSTMState(h_initial_state_fn(k1, shape), c_initial_state_fn(k2, shape))
+        return LSTMState(
+            h_initial_state_fn(k1, shape), c_initial_state_fn(k2, shape)
+        )
 
     def init(rng, input_shape):
         #  init params
@@ -79,7 +82,10 @@ def LSTMCell(
         k1, k2, k3 = jax.random.split(rng, 3)
         W, b = W_init(k1, (in_dim, out_dim)), b_init(k2, (out_dim,))
         hidden_state = initial_state(k3)
-        return (output_shape, (output_shape, output_shape)), ((W, b), hidden_state)
+        return (output_shape, (output_shape, output_shape)), (
+            (W, b),
+            hidden_state,
+        )
 
     def apply(params, inputs, **kwargs):
         prev_state = kwargs.get("prev_state")  # type: ignore

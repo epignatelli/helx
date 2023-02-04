@@ -95,7 +95,9 @@ class SAC(Agent[SACHparams]):
         network = AgentNetwork(
             actor_net=Actor(
                 representation_net=actor_representation_net,
-                policy_head=GaussianPolicy(action_shape=hparams.action_space.shape),
+                policy_head=GaussianPolicy(
+                    action_shape=hparams.action_space.shape
+                ),
             ),
             critic_net=DoubleQCritic(
                 n_actions=1,
@@ -143,7 +145,9 @@ class SAC(Agent[SACHparams]):
         q_1 = jnp.min(jnp.stack([qA_1, qB_1], axis=0), axis=0)
         v_1 = q_1 - alpha * logprobs_a_1
         q_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
-        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
+        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(
+            qB_0, q_target
+        )
 
         # temperature loss
         target_entropy = -self.hparams.action_space.n_dim

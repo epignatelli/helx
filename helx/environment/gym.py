@@ -82,7 +82,8 @@ class FromGymEnv(Environment[gym.Env]):
     def state(self) -> Array:
         if self._current_observation is None:
             raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
+                "Environment not initialized. Run `reset` first, to set a"
+                " starting state."
             )
         return self._current_observation
 
@@ -120,6 +121,8 @@ class FromGymEnv(Environment[gym.Env]):
 
 def list_envs(namespace: str) -> List[str]:
     env_specs: Dict[str, EnvSpec] = {
-        k: v for k, v in registry.items() if namespace.lower() in v.entry_point.lower()
+        k: v
+        for k, v in registry.items()
+        if namespace.lower() in v.entry_point.lower()
     }
     return list(env_specs.keys())

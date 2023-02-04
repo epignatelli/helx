@@ -47,7 +47,9 @@ class FromGymnasiumEnv(Environment[gymnasium.Env]):
         if self._observation_space is not None:
             return self._observation_space
 
-        self._observation_space = Space.from_gymnasium(self._env.observation_space)
+        self._observation_space = Space.from_gymnasium(
+            self._env.observation_space
+        )
         return self._observation_space
 
     def reward_space(self) -> Space:
@@ -62,7 +64,8 @@ class FromGymnasiumEnv(Environment[gymnasium.Env]):
     def state(self) -> Array:
         if self._current_observation is None:
             raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
+                "Environment not initialized. Run `reset` first, to set a"
+                " starting state."
             )
         return self._current_observation
 

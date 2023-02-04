@@ -71,7 +71,9 @@ class DQN(Agent[DQNHparams]):
     ):
         assert isinstance(hparams.action_space, Discrete)
         n_actions = hparams.action_space.n_bins
-        critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
+        critic_net = nn.Sequential(
+            [representation_net, nn.Dense(features=n_actions)]
+        )
         actor_net = EGreedyPolicy(
             hparams.replay_start,
             hparams.initial_exploration,

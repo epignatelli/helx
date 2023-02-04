@@ -210,7 +210,9 @@ class AgentNetwork(nn.Module):
         )
         return out
 
-    def state_representation(self, params: nn.FrozenDict, observation: Array) -> Array:
+    def state_representation(
+        self, params: nn.FrozenDict, observation: Array
+    ) -> Array:
         if "shared_net" not in params["params"]:
             return observation
         return jnp.asarray(

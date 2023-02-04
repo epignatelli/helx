@@ -25,7 +25,10 @@ from .image import ensure_video_format
 
 
 def run_episode(
-    agent: Agent, env: Environment, eval: bool = False, max_steps: int = int(2e9)
+    agent: Agent,
+    env: Environment,
+    eval: bool = False,
+    max_steps: int = int(2e9),
 ) -> Episode:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
@@ -91,11 +94,12 @@ def run(
             pformat(agent.hparams.as_dict())
         )
     )
-    logging.info("Start logging experiment on wandb project {}".format(experiment_name))
+    logging.info(
+        "Start logging experiment on wandb project {}".format(experiment_name)
+    )
 
     # train
     for i in range(num_episodes):
-
         #  experience a new episode
         episode = run_episode(agent, env)
         #  update policy
@@ -129,7 +133,9 @@ def run(
             # log episode
             returns = episode.returns().item()
             logging.info(
-                "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
+                "Episode: {}/{} - Return: {}".format(
+                    j, num_eval_episodes - 1, returns
+                )
             )
             expected_returns += returns
 

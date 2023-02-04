@@ -22,7 +22,9 @@ import gym3.interop
 import jax.numpy as jnp
 from chex import Array
 import numpy as np
-from gym.utils.step_api_compatibility import convert_to_terminated_truncated_step_api
+from gym.utils.step_api_compatibility import (
+    convert_to_terminated_truncated_step_api,
+)
 
 from .base import Environment
 from ..mdp import Action, StepType, Timestep
@@ -63,7 +65,8 @@ class FromGym3Env(Environment[gym3.interop.ToGymEnv]):
     def state(self) -> Array:
         if self._current_observation is None:
             raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
+                "Environment not initialized. Run `reset` first, to set a"
+                " starting state."
             )
         return self._current_observation
 

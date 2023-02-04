@@ -68,7 +68,9 @@ def _actor(server: Connection, client: Connection, env: Environment):
                 client.send(env.close())
                 break
             else:
-                raise NotImplementedError("Command {} is not implemented".format(cmd))
+                raise NotImplementedError(
+                    "Command {} is not implemented".format(cmd)
+                )
     except KeyboardInterrupt:
         logging.info("SubprocVecEnv actor: got KeyboardInterrupt")
     finally:
@@ -91,16 +93,17 @@ class MultiprocessEnv(Environment):
         context: str = "spawn",
         seed: int = 0,
     ):
-        assert isinstance(
-            env, Environment
-        ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead".format(
-            type(env)
+        assert isinstance(env, Environment), (
+            "The environment to parallelise must be an instance of"
+            " `helx.Environment`, got {} instead".format(type(env))
         )
         #  public:
         self.n_actors: int = n_actors
         self.clients: Sequence[Connection] = []
         self.servers: Sequence[Connection] = []
-        self.envs: Sequence[Environment] = [deepcopy(env) for _ in range(n_actors)]
+        self.envs: Sequence[Environment] = [
+            deepcopy(env) for _ in range(n_actors)
+        ]
         self.processes = []
 
         #  setup parallel workers
@@ -173,9 +176,8 @@ class MultiprocessEnv(Environment):
         return [server.recv() for server in self.servers]
 
     def _check_actions(self, actions: Sequence[Action]):
-        assert (
-            len(actions) == self.n_actors
-        ), "The number of actions must be equal to the number of parallel environments.\
-            \nReceived {} actions for {} environments. ".format(
-            len(actions), self.n_actors
+        assert len(actions) == self.n_actors, (
+            "The number of actions must be equal to the number of parallel"
+            " environments.            \nReceived {} actions for {}"
+            " environments. ".format(len(actions), self.n_actors)
         )

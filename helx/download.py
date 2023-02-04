@@ -66,7 +66,9 @@ def download_mujoco210():
         raise ValueError(f"Unsupported architecture: {machine}")
 
     # download mujoco
-    url = os.path.join(base_url, f"{mujoco_version}-{mujoco_system}-{machine}.tar.gz")
+    url = os.path.join(
+        base_url, f"{mujoco_version}-{mujoco_system}-{machine}.tar.gz"
+    )
     out_filename = os.path.basename(url)
     out_path = os.path.join(MUJOCO_ROOT, out_filename)
     out_dir = os.path.splitext(out_path)[0]
@@ -148,9 +150,11 @@ def download_atari_roms():
     try:
         subprocess.call(f"ale-import-roms {out_dir}", shell=True)
     except Exception as e:
-        msg = f"ALE ROMs have been downloaded and extracted but there \
-        was an error with ale-py while importing roms: {e}. \
-        Please install helx first and try download the extra requirements again"
+        msg = (
+            "ALE ROMs have been downloaded and extracted but there         was"
+            f" an error with ale-py while importing roms: {e}.         Please"
+            " install helx first and try download the extra requirements again"
+        )
         logging.error(msg)
 
 

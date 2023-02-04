@@ -21,12 +21,15 @@ from chex import Array, Shape
 
 
 def imresize(
-    img, size: Shape, method: str = "bilinear", channel_first: bool = True, **kwargs
+    img,
+    size: Shape,
+    method: str = "bilinear",
+    channel_first: bool = True,
+    **kwargs
 ):
-    assert (
-        len(size) == 2
-    ), "Size must be a tuple of two numbers, respectively height and width, not {}".format(
-        size
+    assert len(size) == 2, (
+        "Size must be a tuple of two numbers, respectively height and width,"
+        " not {}".format(size)
     )
     if channel_first:
         size = (*img.shape[:-2], *tuple(size))
@@ -60,9 +63,8 @@ def ensure_video_format(video: Array, channel_first: bool = True):
     n_dim = video.ndim
     if n_dim < 3 or n_dim > 5:
         logging.warning(
-            "Video must have at least three and at most four dimensions, got {} instead.".format(
-                n_dim
-            )
+            "Video must have at least three and at most four dimensions, got {}"
+            " instead.".format(n_dim)
         )
         return None
 

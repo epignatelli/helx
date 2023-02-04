@@ -42,7 +42,9 @@ def jit_bound(method, *args, **kwargs):
 
 
 @wraps(optax.apply_updates)
-def apply_updates(params: nn.FrozenDict, updates: optax.Updates) -> nn.FrozenDict:
+def apply_updates(
+    params: nn.FrozenDict, updates: optax.Updates
+) -> nn.FrozenDict:
     """Applies updates to parameters using optax. This is a workaround for a typing
     compatibility issue between optax and Flax: optax.apply_updates expects a pytree
     of parameters, but works with nn.FrozenDict anyway.

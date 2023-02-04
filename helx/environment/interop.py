@@ -31,7 +31,10 @@ from .gym3 import FromGym3Env
 def to_helx(env: Any) -> Any:
     # getting root env type for interop
     env_for_type = env
-    while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
+    while (
+        hasattr(env_for_type, "unwrapped")
+        and env_for_type.unwrapped != env_for_type
+    ):
         env_for_type = env_for_type.unwrapped
 
     # converting the actual env, rather than the root env

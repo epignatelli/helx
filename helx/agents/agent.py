@@ -83,7 +83,9 @@ class Agent(abc.ABC, Generic[T]):
         self.iteration: int = 0
         self.params: nn.FrozenDict = params
         self.opt_state: OptState = optimiser.init(params)
-        self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))
+        self.output_shape: Shape = jax.tree_map(
+            lambda x: x.shape, list(outputs)
+        )
 
         # methods:
         self.sgd_step = jax.jit(self._sgd_step)
@@ -128,10 +130,13 @@ class Agent(abc.ABC, Generic[T]):
         """Updates the agent state at the end of each episode and returns the loss as a scalar.
         This function can used to update both the agent's parameters and its memory.
         This function is usually not jittable, as we can not ensure that the agent memory, and other
-        properties are jittable. This is also a good place to perform logging."""
+        properties are jittable. This is also a good place to perform logging.
+        """
         raise NotImplementedError()
 
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
+    def sample_action(
+        self, observation: Array, eval: bool = False, **kwargs
+    ) -> Action:
         """Samples an action from the agent's policy.
         Args:
             observation (Array): The observation to condition onto.
@@ -196,7 +201,9 @@ class Agent(abc.ABC, Generic[T]):
             the updated parameters as a pytree of the same structure as params,
             and the updated optimiser state.
         """
-        backward = jax.value_and_grad(self._loss_batched, argnums=0, has_aux=True)
+        backward = jax.value_and_grad(
+            self._loss_batched, argnums=0, has_aux=True
+        )
         (loss, aux), grads = backward(params, batched_transition, *args)
         updates, opt_state = self.optimiser.update(grads, opt_state, params)
         params = apply_updates(params, updates)

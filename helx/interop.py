@@ -49,13 +49,18 @@ def as_dynamic(instance: Any) -> Any:
 
 class UnsupportedConversion(TypeError):
     def __init__(self, instance):
-        super().__init__("Unsupported object type conversion {}".format(type(instance)))
+        super().__init__(
+            "Unsupported object type conversion {}".format(type(instance))
+        )
 
 
 @polymorph
 def to_helx(space: dm_env.specs.BoundedArray) -> Continuous:
     return Continuous(
-        space.shape, space.dtype, jnp.asarray(space.minimum), jnp.asarray(space.maximum)
+        space.shape,
+        space.dtype,
+        jnp.asarray(space.minimum),
+        jnp.asarray(space.maximum),
     )
 
 

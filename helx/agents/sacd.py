@@ -71,7 +71,9 @@ class SACD(Agent[SACDHparams]):
         network = AgentNetwork(
             actor_net=Actor(
                 representation_net=actor_representation_net,
-                policy_head=SoftmaxPolicy(n_actions=hparams.action_space.n_bins),
+                policy_head=SoftmaxPolicy(
+                    n_actions=hparams.action_space.n_bins
+                ),
             ),
             critic_net=DoubleQCritic(
                 n_actions=hparams.action_space.n_bins,
@@ -123,7 +125,9 @@ class SACD(Agent[SACDHparams]):
         # here we can, so calculate the exact value of the state
         v_1 = batch_matmul(probs_a_1, (q_1 - alpha * logprobs_a_1))
         q_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
-        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
+        critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(
+            qB_0, q_target
+        )
 
         #
         target_entropy = 0.98 * (-jnp.log(1 / self.hparams.action_space.n_bins))

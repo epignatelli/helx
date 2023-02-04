@@ -58,7 +58,8 @@ class FromDmEnv(Environment[dm_env.Environment]):
     def state(self) -> Array:
         if self._current_observation is None:
             raise ValueError(
-                "Environment not initialized. Run `reset` first to produce a starting state."
+                "Environment not initialized. Run `reset` first to produce a"
+                " starting state."
             )
         return self._current_observation
 

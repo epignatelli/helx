@@ -54,7 +54,14 @@ def DEFINE_shape(  # pylint: disable=invalid-name,redefined-builtin
     parser = ShapeParser()
     serializer = _argument_parser.CsvListSerializer(",")
     return DEFINE(
-        parser, name, default, help, flag_values, serializer, required=required, **args
+        parser,
+        name,
+        default,
+        help,
+        flag_values,
+        serializer,
+        required=required,
+        **args
     )
 
 
@@ -95,7 +102,14 @@ def DEFINE_space(  # pylint: disable=invalid-name,redefined-builtin
     parser = SpaceParser()
     serializer = _argument_parser.CsvListSerializer(",")
     return DEFINE(
-        parser, name, default, help, flag_values, serializer, required=required, **args
+        parser,
+        name,
+        default,
+        help,
+        flag_values,
+        serializer,
+        required=required,
+        **args
     )
 
 

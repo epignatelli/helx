@@ -107,14 +107,18 @@ class Discrete(Space):
         return self.__str__()
 
     def sample(self, key: KeyArray) -> Array:
-        return jax.random.randint(key, self.shape, 0, self.n_bins, dtype=self.dtype)
+        return jax.random.randint(
+            key, self.shape, 0, self.n_bins, dtype=self.dtype
+        )
 
     @classmethod
     def from_gym(cls, gym_space: gym.spaces.Discrete) -> Discrete:
         return cls(gym_space.n)
 
     @classmethod
-    def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Discrete) -> Discrete:
+    def from_gymnasium(
+        cls, gymnasium_space: gymnasium.spaces.Discrete
+    ) -> Discrete:
         return cls(int(gymnasium_space.n))
 
     @classmethod
@@ -135,10 +139,11 @@ class Continuous(Space):
         self.min: Array = jnp.broadcast_to(jnp.asarray(minimum), shape=shape)
         self.max: Array = jnp.broadcast_to(jnp.asarray(maximum), shape=shape)
 
-        assert (
-            self.min.shape == self.max.shape == shape
-        ), "minimum and maximum must have the same length as n_dimensions, got {} and {} for n_dimensions={}".format(
-            self.min.shape, self.max.shape, shape
+        assert self.min.shape == self.max.shape == shape, (
+            "minimum and maximum must have the same length as n_dimensions, got"
+            " {} and {} for n_dimensions={}".format(
+                self.min.shape, self.max.shape, shape
+            )
         )
 
     @property
@@ -174,7 +179,11 @@ class Continuous(Space):
             if jnp.isinf(self.max).any():
                 maximum = jnp.nan_to_num(self.max)
             return jax.random.uniform(
-                key, self.shape, minval=minimum, maxval=maximum, dtype=self.dtype
+                key,
+                self.shape,
+                minval=minimum,
+                maxval=maximum,
+                dtype=self.dtype,
             )
         else:
             raise NotImplementedError(
@@ -186,15 +195,22 @@ class Continuous(Space):
         shape = gym_space.shape
         minimum = jnp.asarray(gym_space.low)
         maximum = jnp.asarray(gym_space.high)
-        return cls(shape=shape, dtype=gym_space.dtype, minimum=minimum, maximum=maximum)
+        return cls(
+            shape=shape, dtype=gym_space.dtype, minimum=minimum, maximum=maximum
+        )
 
     @classmethod
-    def from_gymnasium(cls, gymnasium_space: gymnasium.spaces.Box) -> Continuous:
+    def from_gymnasium(
+        cls, gymnasium_space: gymnasium.spaces.Box
+    ) -> Continuous:
         shape = gymnasium_space.shape
         minimum = jnp.asarray(gymnasium_space.low)
         maximum = jnp.asarray(gymnasium_space.high)
         return cls(
-            shape=shape, dtype=gymnasium_space.dtype, minimum=minimum, maximum=maximum
+            shape=shape,
+            dtype=gymnasium_space.dtype,
+            minimum=minimum,
+            maximum=maximum,
         )
 
     @classmethod
@@ -202,4 +218,6 @@ class Continuous(Space):
         shape = dm_space.shape
         minimum = jnp.asarray(dm_space.minimum)
         maximum = jnp.asarray(dm_space.maximum)
-        return cls(shape=shape, dtype=dm_space.dtype, minimum=minimum, maximum=maximum)
+        return cls(
+            shape=shape, dtype=dm_space.dtype, minimum=minimum, maximum=maximum
+        )

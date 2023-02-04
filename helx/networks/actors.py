@@ -36,7 +36,9 @@ class Actor(nn.Module):
     policy_head: nn.Module
     representation_net: nn.Module = Identity()
 
-    def __call__(self, observation: Array, key: KeyArray) -> Tuple[Action, Array]:
+    def __call__(
+        self, observation: Array, key: KeyArray
+    ) -> Tuple[Action, Array]:
         representation = self.representation_net(observation)
         return self.policy_head(representation, key)
 
@@ -50,11 +52,15 @@ class EGreedyPolicy(nn.Module):
     @nn.compact
     def __call__(self, q_values: Array, key, **kwargs) -> Tuple[Action, Array]:
         eval = kwargs.pop("eval", False)
-        x = self.variable("stats", "iteration", lambda: jnp.ones((), dtype=jnp.float32))
+        x = self.variable(
+            "stats", "iteration", lambda: jnp.ones((), dtype=jnp.float32)
+        )
 
         eps = jnp.interp(
             x.value,
-            jnp.asarray([self.initial_exploration_frame, self.final_exploration_frame]),
+            jnp.asarray(
+                [self.initial_exploration_frame, self.final_exploration_frame]
+            ),
             jnp.asarray([self.initial_exploration, self.final_exploration]),
         )
         eps = jax.lax.select(eval, 0.0, eps)
@@ -70,7 +76,9 @@ class GaussianPolicy(nn.Module):
     action_shape: Shape
 
     @nn.compact
-    def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:
+    def __call__(
+        self, representation: Array, key: KeyArray
+    ) -> Tuple[Action, Array]:
         action_size = reduce(operator.mul, self.action_shape, 1)
         mu = nn.Dense(features=action_size)(representation)
         log_sigma = nn.Dense(features=action_size)(representation)
@@ -78,7 +86,9 @@ class GaussianPolicy(nn.Module):
         # reparametrisation trick: sample from normal and multiply by std
         noise = jax.random.normal(key, (action_size,))
         action = jnp.tanh(mu + log_sigma * noise)
-        log_prob = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(action)
+        log_prob = distrax.Normal(loc=mu, scale=jnp.exp(log_sigma)).log_prob(
+            action
+        )
 
         action = action.reshape(self.action_shape)
         log_prob = log_prob.reshape(self.action_shape)
@@ -93,7 +103,9 @@ class SoftmaxPolicy(nn.Module):
     n_actions: int
 
     @nn.compact
-    def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:
+    def __call__(
+        self, representation: Array, key: KeyArray
+    ) -> Tuple[Action, Array]:
         logits = nn.Dense(features=self.n_actions)(representation)
 
         action = distrax.Softmax(logits).sample(seed=key)

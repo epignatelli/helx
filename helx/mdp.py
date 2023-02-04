@@ -23,7 +23,9 @@ import dm_env
 import jax
 import jax.numpy as jnp
 from chex import Array
-from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
+from gym.utils.step_api_compatibility import (
+    TerminatedTruncatedStepType as GymTimestep,
+)
 from gymnasium.utils.step_api_compatibility import (
     TerminatedTruncatedStepType as GymnasiumTimestep,
 )
@@ -50,7 +52,9 @@ Transition = Tuple[Observation, Action, Reward, Observation, Condition]
 
 
 class Timestep:
-    def __init__(self, observation: Array, reward: Array | None, step_type: StepType):
+    def __init__(
+        self, observation: Array, reward: Array | None, step_type: StepType
+    ):
         self.observation: Array = observation
         self.reward: Array | None = reward
         self.step_type: StepType = step_type
@@ -122,7 +126,9 @@ class Episode:
     from $s_0$ to $s_1$.
     """
 
-    def __init__(self, s: List[Array], a: List[Array], r: List[Array], d: List[Array]):
+    def __init__(
+        self, s: List[Array], a: List[Array], r: List[Array], d: List[Array]
+    ):
         self._s: List[Array] = s
         self._a: List[Array] = a
         self._r: List[Array] = r

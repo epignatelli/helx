@@ -61,8 +61,10 @@ def get_logger():
 
 
 class CustomFormatter(logging.Formatter):
-
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"  # pyright: ignore reportGeneralTypeIssues
+    format = (  # pyright: ignore reportGeneralTypeIssues
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        " (%(filename)s:%(lineno)d)"
+    )
 
     FORMATS = {
         logging.DEBUG: GREY + str(format) + RESET,
