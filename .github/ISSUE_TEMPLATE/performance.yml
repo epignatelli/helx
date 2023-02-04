@@ -1,0 +1,13 @@
+---
+name: Performance
+description: >-
+  A code change that improves performance but does not change the functionality or the API.
+labels:
+- performance
+
+body:
+- type: textarea
+  attributes:
+    label: Description
+    description: >-
+      A concise description of what of what you would like to add or change.
