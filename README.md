@@ -28,7 +28,8 @@ We need Deep RL algorithms implementations that are:
 1. Reliable
 2. Interpretable
 3. Modular
-4. Co-created, community-driven and agreed upon
+4. Back-end agnostic
+5. Co-created, community-driven and agreed upon
 
 
 To achieve this, we provide a stable **front-end interfaces** while remaining **agnostic** to the **backends** used by these components:
