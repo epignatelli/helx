@@ -5,8 +5,7 @@
 [**Quickstart**](#quickstart)
 | [**Prerequisites**](#prerequisites)
 | [**Install guide**](#Installation)
-| [**Adding agents**](#install-guide)
-| [**Adding environments**](#install-guide)
+| [**Contributing**](#contributing)
 | [**Contacts**](#contacts)
 | [**Cite**](#cite)
 
@@ -106,13 +105,19 @@ export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
 export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
 ```
 
-## Adding a new agent
+## Contributing
+Please see our [contributing guidelines](CONTRIBUTING.md) for how **how** to contribute.
+You can either contribute in maintaining the codebase, or by incrementing the list of:
+- agents,
+- supported environments and environment suites,
+- experiments
+
+### 1. Adding a new agent
 An `helx.agents.Agent` interface is designed as the minimal set of functions necessary to
 - interact with an environment and
 - reinforcement learn through it
 
 For example, a random agent can be implemented as follows:
-
 ```python
 class RandomAgent(helx.agents.Agent):
     """A minimal RL agent interface."""
@@ -132,7 +137,33 @@ class RandomAgent(helx.agents.Agent):
         return None
 ```
 
-## Adding a new environment
+## 2. Adding a new environment
+An `helx.environment.Environment` is a synthesis of the minimal set of functions necessary arising from different RL environment interfaces, such as `gym` and `dm_env`.
+
+For example, a random environment can be implemented as follows:
+```python
+class RandomEnvironment(helx.environment.Environment):
+    """A minimal RL agent interface."""
+
+    def action_space(self) -> Space:
+        return helx.spaces.Discrete(2)
+
+    def observation_space(self) -> Space:
+        return helx.spaces.Continuous((3, 16, 16), minimum=0, maximum=1)
+
+    def reward_space(self) -> Space:
+        return helx.spaces.Continuous((), minimum=0, maximum=1)
+
+    def state(self) -> Array:
+        return self._current_state
+
+    def reset(self, seed: int | None = None) -> Timestep:
+        return self.observation_space().sample()
+
+    @abc.abstractmethod
+    def step(self, action: Action) -> Timestep:
+        return self.observation_space().sample()
+```
 
 
 
