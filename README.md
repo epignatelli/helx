@@ -31,27 +31,15 @@ We need Deep RL algorithms implementations that are:
 
 
 ### How?
-We provide a stable **front-end interface** for **agents**, **environments**, and **experiments**, while remaining **agnostic** to the **backends** used by these components. This makes it possible to integrate new algorithms easily, and to test them across a variety of environments, with minimal effort.
+We provide stable **front-end interfaces** for an:
+1. **`Agent`**,
+2. **`Environment`**, and an
+3. **`Experiment`**
 
-## Installation
-```bash
-pip install git+https://github.com/epignatelli/helx
-```
+while remaining **agnostic** to the **backends** used by these components.   
+This makes it possible to integrate new algorithms easily, and to test them across a variety of environments, with minimal effort.
 
-If you also want to download the binaries for `mujoco`, both `gym` and `dm_control`, and `atari`:
-```bash
-helx-download-extras
-```
-
-And then tell the system where the mujoco binaries are:
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
-export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
-export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
-```
-
----
-## Example
+## Quickstart
 
 A typical use case is to design an agent, and toy-test it on `catch` before evaluating it on more complex environments, such as atari, procgen or mujoco.
 
@@ -100,7 +88,25 @@ agent = helx.agents.Random(hparams)
 helx.experiment.run(env, agent, episodes=100)
 ```
 
----
+
+## Installation
+```bash
+pip install git+https://github.com/epignatelli/helx
+```
+
+If you also want to download the binaries for `mujoco`, both `gym` and `dm_control`, and `atari`:
+```bash
+helx-download-extras
+```
+
+And then tell the system where the mujoco binaries are:
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
+export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
+export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
+```
+
+
 ## Supported libraries
 
 We currently support these external environment models:
