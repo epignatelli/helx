@@ -84,8 +84,9 @@ helx.experiment.run(env, agent, episodes=100)
 
 
 ## Installation
+To use `helx` as it is, you can install it from `pip` and `pypi` with:
 ```bash
-pip install git+https://github.com/epignatelli/helx
+pip install helx
 ```
 
 If you also want to download the binaries for `mujoco`, both `gym` and `dm_control`, and `atari`:

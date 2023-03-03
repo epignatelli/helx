@@ -2,13 +2,13 @@
 If you are reading this, your are interested in contributing -- and time is precious, so thank you very much for your time.
 This guidelines are designed to guide you through how to submit commits to `helx`.
 
----
+
 ## Code of conduct
 First and foremost, please be respectuful to others.
 Please, read and follow our [Code of conduct](https://github.com/epignatelli/helx/CODE_OF_CONDUCT.md).
 The code applies to both humans and bots.
 
----
+
 ## Committing code
 Contributing to the codebase or to other any operational support material happens through Pull Requests (PRs).
 If you have already a PR in mind, please open an issue first, explaining the underlying motivation for the change.
@@ -17,18 +17,19 @@ To commit new code, please:
 2. Create and work on a new branch -- you can do it [directly from the issue page](https://docs.github.com/en/issues/tracking-your-work-with-issues/creating-a-branch-for-an-issue)
 3. When you are ready to merge, or you you have a proof of concept to discuss, open a PR, assign yourself to it, and ask review from one of the team
 
----
-## Development environment
 
-### Installation
+
+## Development install
 You can install `helx` in your development environment using `conda` and `pip`.
 From the repository root, you can install the package in development mode (`-e`) in a pre-baked environment:
 ```bash
+git clone https://github.com/epignatelli/helx
+cd helx
 conda env create -f environment.yml
 pip install -e .
 ```
 
-### Testing
+## Testing
 We use `pytest` for testing.
 You can run the tests with:
 ```bash
