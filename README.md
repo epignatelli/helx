@@ -1,25 +1,37 @@
-[![CI](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
-[![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
-
+[![Continuous Integration](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
+[![Continuous deployment](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
+[![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
-![PyPI - Python Version](https://img.shields.io/pypi/pyversions/helx)
-![PyPI - Wheel](https://img.shields.io/pypi/wheel/helx)
 
-[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[**Quickstart**](#quickstart)
+| [**Prerequisites**](#prerequisites)
+| [**Install guide**](#install-guide)
+| [**Contacts**](#contacts)
+| [**Cite**](#cite)
 
---------------
+## What is HELX?
+Helx is a backend-agnostic Deep RL library, aiming to make it easier for researchers to **implement** new algorithms, **benchmark** existing ones, and **reproduce** experiments for reliable evaluation and advancement of the Deep RL field.
 
-# Helx
 
-Helx provides a single **interface** to:
 
-**a.** interoperate between a variety of Reinforcement Learning (RL) environments and   
-**b.** interact with them through a unified agent interface.
+And yet, it is often difficult to reproduce the results of a paper, or to compare different algorithms.
 
-It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
 
-Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
+### Why helx?
+Algorithm implementation is a key part of a Deep RL methods.
+The same method, implemented differently, yields very different results []() .
+Experiments are, at times, partial, cherry-picked and hard to reproduce []().
+
+Our goals are simple: we want to make it easier for researchers to test their new algorithms, compare them to existing ones, and evaluate their results in a reliable way.
+We need Deep RL algorithms implementations that are:
+- Reliable
+- Interpretable
+- Modular
+- Co-created, community-driven and agreed upon
+
+
+### How?
+We provide a stable **front-end interface** for **agents**, **environments**, and **experiments**, while remaining **agnostic** to the **backends** used by these components. This makes it possible to integrate new algorithms easily, and to test them across a variety of environments, with minimal effort.
 
 ## Installation
 ```bash
@@ -159,7 +171,7 @@ If you use `helx` please consider citing it as:
 This repository was born as the recipient of personal research code that was developed over the years.
 Its maintainance is limited by the time and the resources of a research project resourced with a single person.
 Even if I would like to automate many actions, I do not have the time to maintain the whole body of automation that a well maintained package deserves.
-This is the reason of the WIP badge, which I do not plan to remove soon.
+This is the reason of the `alpha` badge, which I do not plan to remove soon.
 Maintainance will prioritise the code functionality over documentation and automation.
 
 Any help is very welcome.
