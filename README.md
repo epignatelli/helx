@@ -1,11 +1,12 @@
 [![Continuous Integration](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
 [![Continuous deployment](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
-![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
 
 [**Quickstart**](#quickstart)
 | [**Prerequisites**](#prerequisites)
-| [**Install guide**](#install-guide)
+| [**Install guide**](#Installation)
+| [**Adding agents**](#install-guide)
+| [**Adding environments**](#install-guide)
 | [**Contacts**](#contacts)
 | [**Cite**](#cite)
 
@@ -24,19 +25,17 @@ Experiments are, at times, partial, cherry-picked and hard to reproduce []().
 
 Our goals are simple: we want to make it easier for researchers to test their new algorithms, compare them to existing ones, and evaluate their results in a reliable way.
 We need Deep RL algorithms implementations that are:
-- Reliable
-- Interpretable
-- Modular
-- Co-created, community-driven and agreed upon
+1. Reliable
+2. Interpretable
+3. Modular
+4. Co-created, community-driven and agreed upon
 
 
-### How?
-We provide stable **front-end interfaces** for an:
-1. **`Agent`**,
-2. **`Environment`**, and an
-3. **`Experiment`**
+To achieve this, we provide a stable **front-end interfaces** while remaining **agnostic** to the **backends** used by these components:
+- **`Agent`**,
+- **`Environment`**, and an
+- **`Experiment`**
 
-while remaining **agnostic** to the **backends** used by these components.   
 This makes it possible to integrate new algorithms easily, and to test them across a variety of environments, with minimal effort.
 
 ## Quickstart
@@ -106,56 +105,35 @@ export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
 export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
 ```
 
+## Adding a new agent
+An `helx.agents.Agent` interface is designed as the minimal set of functions necessary to
+- interact with an environment and
+- reinforcement learn through it
 
-## Supported libraries
-
-We currently support these external environment models:
-- [dm_env](https://github.com/deepmind/dm_env)
-- [bsuite](https://github.com/deepmind/bsuite)
-- [dm_control](https://github.com/deepmind/dm_control), including
-  - [Mujoco](https://mujoco.org)
-- [gym](https://github.com/openai/gym) and [gymnasium](https://github.com/Farama-Foundation/Gymnasium), including
-  - The [minigrid]() family
-  - The [minihack]() family
-  - The [atari](https://github.com/mgbellemare/Arcade-Learning-Environment) family
-  - The legacy [mujoco](https://www.roboti.us/download.html) family
-  - And the standard gym family
-- [gym3](https://github.com/openai/gym3), including
-  - [procgen](https://github.com/openai/procgen)
-
-#### On the road:
-- [gymnax](https://github.com/RobertTLange/gymnax)
-- [ivy_gym](https://github.com/unifyai/gym)
----
-## Adding a new agent (`helx.agents.Agent`)
-
-An `helx` agent interface is designed as the minimal set of functions necessary to *(i)* interact with an environment and *(ii)* reinforcement learn.
+For example, a random agent can be implemented as follows:
 
 ```python
-class Agent(ABC):
+class RandomAgent(helx.agents.Agent):
     """A minimal RL agent interface."""
 
-    @abstractmethod
     def sample_action(self, timestep: Timestep) -> Action:
         """Applies the agent's policy to the current timestep to sample an action."""
+        # using jax
+        return jax.random.randint(self.key, (), 0, self.n_actions)
+        # or pytorch
+        return torch.rand(self.n_actions)
+        # or even numpy
+        return np.random.randint(0, self.n_actions)
 
-    @abstractmethod
     def update(self, timestep: Timestep) -> Any:
         """Updates the agent's internal state (knowledge), such as a table,
         or some function parameters, e.g., the parameters of a neural network."""
+        return None
 ```
 
----
-## Adding a new environment library (`helx.environment.Environment`)
+## Adding a new environment
 
-To add a new library requires three steps:
-1. Implement the `helx.environment.Environment` interface for the new library.
-See the [dm_env](helx/environment/dm_env.py) implementation for an example.
-1. Implement serialisation (to `helx`) of the following objects:
-    - `helx.environment.Timestep`
-    - `helx.spaces.Discrete`
-    - `helx.spaces.Continuous`
-2. Add the new library to the [`helx.environment.to_helx`](helx/environment/interop.py#L16) function to tell `helx` about the new protocol.
+
 
 ---
 ## Cite
