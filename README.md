@@ -13,10 +13,6 @@
 Helx is a backend-agnostic Deep RL library, aiming to make it easier for researchers to **implement** new algorithms, **benchmark** existing ones, and **reproduce** experiments for reliable evaluation and advancement of the Deep RL field.
 
 
-
-And yet, it is often difficult to reproduce the results of a paper, or to compare different algorithms.
-
-
 ### Why helx?
 Algorithm implementation is a key part of a Deep RL methods.
 The same method, implemented differently, yields very different results []() .
