@@ -22,7 +22,7 @@ import tarfile
 
 import requests
 
-from .logging import get_logger
+from ..helx.logging import get_logger
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
@@ -157,20 +157,6 @@ def download_atari_roms():
             " install helx first and try download the extra requirements again"
         )
         logging.error(msg)
-
-
-def set_mujoco_paths():
-    # add mujoco to path
-    mujoco_path =  os.path.join(MUJOCO_ROOT, MUJOCO_VERSION)
-    mujoco_lib = os.path.join(mujoco_path, "lib")
-    mujoco_so = os.path.join(mujoco_path, f"lib{MUJOCO_VERSION}.so")
-
-    if mujoco_lib not in os.environ["LD_LIBRARY_PATH"]:
-        os.environ["LD_LIBRARY_PATH"] += ":" + mujoco_lib
-    if not os.environ.get("MJLIB_PATH"):
-        os.environ["MJLIB_PATH"] = mujoco_so
-    if not os.environ.get("MUJOCO_PY_MUJOCO_PATH"):
-        os.environ["MUJOCO_PY_MUJOCO_PATH"] = mujoco_path
 
 
 def download_all():
