@@ -70,8 +70,8 @@ all = [
 
 
 [project.scripts]
-helx-download-extras = "scripts.download:download_all"
-helx-configure-extras = "scripts.configure:configure_all"
+helx-download-extras = "helx.download:download_all"
+helx-configure-extras = "helx.configure:configure_all"
 
 
 [tool.setuptools.dynamic]
