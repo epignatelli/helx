@@ -1,5 +1,5 @@
-[![Continuous Integration](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
-[![Continuous deployment](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
+[![CI](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
+[![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg?branch=main)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 [![stability-alpha](https://img.shields.io/badge/stability-alpha-f4d03f.svg)](https://github.com/mkenney/software-guides/blob/master/STABILITY-BADGES.md#alpha)
 
 [**Quickstart**](#quickstart)
