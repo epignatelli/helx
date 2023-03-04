@@ -22,7 +22,7 @@ import tarfile
 
 import requests
 
-from ..helx.logging import get_logger
+from .logging import get_logger
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
