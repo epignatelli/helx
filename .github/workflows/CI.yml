@@ -28,7 +28,9 @@ jobs:
       run: |
         pip install . -v
         helx-download-extras
-        helx-configure-extras
+        conda env config vars set LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.mujoco/mujoco210/bin
+        conda env config vars set MJLIB_PATH=$HOME/.mujoco/mujoco210/bin/libmujoco210.so
+        conda env config vars set MUJOCO_PY_MUJOCO_PATH=$HOME/.mujoco/mujoco210
         conda env config vars set LD_PRELOAD=$CONDA_PREFIX/x86_64-conda-linux-gnu/sysroot/usr/lib64/libGLdispatch.so.0
     - name: Check code quality
       run: |
@@ -61,7 +63,6 @@ jobs:
         else
           MESSAGE=$(pylint -ry --disable=E0401 $CURRENT_DIFF ||:)
         fi
-        MESSAGE="COMPLIANCE REPORT: \n $MESSAGE"
         echo 'MESSAGE<<EOF' >> $GITHUB_ENV
         echo "<pre><code>$MESSAGE</code></pre>" >> $GITHUB_ENV
         echo 'EOF' >> $GITHUB_ENV
