@@ -15,9 +15,9 @@ rlax
 flax
 dm_env
 bsuite
+mujoco-py>=2.1.1  # 2.2 required for mujococ 2.1
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
-mujoco-py>=2.1.1  # 2.2 required for mujococ 2.1
 dm_control
 gym_minigrid
 minigrid
