@@ -17,6 +17,7 @@ dm_env
 bsuite
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
 gym[all]>=0.26  # 0.26 introduced the termination/truncation API
+mujoco-py>=2.1,<2.2  # 2.2 required for mujococ 2.1
 dm_control
 gym_minigrid
 minigrid
