@@ -14,6 +14,7 @@
 
 
 from .bsuite import FromBsuiteEnv
+from .brax import FromBraxEnv
 from .dm_env import FromDmEnv
 from .gym import FromGymEnv
 from .gym3 import FromGym3Env

@@ -57,28 +57,10 @@ class A2CHparams(Hparams):
 
 
 class A2C(Agent[A2CHparams]):
-    """Implements Soft Actor-Critic with gaussian policy for continuous action spaces.
-    Haarnoja, Tuomas, et al. "Soft actor-critic: Off-policy maximum entropy deep
-        reinforcement learning with a stochastic actor."
-        International conference on machine learning. PMLR, 2018.
-        https://arxiv.org/abs/1801.01290 for the base SAC.
-    Haarnoja, Tuomas, et al. "Soft actor-critic algorithms and applications."
-        arXiv preprint arXiv:1812.05905 (2018).
-        https://arxiv.org/abs/1812.05905 for the tunable entropy temperature
-    Haonanm Yu, et al. "Do you need reward entropy (in practice)?".
-        arXiv preprint arXiv:2201.12434. 2022 Jan 28.
-        https://arxiv.org/abs/2201.12434
-
-    Args:
-        network (AgentNetwork): the network to use for the agent.
-            the `actor_net` is usually a `GaussianPolicy` for continuous action spaces.
-            the `critic_net` is double Q network.
-            the `extra_net` is usually a `Temperature` layer to automatically
-            tune the entropy pull.
-        optimiser (GradientTransformation): an optax optimiser to perform gradient descent.
-        hparams (SACHparams): the hyperparameters for the agent.
-        seed (int): the seed to use for the agent.
-            Using the same seed will result in reproducible agent results.
+    """Synchronous version of Advantage Actor Critic (A2C) with entropy regularisation,
+    as described in
+    "Asynchronous Methods for Deep Reinforcement Learning" (Mnih et al., 2016),
+    https://arxiv.org/abs/1602.01783.
     """
 
     def __init__(
@@ -90,10 +72,7 @@ class A2C(Agent[A2CHparams]):
         critic_network: nn.Module,
     ):
         """
-        Synchronous version of Advantage Actor Critic (A2C) with entropy regularisation,
-        as described in
-        "Asynchronous Methods for Deep Reinforcement Learning" (Mnih et al., 2016),
-        https://arxiv.org/abs/1602.01783.
+        Initialises the agent.
         Args:
             hparams (A2CHparams): the hyperparameters for the agent.
             optimiser (GradientTransformation): an optax optimiser to perform gradient descent.

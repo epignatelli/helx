@@ -12,14 +12,13 @@
 
 # Helx
 
-Helx provides a single **interface** to:
+Helx aims to excel at two things:
 
-**a.** interoperate between a variety of Reinforcement Learning (RL) environments and   
-**b.** interact with them through a unified agent interface.
+*1.* To **interoperate** between a variety of Reinforcement Learning (RL) environments and Deep Learning libraries with a **single interface**.
+For example, you can use `gym` with a `pytorch`, `jax` or `tensofrlow` agent, and reuse the same agents with a `bsuite` or a `dm_control` environment **without changing your code**.
 
-It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
+*2.* To easily **implement** a new Deep RL algorithm that one can plug-and-play in the ecosystem described above.
 
-Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
 
 ## Installation
 ```bash

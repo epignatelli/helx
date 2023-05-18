@@ -85,7 +85,7 @@ class Agent(abc.ABC, Generic[T]):
         self.iteration: int = 0
         self.params: nn.FrozenDict = params
         self.opt_state: OptState = optimiser.init(params)
-        self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))
+        self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))  # type: ignore
 
         # methods:
         self.sgd_step = jax.jit(self._sgd_step)
