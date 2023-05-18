@@ -13,6 +13,7 @@ chex
 optax
 rlax
 flax
+brax
 dm_env
 bsuite
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API

@@ -30,6 +30,7 @@ class FromBraxEnv(Environment[brax.envs.Env]):
 
     def __init__(self, env: brax.envs.Env):
         super().__init__(env)
+        self._current_state = None
 
     def action_space(self) -> Space:
         if self._action_space is None:
@@ -64,14 +65,17 @@ class FromBraxEnv(Environment[brax.envs.Env]):
         reward = next_step.reward
         step_type = StepType(next_step.done)  # TODO(epignatelli): this will break with vector env
 
+        self._current_state = next_step
         self._current_observation = jnp.asarray(observation)
         return Timestep(observation, reward, step_type)
 
     def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(self._current_observation, action)  # type: ignore
+        next_step = self._env.step(self._current_state, action)  # type: ignore
         observation = next_step.obs
         reward = next_step.reward
         step_type = StepType(next_step.done)  # TODO(epignatelli): this will break with vector env
+
+        self._current_state = next_step
         self._current_observation = observation
         return Timestep(observation, reward, step_type)
 

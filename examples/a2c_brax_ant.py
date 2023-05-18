@@ -29,7 +29,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = brax.envs.ant.Ant(max_episode_steps=100)
+    env = brax.envs.ant.Ant()
     env = helx.environment.to_helx(env)
 
     # optimiser

@@ -78,9 +78,9 @@ class Environment(abc.ABC, Generic[T]):
     def close(self) -> None:
         raise NotImplementedError()
 
-    @abc.abstractmethod
+    # @abc.abstractmethod
     def n_parallel(self) -> int:
-        raise NotImplementedError()
+        return self._n_parallel
 
     def name(self) -> str:
         return self._env.__class__.__name__
