@@ -30,7 +30,7 @@ from helx.networks.modules import Identity
 from helx.spaces import Discrete
 
 from ..mdp import Trajectory, Transition
-from ..memory import ReplayBuffer
+from ..memory import Buffer
 from ..networks import AgentNetwork, EGreedyHead
 from .agent import Agent, Hparams
 
@@ -84,7 +84,7 @@ class DQN(Agent[DQNHparams]):
             critic_net=Identity(),
         )
         super().__init__(hparams, network, optimiser, seed)
-        self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
+        self.memory = Buffer[Transition](hparams.replay_memory_size)
         self.params_target = self.params.copy({})
 
     def loss(

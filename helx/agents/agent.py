@@ -167,7 +167,8 @@ class Agent(abc.ABC, Generic[T]):
             and the updated optimiser state.
         """
         def _loss(params, transition, *args):
-            # in_axis for named arguments is not supported yet by jax.vmap
+            # TODO(epignatelli): in_axis for named arguments
+            # is not supported yet by jax.vmap
             # see https://github.com/google/jax/issues/7465
             in_axes = (None, 0) + (None,) * len(args)
             loss_fn = self.loss

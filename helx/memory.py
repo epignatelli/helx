@@ -26,7 +26,7 @@ from .mdp import tree_stack
 T = TypeVar("T")
 
 
-class ReplayBuffer(Generic[T]):
+class Buffer(Generic[T]):
     """A circular buffer used for Experience Replay (ER):
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
     This type of buffer is usually used

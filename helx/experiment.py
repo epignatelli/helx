@@ -96,15 +96,19 @@ def run(
 
     # train
     for i in range(num_episodes):
-
-        #  experience a new episode
+        #  collect experience
+        # this can run asynchronously because env.step, env.reset
+        # and agent.sample_action might be all non-blocking
+        # until the buffer is at minimum learning capacity
         episode = run_episode(agent, env)
-        #  update policy
+        #  update the learner
+        # this run asynchronously as well when the
+        # agent is a distributed learner and the buffer is full
         log = agent.update(episode)
-        # log result
+        #  log the update
         wandb.log(log)
 
-        # log episode
+        # print the current log
         if i % print_frequency == 0:
             logging.info(log)
 
@@ -115,7 +119,6 @@ def run(
         # nameof = lambda x: type(x).__name__
         # agent.save("{}-{}.pickle".format(nameof(agent), nameof(env)))
 
-        expected_returns = 0.0
         for j in range(num_eval_episodes):
             log = {}
             logging.info("Evaluating episode {} at iteration {}".format(j, i))
@@ -123,17 +126,14 @@ def run(
             episode = run_episode(agent, env, eval=True)
             video = ensure_video_format(episode.s)
             if video is not None:
-                log.update({f"val/policy-{j}": wandb.Video(video, format="mp4")})
+                log.update({f"val/$\\pi_{j}$": wandb.Video(video, format="mp4")})
 
             # log episode
             returns = episode.returns().item()
+            log.update({f"val/Return$(\\pi_{j})$": returns})
             logging.info(
                 "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
             )
-            expected_returns += returns
-
-        expected_returns /= num_eval_episodes
-        log.update({"val/Return": expected_returns})
 
         #log
         wandb.log(log)

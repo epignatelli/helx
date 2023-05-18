@@ -38,7 +38,7 @@ class Critic(nn.Module):
 
 
 class QHead(nn.Module):
-    """Defines a simple Q-critic network.
+    """Defines a linear q-value critic with a predefined representation nettwork.
     Args:
         n_actions (int): The number of outputs of the network, i.e., the number of
         actions in a discrete action space, or the dimensionality of each action
@@ -57,7 +57,7 @@ class QHead(nn.Module):
 
 
 class DoubleQHead(nn.Module):
-    """Defines a double Q-critic network.
+    """Defines a linear double Q-critic with a predefined representation nettwork.
     Args:
         n_actions (int): The number of outputs of the network, i.e., the number of
         actions in a discrete action space, or the dimensionality of each action
