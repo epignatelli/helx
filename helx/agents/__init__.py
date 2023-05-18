@@ -11,9 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+"""
+Contains the collection of learners for RL algorithms (agents).
+Different implementations of learners can yield synchronous or asynchronous agents,
+and can be used for single or multi-agent learning.
+"""
 
 from .agent import Agent
+from .a2c import A2C, A2CHparams
 from .dqn import DQN, DQNHparams
 from .sac import SAC, SACHparams
 from .sacd import SACD
