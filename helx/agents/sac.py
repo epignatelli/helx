@@ -16,7 +16,7 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
 import jax
 import jax.numpy as jnp
@@ -28,13 +28,13 @@ from optax import GradientTransformation
 
 import wandb
 
-from ..mdp import Episode, Transition
+from ..mdp import Trajectory, Transition
 from ..memory import ReplayBuffer
 from ..networks import (
     Actor,
     AgentNetwork,
-    DoubleQCritic,
-    GaussianPolicy,
+    DoubleQHead,
+    GaussianHead,
     Temperature,
     deep_copy,
 )
@@ -95,9 +95,9 @@ class SAC(Agent[SACHparams]):
         network = AgentNetwork(
             actor_net=Actor(
                 representation_net=actor_representation_net,
-                policy_head=GaussianPolicy(action_shape=hparams.action_space.shape),
+                policy_head=GaussianHead(action_shape=hparams.action_space.shape),
             ),
-            critic_net=DoubleQCritic(
+            critic_net=DoubleQHead(
                 n_actions=1,
                 representation_net_a=deep_copy(critic_representation_net),
                 representation_net_b=deep_copy(critic_representation_net),
@@ -154,23 +154,24 @@ class SAC(Agent[SACHparams]):
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
         return loss, aux
 
-    def update(self, episode: Episode) -> Array:
+    def update(self, episode: Trajectory) -> Dict[str, Any]:
         # update iteration
         self.iteration += 1
-        wandb.log({"Iteration": self.iteration})
+        log = {}
+        log.update({"Iteration": self.iteration})
 
         # update memory
         transitions: List[Transition] = episode.transitions()
         self.memory.add_range(transitions)
-        wandb.log({"Buffer size": len(self.memory)})
+        log.update({"Buffer size": len(self.memory)})
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
         if len(self.memory) < self.hparams.replay_start:
-            return jnp.asarray([])
+            return log
 
         # check update period
         if self.iteration % self.hparams.update_frequency != 0:
-            return jnp.asarray([])
+            return log
 
         episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
         params, opt_state, loss, aux = self.sgd_step(
@@ -193,11 +194,11 @@ class SAC(Agent[SACHparams]):
 
         aux = jax.tree_map(jnp.mean, aux)  # reduce aux
         actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
-        wandb.log({"train/total_loss": loss.item()})
-        wandb.log({"train/actor_loss": actor_loss.item()})
-        wandb.log({"train/critic_loss": critic_loss.item()})
-        wandb.log({"train/temperature_loss": temperature_loss.item()})
-        wandb.log({"train/policy_entropy": policy_entropy.item()})
-        wandb.log({"train/alpha": alpha.item()})
-        wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
+        log.update({"train/total_loss": loss})
+        log.update({"train/actor_loss": actor_loss})
+        log.update({"train/critic_loss": critic_loss})
+        log.update({"train/temperature_loss": temperature_loss})
+        log.update({"train/policy_entropy": policy_entropy})
+        log.update({"train/alpha": alpha})
+        log.update({"train/Return": jnp.sum(episode.r)})
         return loss

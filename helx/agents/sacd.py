@@ -16,7 +16,7 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import List
+from typing import Any, Dict, List
 
 import flax.linen as nn
 import jax
@@ -29,13 +29,13 @@ from optax import GradientTransformation
 import wandb
 from helx.spaces import Discrete
 
-from ..mdp import Episode, Transition
+from ..mdp import Trajectory, Transition
 from ..memory import ReplayBuffer
 from ..networks import (
     Actor,
     AgentNetwork,
-    DoubleQCritic,
-    SoftmaxPolicy,
+    DoubleQHead,
+    SoftmaxHead,
     Temperature,
     deep_copy,
 )
@@ -71,9 +71,9 @@ class SACD(Agent[SACDHparams]):
         network = AgentNetwork(
             actor_net=Actor(
                 representation_net=actor_representation_net,
-                policy_head=SoftmaxPolicy(n_actions=hparams.action_space.n_bins),
+                policy_head=SoftmaxHead(n_actions=hparams.action_space.n_bins),
             ),
-            critic_net=DoubleQCritic(
+            critic_net=DoubleQHead(
                 n_actions=hparams.action_space.n_bins,
                 representation_net_a=deep_copy(critic_representation_net),
                 representation_net_b=deep_copy(critic_representation_net),
@@ -118,9 +118,9 @@ class SACD(Agent[SACDHparams]):
         # critic target: V(sₜ₊₁) = π(sₜ₊₁)ᵀ • [Q(sₜ₊₁) - αlog(π(sₜ₊₁))]
         probs_a_1 = jnp.exp(logprobs_a_1)
         q_1 = jnp.min(jnp.stack([qA_1, qB_1], axis=0), axis=0)
-        # compared to SAC, which takes the expectation over the action
-        # because it doesn't have the probs over all possible actions
-        # here we can, so calculate the exact value of the state
+        # compared to SAC, which takes the expectation of the policy over the training
+        # here we know the full action distribution, and we can calculate
+        # the expectation in closed form $\sum_{a \in \mathcal{A}p(a) (q - \log p(a)}$
         v_1 = batch_matmul(probs_a_1, (q_1 - alpha * logprobs_a_1))
         q_target = stop_gradient(r_1 + (1 - d) * self.hparams.discount * v_1)
         critic_loss = rlax.l2_loss(qA_0, q_target) + rlax.l2_loss(qB_0, q_target)
@@ -136,23 +136,24 @@ class SACD(Agent[SACDHparams]):
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
         return loss, aux
 
-    def update(self, episode: Episode) -> Array:
+    def update(self, episode: Trajectory) -> Dict[str, Any]:
         # update iteration
         self.iteration += 1
-        wandb.log({"Iteration": self.iteration})
+        log = {}
+        log.update({"Iteration": self.iteration})
 
         # update memory
         transitions: List[Transition] = episode.transitions()
         self.memory.add_range(transitions)
-        wandb.log({"Buffer size": len(self.memory)})
+        log.update({"Buffer size": len(self.memory)})
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
         if len(self.memory) < self.hparams.replay_start:
-            return jnp.asarray([])
+            return log
 
         # check update period
         if self.iteration % self.hparams.update_frequency != 0:
-            return jnp.asarray([])
+            return log
 
         episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
         params, opt_state, loss, aux = self.sgd_step(
@@ -175,11 +176,11 @@ class SACD(Agent[SACDHparams]):
 
         aux = jax.tree_map(jnp.mean, aux)  # reduce aux
         actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
-        wandb.log({"train/total_loss": loss.item()})
-        wandb.log({"train/actor_loss": actor_loss.item()})
-        wandb.log({"train/critic_loss": critic_loss.item()})
-        wandb.log({"train/temperature_loss": temperature_loss.item()})
-        wandb.log({"train/policy_entropy": policy_entropy.item()})
-        wandb.log({"train/alpha": alpha.item()})
-        wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
+        log.update({"train/total_loss": loss})
+        log.update({"train/actor_loss": actor_loss})
+        log.update({"train/critic_loss": critic_loss})
+        log.update({"train/temperature_loss": temperature_loss})
+        log.update({"train/policy_entropy": policy_entropy})
+        log.update({"train/alpha": alpha})
+        log.update({"train/Return": jnp.sum(episode.r)})
         return loss

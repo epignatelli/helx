@@ -15,19 +15,19 @@
 
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
 
 import jax
 import jax.numpy as jnp
 from chex import Array
 from flax import linen as nn
 
-from ..mdp import Action, Episode, Transition
+from ..mdp import Action, Trajectory, Transition
 from .agent import Agent, Hparams
 
 
 class Random(Agent[Hparams]):
-    """Implements a Deep Q-Network:
+    """Implements a Random Agent with a uniform random policy.
     Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
     Nature 518.7540 (2015): 529-533.
     https://www.nature.com/articles/nature14236"""
@@ -52,5 +52,5 @@ class Random(Agent[Hparams]):
     ) -> Tuple[Array, Any]:
         return (jnp.asarray(0), ())
 
-    def update(self, episode: Episode) -> Array:
-        return jnp.asarray(0)
+    def update(self, episode: Trajectory) -> Dict[dict, Any]:
+        return {}

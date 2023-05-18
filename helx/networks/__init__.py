@@ -13,9 +13,9 @@
 # limitations under the License.
 
 
-from .actors import Actor, EGreedyPolicy, GaussianPolicy, SoftmaxPolicy
+from .actors import Actor, EGreedyHead, GaussianHead, SoftmaxHead
 from .architectures import AgentNetwork
-from .critics import Critic, DoubleQCritic
+from .critics import Critic, QHead, DoubleQHead
 from .modules import (
     CNN,
     MLP,

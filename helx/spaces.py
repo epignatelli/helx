@@ -203,3 +203,7 @@ class Continuous(Space):
         minimum = jnp.asarray(dm_space.minimum)
         maximum = jnp.asarray(dm_space.maximum)
         return cls(shape=shape, dtype=dm_space.dtype, minimum=minimum, maximum=maximum)
+
+
+def is_discrete(space: Space) -> bool:
+    return isinstance(space, Discrete)

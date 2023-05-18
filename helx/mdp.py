@@ -106,7 +106,7 @@ class Timestep:
 
 
 @register_pytree_node_class
-class Episode:
+class Trajectory:
     """A collection of (s)
     The class uses the following data structure:
         >>> $s_0, s_1, s_2, s_3, ..., s_t$
@@ -186,7 +186,7 @@ class Episode:
         cls,
         aux: Tuple[int],
         children: Tuple[List[Array], List[Array], List[Array], List[Array]],
-    ) -> Episode:
+    ) -> Trajectory:
         """Decodes the PyTree into the `Episode` python object"""
         return cls(*children)
 

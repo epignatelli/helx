@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import jax
 import jax.numpy as jnp
@@ -29,9 +29,9 @@ from helx.networks.modules import Identity
 
 from helx.spaces import Discrete
 
-from ..mdp import Episode, Transition
+from ..mdp import Trajectory, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork, EGreedyPolicy
+from ..networks import AgentNetwork, EGreedyHead
 from .agent import Agent, Hparams
 
 
@@ -72,7 +72,7 @@ class DQN(Agent[DQNHparams]):
         assert isinstance(hparams.action_space, Discrete)
         n_actions = hparams.action_space.n_bins
         critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
-        actor_net = EGreedyPolicy(
+        actor_net = EGreedyHead(
             hparams.replay_start,
             hparams.initial_exploration,
             hparams.final_exploration,
@@ -104,34 +104,35 @@ class DQN(Agent[DQNHparams]):
         loss = jnp.mean(rlax.l2_loss(td_error))
         return loss, ()
 
-    def update(self, episode: Episode) -> Array:
+    def update(self, episode: Trajectory) -> Dict[str, Any]:
         # increment iteration
         self.iteration += 1
-        wandb.log({"Iteration": self.iteration})
+        log = {}
 
         # update memory
         transitions: List[Transition] = episode.transitions()
         self.memory.add_range(transitions)
-        wandb.log({"Buffer size": len(self.memory)})
+
+        log.update({"Iteration": self.iteration})
+        log.update({"train/Return": jnp.sum(episode.r)})
+        log.update({"Buffer size": len(self.memory)})
 
         # if replay buffer is smaller than the minimum size, there is nothing else to do
         if len(self.memory) < self.hparams.replay_start:
-            return jnp.asarray([])
+            return log
 
         # update every `update_frequency` steps
         if self.iteration % self.hparams.update_frequency != 0:
-            return jnp.asarray([])
+            return log
 
+        # update dqn state
         episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
-
         params, opt_state, loss, _ = self.sgd_step(
             self.params,
             episode_batch,
             self.opt_state,
             self.params_target,
         )
-
-        # update dqn state
         self.opt_state = opt_state
         self.params = params
         self.params_target = rlax.periodic_update(
@@ -141,6 +142,6 @@ class DQN(Agent[DQNHparams]):
             self.hparams.target_network_update_frequency,
         )
 
-        wandb.log({"train/total_loss": loss.item()})
-        wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
-        return loss
+        # and log the loss
+        log.update({"train/total_loss": loss})
+        return log

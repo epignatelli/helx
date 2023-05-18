@@ -37,12 +37,33 @@ class Critic(nn.Module):
         return self.critic_head(representation)
 
 
-class DoubleQCritic(nn.Module):
+class QHead(nn.Module):
+    """Defines a simple Q-critic network.
+    Args:
+        n_actions (int): The number of outputs of the network, i.e., the number of
+        actions in a discrete action space, or the dimensionality of each action
+        in a continuous action space.
+        representation_net (nn.Module): The network that computes the representation of the state.
+        """
+
+    n_actions: int
+    representation_net: nn.Module
+
+    @nn.compact
+    def __call__(self, observation: Array, *args, **kwargs) -> Tuple[Array, Array]:
+        representation_a = self.representation_net(observation, *args, **kwargs)
+        q_value =  nn.Dense(features=self.n_actions)(representation_a)
+        return q_value
+
+
+class DoubleQHead(nn.Module):
     """Defines a double Q-critic network.
     Args:
         n_actions (int): The number of outputs of the network, i.e., the number of
         actions in a discrete action space, or the dimensionality of each action
-        in a continuous action space."""
+        in a continuous action space.
+        representation_net (nn.Module): The network that computes the representation of the state.
+        """
 
     n_actions: int
     representation_net_a: nn.Module

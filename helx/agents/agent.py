@@ -17,7 +17,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Generic, Tuple, TypeVar
+from os import PathLike
+from typing import Any, Dict, Generic, Tuple, TypeVar
 
 import flax.linen as nn
 import jax
@@ -25,7 +26,8 @@ from chex import Array, Shape, dataclass
 from jax.random import KeyArray
 from optax import GradientTransformation, OptState
 
-from ..mdp import Action, Episode, Transition
+from ..environment.base import Environment
+from ..mdp import Action, Trajectory, Transition
 from ..networks import AgentNetwork, apply_updates
 from ..spaces import Space
 
@@ -95,17 +97,10 @@ class Agent(abc.ABC, Generic[T]):
         transition: Transition,
         **kwargs,
     ) -> Tuple[Array, Any]:
-        """The loss function to differentiate through for Deep RL agents.
-            This function can be used for heavy computation and can be xla-compiled,
-            and is always *jitted by default*.
-            A possible design pattern is with decorators:
-        Example:
-        ```
-            >>> @partial(jax.value_and_grad, argnums=1, has_aux=True)
-            >>> def loss(self, params, sarsa, *, **kwargs):
-            >>>     s, a, r_tp1, s_tp1, d_tp1, a_tp1 = sarsa
-            >>>     return rlax.l2_loss(self.network.apply(params, s)).mean()
-        ```
+        """The loss function to use for a minibatch gradient descent step.
+        This function accepts a single _transition_ input, and not a minibatch,
+        but it is automatically vectorised by `jax.vmap` when wrapped around `jax.value_and_grad`
+        when calling `sgd_step`.
         Args:
             params (PyTreeDef): A pytree of function parameters.
             transition (Transition): A tuple of 6 elements (s, a, r, s', d, a')
@@ -124,71 +119,46 @@ class Agent(abc.ABC, Generic[T]):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update(self, episode: Episode) -> Array:
+    def update(self, episode: Trajectory) -> Dict[str, Any]:
         """Updates the agent state at the end of each episode and returns the loss as a scalar.
         This function can used to update both the agent's parameters and its memory.
         This function is usually not jittable, as we can not ensure that the agent memory, and other
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
 
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
-        """Samples an action from the agent's policy.
+    def sample_action(self, env: Environment, eval: bool = False, **kwargs) -> Action:
+        """Samples an action from the agent's policy or a set of actions if the environment is vectorised.
         Args:
             observation (Array): The observation to condition onto.
         Returns:
             Array: the action to take in the state s
         """
-        action, _ = self.network.actor(
-            self.params, observation, self._new_key(), **kwargs
-        )
+        observation = env.state()
+        key = self._new_key(env.n_parallel())
+        action, _ = self.network.actor(self.params, observation, key, **kwargs)
         return action
 
-    def save(self, path):
+    def save(self, path: str | PathLike):
         # TODO(epignatelli): implement
         raise NotImplementedError()
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path: str | PathLike):
         # TODO(epignatelli): implement
         raise NotImplementedError()
-
-    def _loss_batched(
-        self,
-        params: nn.FrozenDict,
-        batched_transitions: Transition,
-        *args,
-    ) -> Tuple[Array, Any]:
-        """A batched version of the loss function.
-        The returned `loss` value is reduced with a `jnp.mean` operation,
-        while the returned `aux` value is returned as it is.
-
-        Args:
-            params (PyTreeDef): A Flax pytree of module parameters
-            batched_transitions (Transition): A tuple of 5 elements (s, a, r, s', d)
-            with an additional axis of size `batch_size` in position 0.
-
-        Returns (Tuple[Array, PyTreeDef]):
-            Returns a tuple of two elements containing, respectively:
-            the average loss across the minibatch, and a PyTreeDef containing the aux
-            variables returned."""
-        # in_axis for named arguments is not supported yet by jax.vmap
-        # see https://github.com/google/jax/issues/7465
-        in_axes = (None, 0) + (None,) * len(args)
-        batch_loss = jax.vmap(self.loss, in_axes=in_axes)
-        loss, aux = batch_loss(params, batched_transitions, *args)
-        return loss.mean(), aux
 
     def _sgd_step(
         self,
         params: nn.FrozenDict,
-        batched_transition: Transition,
+        transition: Transition,
         opt_state: OptState,
         *args,
     ) -> Tuple[nn.FrozenDict, OptState, Array, Any]:
         """Performs a single SGD step on the agent's parameters.
         Args:
             params (PyTreeDef): A pytree of function parameters.
-            batched_transition (Transition): A tuple of 5 elements (s, a, r, s', d)
+            transition (Transition): A *batch* of tuples of 5 elements (s, a, r, s', d)
+                where the first axis is the batch axis.
             with an additional axis of size `batch_size` in position 0.
             opt_state (OptState): The optimiser state.
         Returns:
@@ -196,8 +166,17 @@ class Agent(abc.ABC, Generic[T]):
             the updated parameters as a pytree of the same structure as params,
             and the updated optimiser state.
         """
-        backward = jax.value_and_grad(self._loss_batched, argnums=0, has_aux=True)
-        (loss, aux), grads = backward(params, batched_transition, *args)
+        def _loss(params, transition, *args):
+            # in_axis for named arguments is not supported yet by jax.vmap
+            # see https://github.com/google/jax/issues/7465
+            in_axes = (None, 0) + (None,) * len(args)
+            loss_fn = self.loss
+            batch_loss = jax.vmap(loss_fn, in_axes=in_axes)
+            loss, aux = batch_loss(params, transition, *args)
+            return loss.mean(), aux
+
+        backward = jax.value_and_grad(_loss, argnums=0, has_aux=True)
+        (loss, aux), grads = backward(params, transition, *args)
         updates, opt_state = self.optimiser.update(grads, opt_state, params)
         params = apply_updates(params, updates)
         return params, opt_state, loss, aux

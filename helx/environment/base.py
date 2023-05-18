@@ -40,6 +40,7 @@ class Environment(abc.ABC, Generic[T]):
         self._seed: int = 0
         self._key: KeyArray = jax.random.PRNGKey(self._seed)
         self._env: T = env
+        self._n_parallel = 1
 
     @abc.abstractmethod
     def action_space(self) -> Space:
@@ -75,6 +76,10 @@ class Environment(abc.ABC, Generic[T]):
 
     @abc.abstractmethod
     def close(self) -> None:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def n_parallel(self) -> int:
         raise NotImplementedError()
 
     def name(self) -> str:

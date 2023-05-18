@@ -20,13 +20,13 @@ import wandb
 
 from .agents.agent import Agent
 from .environment.base import Environment
-from .mdp import Episode
+from .mdp import Trajectory
 from .image import ensure_video_format
 
 
 def run_episode(
     agent: Agent, env: Environment, eval: bool = False, max_steps: int = int(2e9)
-) -> Episode:
+) -> Trajectory:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
         has an additional `batch` axis at index `0`.
@@ -47,10 +47,10 @@ def run_episode(
     """
     t = 0
     timestep = env.reset()
-    episode = Episode.start(timestep)
+    episode = Trajectory.start(timestep)
     while (not timestep.is_final()) and t < max_steps:
         t += 1
-        action = agent.sample_action(timestep.observation, eval=eval)
+        action = agent.sample_action(env, eval=eval)
         timestep = env.step(action)
         episode.add(timestep, action)
     return episode
@@ -72,6 +72,7 @@ def run(
     env_name = env.name()
     run_name = "{}/{}/{}".format(experiment_name, agent_name, env_name)
     mode = ("online", "disabled")[int(debug)]
+    log = {}
     wandb.init(
         project=project,
         group="{}/{}".format(env_name, agent_name),
@@ -99,16 +100,13 @@ def run(
         #  experience a new episode
         episode = run_episode(agent, env)
         #  update policy
-        loss = agent.update(episode)
+        log = agent.update(episode)
+        # log result
+        wandb.log(log)
 
         # log episode
-        returns = episode.returns().item()
         if i % print_frequency == 0:
-            logging.info(
-                "Iteration: {}/{} - Return: {} - Loss: {}".format(
-                    agent.iteration, num_episodes - 1, returns, loss
-                )
-            )
+            logging.info(log)
 
         if i % eval_frequency:
             continue
@@ -119,12 +117,13 @@ def run(
 
         expected_returns = 0.0
         for j in range(num_eval_episodes):
+            log = {}
             logging.info("Evaluating episode {} at iteration {}".format(j, i))
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
             video = ensure_video_format(episode.s)
             if video is not None:
-                wandb.log({f"val/policy-{j}": wandb.Video(video, format="mp4")})
+                log.update({f"val/policy-{j}": wandb.Video(video, format="mp4")})
 
             # log episode
             returns = episode.returns().item()
@@ -134,4 +133,7 @@ def run(
             expected_returns += returns
 
         expected_returns /= num_eval_episodes
-        wandb.log({"val/Return": expected_returns})
+        log.update({"val/Return": expected_returns})
+
+        #log
+        wandb.log(log)

@@ -41,7 +41,7 @@ class Actor(nn.Module):
         return self.policy_head(representation, key)
 
 
-class EGreedyPolicy(nn.Module):
+class EGreedyHead(nn.Module):
     initial_exploration_frame: int
     initial_exploration: float
     final_exploration: float
@@ -66,7 +66,7 @@ class EGreedyPolicy(nn.Module):
         return action, log_probs
 
 
-class GaussianPolicy(nn.Module):
+class GaussianHead(nn.Module):
     action_shape: Shape
 
     @nn.compact
@@ -89,7 +89,7 @@ class GaussianPolicy(nn.Module):
         return action, log_prob
 
 
-class SoftmaxPolicy(nn.Module):
+class SoftmaxHead(nn.Module):
     n_actions: int
 
     @nn.compact
