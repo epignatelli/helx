@@ -125,7 +125,7 @@ class A2C(Agent[A2CHparams]):
         entropy_loss = rlax.entropy_loss(logits_t, w_t)
 
         aux = (actor_loss, critic_loss, entropy_loss)
-        total_loss = sum(aux)
+        total_loss = sum(aux)  # type: ignore
         return total_loss, aux
 
     def update(self, episode: Trajectory) -> Dict[str, Any]:

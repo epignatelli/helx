@@ -29,7 +29,7 @@ def main(argv):
     logging.info("Starting")
 
     # environment
-    env = brax.envs.ant.Ant()
+    env = brax.envs.get_environment("ant", backend="spring")
     env = helx.environment.to_helx(env)
 
     # optimiser
