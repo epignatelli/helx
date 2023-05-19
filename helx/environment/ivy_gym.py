@@ -17,7 +17,7 @@ from typing import Any
 from .base import Environment
 
 
-class FromIvyGymEnv(Environment):
+class IvyGymAdapter(Environment):
     """Static class to convert between Ivy Gym environments and helx environments."""
 
     def __init__(self, env: Any):

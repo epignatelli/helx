@@ -16,12 +16,14 @@
 import logging
 from pprint import pformat
 
+import jax
+
 import wandb
 
 from .agents.agent import Agent
 from .environment.base import Environment
-from .mdp import Trajectory
 from .image import ensure_video_format
+from .mdp import Trajectory
 
 
 def run_episode(
@@ -135,5 +137,64 @@ def run(
                 "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
             )
 
-        #log
+        # log
         wandb.log(log)
+
+
+def run_jittable(
+    agent: Agent,
+    env: Environment,
+    num_episodes: int,
+    num_eval_episodes: int = 5,
+    eval_frequency: int = 1000,
+    seed: int = 0
+):
+    # init logger
+    agent_name = type(agent).__name__
+    env_name = env.name()
+    run_name = "{}/{}/{}".format(agent_name, env_name, seed)
+    log = {}
+    log.update({"run_name": run_name})
+
+    logging.info(
+        "Starting experiment {}.\nThe scheduled number of episode is {}".format(
+            run_name, num_episodes
+        )
+    )
+    logging.info(
+        "The hyperparameters for the current experiment are {}".format(
+            pformat(agent.hparams.as_dict())
+        )
+    )
+
+    def eval_fun(carry, x):
+        returns = carry
+        agent, env = x
+        episode = run_episode(agent, env, eval=True)
+
+        y = (agent, env)
+        return carry, y
+
+    def train_fun(carry, x):
+        # inputs
+        log = carry
+        agent, env, i = x
+
+        # train
+        episode = run_episode(agent, env)
+        log = agent.update(episode)
+
+        # eval
+        if i % eval_frequency:
+            return log, (agent, env)
+        eval_log, _ = jax.lax.scan(eval_fun, log, (agent, env, 0), length=num_eval_episodes)
+        log.update(eval_log)
+
+        # outputs
+        carry = log
+        y = (agent, env, i + 1)
+        return carry, y
+
+    # train
+    log, final_state = jax.lax.scan(train_fun, log, (agent, env, 0), length=num_episodes)
+    return log, final_state

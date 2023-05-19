@@ -29,7 +29,7 @@ from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
 
 
-class FromGym3Env(Environment[gym3.interop.ToGymEnv]):
+class Gym3Adapter(Environment[gym3.interop.ToGymEnv]):
     """Static class to convert between gym3 and helx environments.
     An example of gym3 environments is
     procgen: https://github.com/openai/procgen"""

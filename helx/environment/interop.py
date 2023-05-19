@@ -22,22 +22,23 @@ import gym.core
 import gym3.interop
 import gymnasium.core
 
-from .bsuite import FromBsuiteEnv
-from .dm_env import FromDmEnv
-from .gym import FromGymEnv
-from .gymnasium import FromGymnasiumEnv
-from .gym3 import FromGym3Env
-from .brax import FromBraxEnv
+from .bsuite import BsuiteAdapter
+from .dm_env import DmEnvAdapter
+from .gym import GymAdapter
+from .gymnasium import GymnasiumAdapter
+from .gym3 import Gym3Adapter
+from .brax import BraxAdapter
 
 
-CONVERSION_TABLE = {
-    gymnasium.core.Env: FromGymnasiumEnv,
-    gym.core.Env: FromGymEnv,
-    gym3.interop.ToGymEnv: FromGym3Env,
-    dm_env.Environment: FromDmEnv,
-    bsuite.environments.Environment: FromBsuiteEnv,
-    brax.envs.Env: FromBraxEnv,
+ADAPTERS_TABLE = {
+    gymnasium.core.Env: GymnasiumAdapter,
+    gym.core.Env: GymAdapter,
+    gym3.interop.ToGymEnv: Gym3Adapter,
+    dm_env.Environment: DmEnvAdapter,
+    bsuite.environments.Environment: BsuiteAdapter,
+    brax.envs.Env: BraxAdapter,
 }
+
 
 def to_helx(env: Any) -> Any:
     # getting root env type for interop
@@ -45,11 +46,11 @@ def to_helx(env: Any) -> Any:
     while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
         env_for_type = env_for_type.unwrapped
 
-    for env_type, converter in CONVERSION_TABLE.items():
+    for env_type, converter in ADAPTERS_TABLE.items():
         if isinstance(env_for_type, env_type):
             return converter(env)
 
     raise TypeError(
         f"Environment type {type(env)} is not supported. "
-        "Supported types are: {CONVERSION_TABLE}"
+        "Supported types are: {ADAPTERS_TABLE}"
     )

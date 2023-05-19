@@ -25,7 +25,7 @@ from ..spaces import Space
 from .base import Environment
 
 
-class FromDmEnv(Environment[dm_env.Environment]):
+class DmEnvAdapter(Environment[dm_env.Environment]):
     """Static class to convert between dm_env and helx environments."""
 
     def __init__(self, env: dm_env.Environment):

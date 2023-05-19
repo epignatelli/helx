@@ -39,7 +39,7 @@ from .base import Environment
 logging = get_logger()
 
 
-class FromGymEnv(Environment[gym.Env]):
+class GymAdapter(Environment[gym.Env]):
     """Static class to convert between gym and helx environments."""
 
     def __init__(self, env: gym.core.Env):

@@ -25,7 +25,7 @@ from ..spaces import Space, Continuous
 from .base import Environment
 
 
-class FromBraxEnv(Environment[brax.envs.Env]):
+class BraxAdapter(Environment[brax.envs.Env]):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     def __init__(self, env: brax.envs.Env):

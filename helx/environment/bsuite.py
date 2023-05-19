@@ -26,7 +26,7 @@ from ..spaces import Space
 from .base import Environment
 
 
-class FromBsuiteEnv(Environment[bsuite.environments.Environment]):
+class BsuiteAdapter(Environment[bsuite.environments.Environment]):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     def __init__(self, env: bsuite.environments.Environment):

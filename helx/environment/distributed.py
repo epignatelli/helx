@@ -19,6 +19,8 @@ from copy import deepcopy
 from multiprocessing.connection import Connection
 from typing import Any, List, Sequence
 
+import jax
+
 from helx.random import PRNGSequence
 
 from ..mdp import Action, Timestep
@@ -93,7 +95,8 @@ class MultiprocessEnv(Environment):
     ):
         assert isinstance(
             env, Environment
-        ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead".format(
+        ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead.\
+            Try converting the environment to `helx` first with `helx.environment.to_helx".format(
             type(env)
         )
         #  public:
@@ -179,3 +182,41 @@ class MultiprocessEnv(Environment):
             \nReceived {} actions for {} environments. ".format(
             len(actions), self.n_actors
         )
+
+
+def vectorise(env: Environment, n_parallel: int, method: str="multiprocess") -> Environment:
+    """
+    Vectorise an environment to allow for parallel interactions.
+    Args:
+        env (Environment): the environment to vectorise
+        n_parallel (int): the number of parallel environments to produce
+        method (str, optional): method to use for vectorisation,
+            between "multiprocess" and "vmap", "pmap".
+            - `multiprocess` follows the producer-consumer pattern
+            and uses the `Context`s from python's `multiprocessing` module.
+            Calls are made asynchronous with `context.Pipe`s.
+            - `vmap` uses `jax.vmap` to vectorise the computation. This method
+            requires the environment to be a `jax`-compatible.
+            - `pmap` uses `jax.pmap` to parallelise the computation. This method
+            requires the environment to be a `jax`-compatible.
+
+            Defaults to "multiprocess".
+    """
+    if method=="multiprocess":
+        return MultiprocessEnv(env, n_parallel)
+    elif method=="vmap":
+        env.state = jax.vmap(env.state, axis_name="batch")
+        env.reset = jax.vmap(env.reset, axis_name="batch")
+        env.step = jax.vmap(env.step, axis_name="batch")
+        env.render = jax.vmap(env.render, axis_name="batch")
+        env.close = jax.vmap(env.close, axis_name="batch")
+        env.seed = jax.vmap(env.seed, axis_name="batch")
+    elif method=="pmap":
+        env.state = jax.pmap(env.state, axis_name="batch")
+        env.reset = jax.pmap(env.reset, axis_name="batch")
+        env.step = jax.pmap(env.step, axis_name="batch")
+        env.render = jax.pmap(env.render, axis_name="batch")
+        env.close = jax.pmap(env.close, axis_name="batch")
+        env.seed = jax.pmap(env.seed, axis_name="batch")
+
+    raise NotImplementedError(f"Vectorisation method {method} is not implemented")
