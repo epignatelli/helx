@@ -183,4 +183,4 @@ class SACD(Agent[SACDHparams]):
         log.update({"train/policy_entropy": policy_entropy})
         log.update({"train/alpha": alpha})
         log.update({"train/Return": jnp.sum(episode.r)})
-        return loss
+        return log
