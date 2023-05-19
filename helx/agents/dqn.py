@@ -24,7 +24,6 @@ from chex import Array
 from flax import linen as nn
 from optax import GradientTransformation
 
-import wandb
 from helx.networks.modules import Identity
 
 from helx.spaces import Discrete

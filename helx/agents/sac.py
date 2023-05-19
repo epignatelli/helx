@@ -21,7 +21,6 @@ from typing import Any, Dict, List
 import jax
 import jax.numpy as jnp
 import rlax
-from chex import Array
 from flax import linen as nn
 from jax.lax import stop_gradient
 from optax import GradientTransformation

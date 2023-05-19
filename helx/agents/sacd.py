@@ -22,7 +22,6 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import rlax
-from chex import Array
 from jax.lax import stop_gradient
 from optax import GradientTransformation
 

@@ -16,17 +16,13 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import jax
 import jax.numpy as jnp
 import rlax
-from chex import Array
 from flax import linen as nn
-from jax.lax import stop_gradient
 from optax import GradientTransformation
-
-import wandb
 
 from ..mdp import Trajectory, Transition
 from ..memory import Buffer
