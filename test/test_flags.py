@@ -22,7 +22,7 @@ import helx
 from helx import agents, flags
 from helx.spaces import Continuous, Discrete
 
-logging = helx.logging.get_logger()
+logging = helx.logging.get_default_logger()
 
 
 def test_flag_type():

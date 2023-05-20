@@ -22,7 +22,7 @@ import tarfile
 
 import requests
 
-from .logging import get_logger
+from .logging import get_default_logger
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 REQUIREMENTS_PATH = "requirements.txt"
@@ -30,7 +30,7 @@ MUJOCO_ROOT = os.path.join(os.path.expanduser("~"), ".mujoco")
 ATARI_ROOT = os.path.join(os.path.expanduser("~"), ".atari")
 
 
-logging = get_logger()
+logging = get_default_logger()
 
 
 def _download_url(url, out_path, chunk_size=128):

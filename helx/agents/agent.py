@@ -139,12 +139,12 @@ class Agent(abc.ABC, Generic[T]):
         return action
 
     def save(self, path: str | PathLike):
-        # TODO(epignatelli): implement
+        # TODO(epignatelli): implement serialisation
         raise NotImplementedError()
 
     @classmethod
     def load(cls, path: str | PathLike):
-        # TODO(epignatelli): implement
+        # TODO(epignatelli): implement deserialisation
         raise NotImplementedError()
 
     def _sgd_step(

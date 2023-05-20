@@ -22,12 +22,12 @@ import jax.numpy as jnp
 import numpy as np
 from chex import Array
 
-from ..logging import get_logger
+from ..logging import get_default_logger
 from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
 from .base import Environment
 
-logging = get_logger()
+logging = get_default_logger()
 
 
 class GymnasiumAdapter(Environment[gymnasium.Env]):

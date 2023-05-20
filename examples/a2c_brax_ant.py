@@ -30,6 +30,7 @@ def main(argv):
 
     # environment
     env = brax.envs.get_environment("ant", backend="spring")
+    env = brax.envs.wrapper.EpisodeWrapper(env, 5, 1)
     env = helx.environment.to_helx(env)
 
     # optimiser
@@ -50,7 +51,12 @@ def main(argv):
         critic_network=MLP(features=[128, 128]),
     )
 
-    helx.experiment.run(agent, env, 2)
+    # logger
+    agent_name = type(agent).__name__
+    env_name = env.name()
+    experiment_name = "{}/{}/{}".format("examples", agent_name, env_name)
+    logger = helx.logging.StreamLogger(experiment_name)
+    helx.experiment.run(agent, env, 2, logger=logger)
 
 
 if __name__ == "__main__":

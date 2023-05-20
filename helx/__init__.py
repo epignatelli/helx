@@ -14,7 +14,6 @@
 
 # Make sure that the gym registry is populated
 # with exteral environments.
-import gym_minigrid
 import minigrid
 import procgen
 

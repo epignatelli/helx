@@ -22,7 +22,7 @@ import helx.environment
 import helx.logging
 from helx.environment.gym import list_envs
 
-logging = helx.logging.get_logger()
+logging = helx.logging.get_default_logger()
 
 
 EXCLUDES = []

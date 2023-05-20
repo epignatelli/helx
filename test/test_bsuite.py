@@ -22,7 +22,7 @@ import helx.environment
 import helx.logging
 
 
-logging = helx.logging.get_logger()
+logging = helx.logging.get_default_logger()
 
 
 def test_bsuite():

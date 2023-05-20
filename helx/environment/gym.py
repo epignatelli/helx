@@ -15,8 +15,6 @@
 
 from __future__ import annotations
 
-import re
-from collections import defaultdict
 from typing import Dict, List
 
 import gym
@@ -26,17 +24,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from chex import Array
-from gym.envs.registration import parse_env_id, registry
-from gym_minigrid.minigrid import MiniGridEnv
-from gym_minigrid.wrappers import ImgObsWrapper
+from gym.envs.registration import registry
+from minigrid.minigrid_env import MiniGridEnv
+from minigrid.wrappers import ImgObsWrapper
 from gym.envs.registration import EnvSpec
 
-from ..logging import get_logger
+from ..logging import get_default_logger
 from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Space
 from .base import Environment
 
-logging = get_logger()
+logging = get_default_logger()
 
 
 class GymAdapter(Environment[gym.Env]):

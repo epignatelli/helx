@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
 import logging
+import abc
+from typing import Any, Dict, List
+import wandb
+
 
 BLACK = "\033[0;30m"
 RED = "\033[0;31m"
@@ -39,25 +44,89 @@ BOLD_RED = "\033[31;1m"
 _logger = None
 
 
-def get_logger():
+class Logger(abc.ABC):
+    def __init__(self, experiment_name: str, log_frequency: int):
+        self.experiment_name = experiment_name
+        self.log_frequency = log_frequency
+        self.debug = False
+
+    @abc.abstractmethod
+    def record(self, record: Dict[str, Any]):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def log(self, message: str):
+        raise NotImplementedError()
+
+    def debug_mode(self):
+        self.debug = True
+        return
+
+    def __add__(self, other: Logger):
+        return CompoundLogger([self, other])
+
+
+class CompoundLogger(Logger):
+    def __init__(self, loggers: List[Logger]):
+        self.loggers = loggers
+
+    def record(self, record: Dict[str, Any]):
+        for logger in self.loggers:
+            logger.record(record)
+
+    def log(self, message: str):
+        for logger in self.loggers:
+            logger.log(message)
+
+    def debug_mode(self):
+        for logger in self.loggers:
+            logger.debug_mode()
+
+
+class StreamLogger(Logger):
+    def __init__(self, experiment_name: str = "debug", log_frequency: int = 10):
+        super().__init__(experiment_name, log_frequency)
+        self.logger = logging.getLogger(experiment_name)
+        self.logger.setLevel(logging.DEBUG)
+        ch = ColorizingStreamHandler()
+        ch.setLevel(logging.DEBUG)
+        self.logger.addHandler(ch)
+
+    def record(self, record: Dict[str, Any]):
+        self.logger.info(str(record))
+
+    def log(self, message: str):
+        self.logger.info(message)
+
+
+def get_default_logger():
     global _logger
-    if _logger is not None:
-        return _logger
+    if _logger is None:
+        _logger = StreamLogger("helx")
+    return _logger
 
-    logger = logging.getLogger("helx")
-    logger.setLevel(logging.DEBUG)
 
-    # create console handler and set level to debug
-    ch = ColorizingStreamHandler()
-    ch.setLevel(logging.DEBUG)
+class WAndBLogger(Logger):
+    def __init__(
+        self,
+        experiment_name: str = "debug",
+        log_frequency: int = 1,
+        project="helx",
+        mode: str = "online"
+    ):
+        super().__init__(experiment_name, log_frequency)
+        wandb.init(
+            project=project,
+            name=self.experiment_name,
+            reinit=True,
+            mode=mode,
+        )
 
-    # add ch to logger
-    logger.addHandler(ch)
+    def record(self, record: Dict[str, Any]):
+        return wandb.log(record)
 
-    # set logger
-    _logger = logger
-
-    return logger
+    def log(self, message: str):
+        return wandb.log(message)
 
 
 class CustomFormatter(logging.Formatter):

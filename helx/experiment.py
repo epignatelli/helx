@@ -13,17 +13,13 @@
 # limitations under the License.
 
 
-import logging
 from pprint import pformat
-
-import jax
-
-import wandb
 
 from .agents.agent import Agent
 from .environment.base import Environment
 from .image import ensure_video_format
 from .mdp import Trajectory
+from .logging import StreamLogger
 
 
 def run_episode(
@@ -64,55 +60,38 @@ def run(
     num_episodes: int,
     num_eval_episodes: int = 5,
     eval_frequency: int = 1000,
-    print_frequency=10,
-    project="",
-    experiment_name: str = "debug",
-    debug: bool = False,
+    logger=StreamLogger(),
 ):
-    # init logger
-    agent_name = type(agent).__name__
-    env_name = env.name()
-    run_name = "{}/{}/{}".format(experiment_name, agent_name, env_name)
-    mode = ("online", "disabled")[int(debug)]
-    log = {}
-    wandb.init(
-        project=project,
-        group="{}/{}".format(env_name, agent_name),
-        tags=[env_name, agent_name, experiment_name],
-        config=agent.hparams.as_dict(),
-        name=run_name,
-        mode=mode,
-    )
 
-    logging.info(
+    logger.log(
         "Starting experiment {}.\nThe scheduled number of episode is {}".format(
-            run_name, num_episodes
+            logger.experiment_name, num_episodes
         )
     )
-    logging.info(
+    logger.log(
         "The hyperparameters for the current experiment are {}".format(
             pformat(agent.hparams.as_dict())
         )
     )
-    logging.info("Start logging experiment on wandb project {}".format(experiment_name))
+    logger.log("Start logging experiment {}".format(logger.experiment_name))
 
     # train
+    log = {}
     for i in range(num_episodes):
+
         #  collect experience
         # this can run asynchronously because env.step, env.reset
         # and agent.sample_action might be all non-blocking
         # until the buffer is at minimum learning capacity
         episode = run_episode(agent, env)
+
         #  update the learner
         # this run asynchronously as well when the
         # agent is a distributed learner and the buffer is full
         log = agent.update(episode)
-        #  log the update
-        wandb.log(log)
 
-        # print the current log
-        if i % print_frequency == 0:
-            logging.info(log)
+        #  log the update
+        logger.record(log)
 
         if i % eval_frequency:
             continue
@@ -123,78 +102,78 @@ def run(
 
         for j in range(num_eval_episodes):
             log = {}
-            logging.info("Evaluating episode {} at iteration {}".format(j, i))
+            logger.log("Evaluating episode {} at iteration {}".format(j, i))
             #  experience a new episode
             episode = run_episode(agent, env, eval=True)
-            video = ensure_video_format(episode.s)
-            if video is not None:
-                log.update({f"val/$\\pi_{j}$": wandb.Video(video, format="mp4")})
+            # video = ensure_video_format(episode.s)
+            # if video is not None:
+            #     log.update({f"val/$\\pi_{j}$": wandb.Video(video, format="mp4")})
 
             # log episode
             returns = episode.returns().item()
             log.update({f"val/Return$(\\pi_{j})$": returns})
-            logging.info(
+            logger.log(
                 "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
             )
 
         # log
-        wandb.log(log)
+        logger.record(log)
 
 
-def run_jittable(
-    agent: Agent,
-    env: Environment,
-    num_episodes: int,
-    num_eval_episodes: int = 5,
-    eval_frequency: int = 1000,
-    seed: int = 0
-):
-    # init logger
-    agent_name = type(agent).__name__
-    env_name = env.name()
-    run_name = "{}/{}/{}".format(agent_name, env_name, seed)
-    log = {}
-    log.update({"run_name": run_name})
+# def run_jittable(
+#     agent: Agent,
+#     env: Environment,
+#     num_episodes: int,
+#     num_eval_episodes: int = 5,
+#     eval_frequency: int = 1000,
+#     seed: int = 0
+# ):
+#     # init logger
+#     agent_name = type(agent).__name__
+#     env_name = env.name()
+#     run_name = "{}/{}/{}".format(agent_name, env_name, seed)
+#     log = {}
+#     log.update({"run_name": run_name})
 
-    logging.info(
-        "Starting experiment {}.\nThe scheduled number of episode is {}".format(
-            run_name, num_episodes
-        )
-    )
-    logging.info(
-        "The hyperparameters for the current experiment are {}".format(
-            pformat(agent.hparams.as_dict())
-        )
-    )
+#     logging.info(
+#         "Starting experiment {}.\nThe scheduled number of episode is {}".format(
+#             run_name, num_episodes
+#         )
+#     )
+#     logging.info(
+#         "The hyperparameters for the current experiment are {}".format(
+#             pformat(agent.hparams.as_dict())
+#         )
+#     )
 
-    def eval_fun(carry, x):
-        returns = carry
-        agent, env = x
-        episode = run_episode(agent, env, eval=True)
+#     def eval_fun(carry, x):
+#         returns = carry
+#         agent, env = x
+#         episode = run_episode(agent, env, eval=True)
 
-        y = (agent, env)
-        return carry, y
+#         y = (agent, env)
+#         return carry, y
 
-    def train_fun(carry, x):
-        # inputs
-        log = carry
-        agent, env, i = x
+#     def train_fun(carry, x):
+#         # inputs
+#         log = carry
+#         agent, env, i = x
 
-        # train
-        episode = run_episode(agent, env)
-        log = agent.update(episode)
+#         # train
+#         episode = run_episode(agent, env)
+#         log = agent.update(episode)
 
-        # eval
-        if i % eval_frequency:
-            return log, (agent, env)
-        eval_log, _ = jax.lax.scan(eval_fun, log, (agent, env, 0), length=num_eval_episodes)
-        log.update(eval_log)
+#         # eval
+#         if i % eval_frequency:
+#             return log, (agent, env)
+#         eval_log, _ = jax.lax.scan(eval_fun, log, (agent, env, 0), length=num_eval_episodes)
+#         log.update(eval_log)
 
-        # outputs
-        carry = log
-        y = (agent, env, i + 1)
-        return carry, y
+#         # outputs
+#         carry = log
+#         y = (agent, env, i + 1)
+#         return carry, y
 
-    # train
-    log, final_state = jax.lax.scan(train_fun, log, (agent, env, 0), length=num_episodes)
-    return log, final_state
+#     # train
+#     log, final_state = jax.lax.scan(train_fun, log, (agent, env, 0), length=num_episodes)
+#     return log, final_state
