@@ -42,7 +42,15 @@ BOLD_RED = "\033[31;1m"
 
 
 _logger = None
-
+def get_default_logger():
+    global _logger
+    if _logger is None:
+        _logger = logging.getLogger("helx")
+        _logger.setLevel(logging.DEBUG)
+        ch = ColorizingStreamHandler()
+        ch.setLevel(logging.DEBUG)
+        _logger.addHandler(ch)
+    return _logger
 
 class Logger(abc.ABC):
     def __init__(self, experiment_name: str, log_frequency: int):
@@ -97,13 +105,6 @@ class StreamLogger(Logger):
 
     def log(self, message: str):
         self.logger.info(message)
-
-
-def get_default_logger():
-    global _logger
-    if _logger is None:
-        _logger = StreamLogger("helx")
-    return _logger
 
 
 class WAndBLogger(Logger):
