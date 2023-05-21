@@ -17,9 +17,8 @@ from pprint import pformat
 
 from .agents.agent import Agent
 from .environment.base import Environment
-from .image import ensure_video_format
 from .mdp import Trajectory
-from .logging import StreamLogger
+from .logging import NullLogger
 
 
 def run_episode(
@@ -60,9 +59,8 @@ def run(
     num_episodes: int,
     num_eval_episodes: int = 5,
     eval_frequency: int = 1000,
-    logger=StreamLogger(),
+    logger=NullLogger(),
 ):
-
     logger.log(
         "Starting experiment {}.\nThe scheduled number of episode is {}".format(
             logger.experiment_name, num_episodes
@@ -73,7 +71,6 @@ def run(
             pformat(agent.hparams.as_dict())
         )
     )
-    logger.log("Start logging experiment {}".format(logger.experiment_name))
 
     # train
     log = {}
