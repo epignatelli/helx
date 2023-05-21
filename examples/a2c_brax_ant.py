@@ -26,7 +26,6 @@ FLAGS = flags.FLAGS
 
 def main(argv):
     del argv
-    logging.info("Starting")
 
     # environment
     env = brax.envs.get_environment("ant", backend="spring")
@@ -51,12 +50,8 @@ def main(argv):
         critic_network=MLP(features=[128, 128]),
     )
 
-    # logger
-    agent_name = type(agent).__name__
-    env_name = env.name()
-    experiment_name = "{}/{}/{}".format("examples", agent_name, env_name)
-    logger = helx.logging.StreamLogger(experiment_name)
-    helx.experiment.run(agent, env, 2, logger=logger)
+    # run
+    helx.experiment.run(agent, env, 2)
 
 
 if __name__ == "__main__":
