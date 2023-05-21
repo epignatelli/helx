@@ -62,7 +62,7 @@ def run(
     logger=NullLogger(),
 ):
     logger.log(
-        "Starting experiment {}.\nThe scheduled number of episode is {}".format(
+        "Starting experiment {} with a budget of {} episodes".format(
             logger.experiment_name, num_episodes
         )
     )
