@@ -17,7 +17,12 @@ from __future__ import annotations
 import logging
 import abc
 from typing import Any, Dict, List
+import os
+from chex import Array
+
+import pandas as pd
 import wandb
+import tensorboardX
 
 
 BLACK = "\033[0;30m"
@@ -37,37 +42,85 @@ LIGHT_BLUE = "\033[1;34m"
 LIGHT_PURPLE = "\033[1;35m"
 LIGHT_CYAN = "\033[1;36m"
 WHITE = "\033[1;37m"
-RESET = "\033[0m"
 BOLD_RED = "\033[31;1m"
-
+BOLD = "\033[1m"
+RESET = "\033[0m"
 
 _logger = None
+
+
 def get_default_logger():
     global _logger
     if _logger is None:
         _logger = logging.getLogger("helx")
+        _logger.propagate = False
         _logger.setLevel(logging.DEBUG)
-        ch = ColorizingStreamHandler()
-        ch.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        ch.setFormatter(Formatter())
         _logger.addHandler(ch)
     return _logger
 
+
+class Formatter(logging.Formatter):
+    FORMATS = {
+        logging.DEBUG: DARK_GREY,
+        logging.INFO: GREY,
+        logging.WARNING: YELLOW,
+        logging.ERROR: RED,
+        logging.CRITICAL: BOLD_RED
+    }
+
+    def format(self, record):
+        level_fmt = self.FORMATS.get(record.levelno)
+        format = (f"{WHITE}%(name)s{RESET}"
+                f"{level_fmt}[%(levelname)s]{RESET} "
+                f"{WHITE}%(asctime)s{RESET} "
+                f"{WHITE}%(filename)s:%(lineno)d:{RESET} "
+                f"{level_fmt}%(message)s{RESET}")
+        formatter = logging.Formatter(format, datefmt="%H:%M:%S")
+        return formatter.format(record)
+
+
 class Logger(abc.ABC):
-    def __init__(self, experiment_name: str, log_frequency: int):
+    def __init__(
+        self,
+        experiment_name: str,
+        log_frequency: int,
+        terminal_logger: logging.Logger = get_default_logger(),
+    ):
         self.experiment_name = experiment_name
         self.log_frequency = log_frequency
         self.debug = False
+        self._terminal_logger = terminal_logger
 
     @abc.abstractmethod
     def record(self, record: Dict[str, Any]):
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def log(self, message: str):
+    def record_image(self, name: str, image: Array, step: int):
         raise NotImplementedError()
+
+    def record_video(self, name: str, video: Array, step: int):
+        raise NotImplementedError()
+
+    def record_audio(self, name: str, audio: Array, step: int):
+        raise NotImplementedError()
+
+    def record_histogram(self, name: str, histogram: Array, step: int):
+        raise NotImplementedError()
+
+    def record_graph(self, name: str, graph: Any, step: int):
+        raise NotImplementedError()
+
+    def log(self, message: str, level: int = logging.INFO):
+        self._terminal_logger.log(level, message)
 
     def debug_mode(self):
         self.debug = True
+        return
+
+    def non_debug_mode(self):
+        self.debug = False
         return
 
     def __add__(self, other: Logger):
@@ -82,29 +135,47 @@ class CompoundLogger(Logger):
         for logger in self.loggers:
             logger.record(record)
 
-    def log(self, message: str):
-        for logger in self.loggers:
-            logger.log(message)
-
     def debug_mode(self):
         for logger in self.loggers:
             logger.debug_mode()
 
 
-class StreamLogger(Logger):
-    def __init__(self, experiment_name: str = "debug", log_frequency: int = 10):
-        super().__init__(experiment_name, log_frequency)
-        self.logger = logging.getLogger(experiment_name)
-        self.logger.setLevel(logging.DEBUG)
-        ch = ColorizingStreamHandler()
-        ch.setLevel(logging.DEBUG)
-        self.logger.addHandler(ch)
+class NullLogger(Logger):
+    def __init__(self):
+        super().__init__("default", 1)
 
     def record(self, record: Dict[str, Any]):
-        self.logger.info(str(record))
+        return
 
-    def log(self, message: str):
-        self.logger.info(message)
+
+class CsvLogger(Logger):
+    def __init__(self, experiment_name: str, log_frequency: int = 1, folder: str = ""):
+        super().__init__(experiment_name, log_frequency)
+        path = os.path.join(folder, f"{experiment_name}.csv")
+        if os.path.exists(path):
+            raise FileExistsError(f"File {path} already exists, plaese specify another name or path.")
+
+        self.path = path
+        self.records = list()
+
+    def record(self, record: Dict[str, Any]):
+        self.records.append(record)
+        pd.DataFrame(self.records).to_csv(self.path, index=False)
+
+
+class JsonLogger(Logger):
+    def __init__(self, experiment_name: str, log_frequency: int = 1, folder: str = ""):
+        super().__init__(experiment_name, log_frequency)
+        path = os.path.join(folder, f"{experiment_name}.json")
+        if os.path.exists(path):
+            raise FileExistsError(f"File {path} already exists, plaese specify another name or path.")
+
+        self.path = path
+        self.records = list()
+
+    def record(self, record: Dict[str, Any]):
+        self.records.append(record)
+        pd.DataFrame(self.records).to_json(self.path, index=False)
 
 
 class WAndBLogger(Logger):
@@ -113,7 +184,8 @@ class WAndBLogger(Logger):
         experiment_name: str = "debug",
         log_frequency: int = 1,
         project="helx",
-        mode: str = "online"
+        mode: str = "online",
+        **kwargs,
     ):
         super().__init__(experiment_name, log_frequency)
         wandb.init(
@@ -121,86 +193,27 @@ class WAndBLogger(Logger):
             name=self.experiment_name,
             reinit=True,
             mode=mode,
+            **kwargs,
         )
 
     def record(self, record: Dict[str, Any]):
         return wandb.log(record)
 
-    def log(self, message: str):
-        return wandb.log(message)
 
+class TensorboardXLogger(Logger):
+    def __init__(
+        self,
+        experiment_name: str = "debug",
+        log_frequency: int = 1,
+        folder: str = "",
+        **kwargs,
+    ):
+        super().__init__(experiment_name, log_frequency)
+        self.log_dir = os.path.join(folder, f"{experiment_name}")
+        self.writer = tensorboardX.SummaryWriter(self.log_dir, **kwargs)
+        self.step = 0
 
-class CustomFormatter(logging.Formatter):
-
-    format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s (%(filename)s:%(lineno)d)"  # pyright: ignore reportGeneralTypeIssues
-
-    FORMATS = {
-        logging.DEBUG: GREY + str(format) + RESET,
-        logging.INFO: GREY + str(format) + RESET,
-        logging.WARNING: YELLOW + str(format) + RESET,
-        logging.ERROR: RED + str(format) + RESET,
-        logging.CRITICAL: BOLD_RED + str(format) + RESET,
-    }
-
-    def format(self, record):
-        log_fmt = self.FORMATS.get(record.levelno)
-        formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
-
-
-class ColoredFormatter(logging.Formatter):
-    """Special custom formatter for colorizing log messages!"""
-
-    def __init__(self, *args, **kwargs):
-        self._colors = {
-            logging.DEBUG: DARK_GREY,
-            logging.INFO: RESET,
-            logging.WARNING: BROWN,
-            logging.ERROR: RED,
-            logging.CRITICAL: LIGHT_RED,
-        }
-        super(ColoredFormatter, self).__init__(*args, **kwargs)
-
-    def format(self, record):
-        """Applies the color formats"""
-        record.msg = self._colors[record.levelno] + record.msg + RESET
-        return logging.Formatter.format(self, record)
-
-    def setLevelColor(self, logging_level, escaped_ansi_code):
-        self._colors[logging_level] = escaped_ansi_code
-
-
-class ColorizingStreamHandler(logging.StreamHandler):
-    def __init__(self, *args, **kwargs):
-        self._colors = {
-            logging.DEBUG: DARK_GREY,
-            logging.INFO: RESET,
-            logging.WARNING: BROWN,
-            logging.ERROR: RED,
-            logging.CRITICAL: LIGHT_RED,
-        }
-        super(ColorizingStreamHandler, self).__init__(*args, **kwargs)
-
-    @property
-    def is_tty(self):
-        isatty = getattr(self.stream, "isatty", None)
-        return isatty and isatty()
-
-    def emit(self, record):
-        try:
-            message = self.format(record)
-            stream = self.stream
-            if not self.is_tty:
-                stream.write(message)
-            else:
-                message = self._colors[record.levelno] + message + RESET
-                stream.write(message)
-            stream.write(getattr(self, "terminator", "\n"))
-            self.flush()
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
-            self.handleError(record)
-
-    def setLevelColor(self, logging_level, escaped_ansi_code):
-        self._colors[logging_level] = escaped_ansi_code
+    def record(self, record: Dict[str, Any]):
+        for key, value in record.items():
+            self.writer.add_scalar(key, value, self.step)
+        self.step += 1
