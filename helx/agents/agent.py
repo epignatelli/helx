@@ -83,7 +83,7 @@ class Agent(abc.ABC, Generic[T]):
         self.optimiser: GradientTransformation = optimiser
         self.hparams: T = hparams
         self.iteration: int = 0
-        self.params: nn.FrozenDict = params
+        self.params: nn.FrozenDict = params  # type: ignore
         self.opt_state: OptState = optimiser.init(params)
         self.output_shape: Shape = jax.tree_map(lambda x: x.shape, list(outputs))  # type: ignore
 
@@ -125,6 +125,10 @@ class Agent(abc.ABC, Generic[T]):
         This function is usually not jittable, as we can not ensure that the agent memory, and other
         properties are jittable. This is also a good place to perform logging."""
         raise NotImplementedError()
+
+    def name(self) -> str:
+        """Returns the name of the agent."""
+        return self.__class__.__name__
 
     def sample_action(self, env: Environment, eval: bool = False, **kwargs) -> Action:
         """Samples an action from the agent's policy or a set of actions if the environment is vectorised.
