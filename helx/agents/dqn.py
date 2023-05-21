@@ -30,7 +30,7 @@ from helx.spaces import Discrete
 
 from ..mdp import Trajectory, Transition
 from ..memory import Buffer
-from ..networks import AgentNetwork, EGreedyHead
+from ..networks import AgentNetwork, EGreedyHead, QHead
 from .agent import Agent, Hparams
 
 
@@ -70,16 +70,16 @@ class DQN(Agent[DQNHparams]):
     ):
         assert isinstance(hparams.action_space, Discrete)
         n_actions = hparams.action_space.n_bins
-        critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
-        actor_net = EGreedyHead(
+        critic_head = QHead(n_actions, representation_net)
+        actor_head = EGreedyHead(
             hparams.replay_start,
             hparams.initial_exploration,
             hparams.final_exploration,
             hparams.final_exploration_frame,
         )
         network = AgentNetwork(
-            shared_net=critic_net,
-            actor_net=actor_net,
+            shared_net=critic_head,
+            actor_net=actor_head,
             critic_net=Identity(),
         )
         super().__init__(hparams, network, optimiser, seed)
