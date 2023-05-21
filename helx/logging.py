@@ -141,8 +141,8 @@ class CompoundLogger(Logger):
 
 
 class NullLogger(Logger):
-    def __init__(self):
-        super().__init__("default", 1)
+    def __init__(self, experiment_name: str="default", log_frequency: int = 1):
+        super().__init__(experiment_name, log_frequency)
 
     def record(self, record: Dict[str, Any]):
         return

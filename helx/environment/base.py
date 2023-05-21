@@ -83,7 +83,10 @@ class Environment(abc.ABC, Generic[T]):
         return self._n_parallel
 
     def name(self) -> str:
-        return self._env.__class__.__name__
+        env = self._env
+        while hasattr(self._env, "unwrapped") and env.unwrapped != env:  # type: ignore
+            env = env.unwrapped  # type: ignore
+        return env.__class__.__name__
 
     def __enter__(self):
         return self

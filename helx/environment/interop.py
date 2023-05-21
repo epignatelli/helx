@@ -28,6 +28,7 @@ from .gym import GymAdapter
 from .gymnasium import GymnasiumAdapter
 from .gym3 import Gym3Adapter
 from .brax import BraxAdapter
+from .base import Environment
 
 
 ADAPTERS_TABLE = {
@@ -40,7 +41,7 @@ ADAPTERS_TABLE = {
 }
 
 
-def to_helx(env: Any) -> Any:
+def to_helx(env: Any) -> Environment[Any]:
     # getting root env type for interop
     env_for_type = env
     while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:

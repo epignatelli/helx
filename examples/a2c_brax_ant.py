@@ -15,9 +15,10 @@
 
 import brax.envs
 import optax
-from absl import app, flags, logging
+from absl import app, flags
 
 import helx
+from helx.logging import NullLogger
 from helx.networks import MLP
 
 helx.flags.define_flags_from_hparams(helx.agents.A2CHparams)
@@ -51,7 +52,8 @@ def main(argv):
     )
 
     # run
-    helx.experiment.run(agent, env, 2)
+    logger = NullLogger(experiment_name=f"{env.name()}/{agent.name()}/examples")
+    helx.experiment.run(agent, env, 2, logger=logger)
 
 
 if __name__ == "__main__":
