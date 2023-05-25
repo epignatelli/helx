@@ -25,8 +25,8 @@ import flax.linen as nn
 import jax
 import jax.numpy as jnp
 from chex import Array, Shape
-from jax.lax import stop_gradient
 from jax.random import KeyArray
+import optax
 
 from ..mdp import Action
 from .modules import Identity
@@ -42,28 +42,41 @@ class Actor(nn.Module):
 
 
 class EGreedyHead(nn.Module):
-    initial_exploration_frame: int
-    initial_exploration: float
-    final_exploration: float
-    final_exploration_frame: int
+    eps_start: int
+    eps_init_value: float
+    eps_end_value: float
+    eps_end: int
 
     @nn.compact
-    def __call__(self, q_values: Array, key, **kwargs) -> Tuple[Action, Array]:
-        eval = kwargs.pop("eval", False)
-        x = self.variable("stats", "iteration", lambda: jnp.ones((), dtype=jnp.float32))
+    def __call__(
+        self,
+        q_values: Array,
+        iteration: int,
+        n_actions: int = 1,
+        eval: bool = False,
+    ) -> Tuple[Action, Array]:
+        """Sample actions from an epsilon-greedy policy, and returns
+        both the sampled actions and their log probabilities."""
+        # anneal epsilon
+        eps = optax.polynomial_schedule(
+            self.eps_init_value,
+            self.eps_end_value,
+            1,
+            self.eps_end - self.eps_start,
+            self.eps_start,
+        )(iteration)
 
-        eps = jnp.interp(
-            x.value,
-            jnp.asarray([self.initial_exploration_frame, self.final_exploration_frame]),
-            jnp.asarray([self.initial_exploration, self.final_exploration]),
-        )
+        # no epsilon during evaluation
         eps = jax.lax.select(eval, 0.0, eps)
-        x.value += 1
-
+        # TODO(epignatelli): the following jax.lax.selects breaks because
+        # jax.lax.selects computes the 'else' value even if the condition is true
+        # key = jax.lax.select(self.has_rng("policy"), self.make_rng("policy"), self.make_rng("params"))
+        # for the moment, we use the rng from params
+        key = self.make_rng("params")
+        # sample and log probs
         distr = distrax.EpsilonGreedy(q_values, eps)  # type: ignore
-        action = stop_gradient(distr.sample(seed=key))
-        log_probs = jax.nn.log_softmax(q_values)
-        return action, log_probs
+        actions, log_probs = distr.sample_and_log_prob(seed=key, sample_shape=n_actions)
+        return actions, log_probs
 
 
 class GaussianHead(nn.Module):

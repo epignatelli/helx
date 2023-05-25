@@ -20,6 +20,8 @@ from typing import Tuple
 import flax.linen as nn
 from chex import Array
 
+from ..spaces import Space, is_discrete
+
 from .modules import Identity
 
 
@@ -38,21 +40,24 @@ class Critic(nn.Module):
 
 
 class QHead(nn.Module):
-    """Defines a linear q-value critic with a predefined representation nettwork.
+    """Defines a learnable linear q-value critic.
     Args:
         n_actions (int): The number of outputs of the network, i.e., the number of
         actions in a discrete action space, or the dimensionality of each action
         in a continuous action space.
-        representation_net (nn.Module): The network that computes the representation of the state.
         """
 
-    n_actions: int
-    representation_net: nn.Module
+    action_space: Space
 
     @nn.compact
-    def __call__(self, observation: Array, *args, **kwargs) -> Tuple[Array, Array]:
-        representation_a = self.representation_net(observation, *args, **kwargs)
-        q_value =  nn.Dense(features=self.n_actions)(representation_a)
+    def __call__(self, state_embedding: Array) -> Tuple[Array, Array]:
+        if is_discrete(self.action_space):
+            # actions-out
+            n_out = self.action_space.n_bins  # type: ignore
+        else:
+            # action-in
+            n_out = 1
+        q_value =  nn.Dense(features=n_out)(state_embedding)
         return q_value
 
 

@@ -60,6 +60,10 @@ class BsuiteAdapter(Environment[bsuite.environments.Environment]):
         if hasattr(self._env, "_get_observation"):
             return self._env._get_observation()  # type: ignore
 
+        # see https://github.com/deepmind/bsuite/issues/43
+        if hasattr(self._env, "_observation"):
+            return self._env._observation()  # type: ignore
+
         if self._current_observation is None:
             raise ValueError(
                 "Environment not initialized. Run `reset` first to produce a starting state."

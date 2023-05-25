@@ -85,15 +85,15 @@ class A2C(Agent[A2CHparams]):
             policy_head = GaussianHead(action_shape=hparams.action_space.shape)
 
         network = AgentNetwork(
-            actor_net=Actor(
+            actor_head=Actor(
                 representation_net=actor_network,
                 policy_head=policy_head,
             ),
-            critic_net=QHead(
+            critic_head=QHead(
                 n_actions=1,
                 representation_net=critic_network,
             ),
-            extra_net=Temperature(),
+            custom_head=Temperature(),
         )
 
         super().__init__(hparams, network, optimiser, seed)

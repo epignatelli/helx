@@ -92,16 +92,16 @@ class SAC(Agent[SACHparams]):
         critic_representation_net: nn.Module,
     ):
         network = AgentNetwork(
-            actor_net=Actor(
+            actor_head=Actor(
                 representation_net=actor_representation_net,
                 policy_head=GaussianHead(action_shape=hparams.action_space.shape),
             ),
-            critic_net=DoubleQHead(
+            critic_head=DoubleQHead(
                 n_actions=1,
                 representation_net_a=deep_copy(critic_representation_net),
                 representation_net_b=deep_copy(critic_representation_net),
             ),
-            extra_net=Temperature(),
+            custom_head=Temperature(),
         )
 
         super().__init__(hparams, network, optimiser, seed)

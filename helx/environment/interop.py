@@ -32,11 +32,11 @@ from .base import Environment
 
 
 ADAPTERS_TABLE = {
+    gym3.interop.ToGymEnv: Gym3Adapter,
     gymnasium.core.Env: GymnasiumAdapter,
     gym.core.Env: GymAdapter,
-    gym3.interop.ToGymEnv: Gym3Adapter,
-    dm_env.Environment: DmEnvAdapter,
     bsuite.environments.Environment: BsuiteAdapter,
+    dm_env.Environment: DmEnvAdapter,
     brax.envs.Env: BraxAdapter,
 }
 

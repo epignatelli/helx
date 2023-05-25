@@ -15,11 +15,17 @@
 
 from __future__ import annotations
 
-from typing import Generic, List, Sequence, TypeVar, Deque
+from typing import Any, Generic, List, Sequence, Tuple, TypeVar, Deque
 from collections import deque
+from chex import Array, PyTreeDef, dataclass
 
 import jax
 from jax.random import KeyArray
+import jax.numpy as jnp
+from dataclass_array import DataclassArray
+from dataclass_array.typing import Array, FloatArray, IntArray, BoolArray
+
+from .spaces import Space
 from .mdp import tree_stack
 
 
@@ -88,3 +94,91 @@ class Buffer(Generic[T]):
         n = min(n, len(self.elements))
         indices = jax.random.randint(k, (n,), 0, len(self))
         return tree_stack([self.elements[i] for i in indices])
+
+
+# DataclassArray allows treating batches of dataclasses as a single dataclass
+# see https://github.com/google-research/dataclass_array#usage
+T = TypeVar("T", bound=DataclassArray)
+
+
+@dataclass
+class CircularBufferState(Generic[T]):
+    """The state of a CircularBuffer containing the current index, the key used to sample
+    elements from the buffer, and the elements currently stored in the buffer.
+    Elements must be a DataclassArray, which allows treating batches of dataclasses
+    as a single dataclass.
+    See https://github.com/google-research/dataclass_array#usage"""
+
+    idx: int
+    """The index of the next element to be added to the buffer."""
+    key: KeyArray
+    """The key used to sample elements from the buffer."""
+    elements: T
+    """The elements currently stored in the buffer."""
+
+
+@dataclass
+class CircularBuffer:
+    """A circular buffer used for Experience Replay (ER):
+    Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
+    Use the `CircularBuffer.init` method to construct a buffer."""
+
+    capacity: int
+    """Returns the capacity of the buffer."""
+
+    @classmethod
+    def init(
+        cls, example_item: T, capacity: int, seed: int = 0
+    ) -> Tuple[CircularBuffer, CircularBufferState]:
+        """Constructs a CircularBuffer class."""
+        # reserve memory
+        uninitialised_elements = jax.tree_map(
+            lambda x: jnp.broadcast_to(x * 0, (capacity, *x.shape)), example_item
+        )
+        # config
+        buffer = cls(capacity=capacity)
+        state = CircularBufferState(
+            idx=0,
+            key=jax.random.PRNGKey(seed),
+            elements=uninitialised_elements,
+        )
+        return buffer, state
+
+    def size(self, state: CircularBufferState):
+        """Returns the number of elements currently stored in the buffer."""
+        return state.idx % self.capacity
+
+    def is_full(self, state: CircularBufferState):
+        """Returns whether the buffer has reached its full capacity."""
+        return state.idx == self.capacity
+
+    def add(self, state: CircularBufferState, item: T) -> CircularBuffer:
+        """Adds a single element to the buffer. If the buffer is full, the oldest element
+        is overwritten."""
+        idx = state.idx % self.capacity
+        # index updating requires jitting to guarantee in-place efficiency
+        # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+        elements = state.elements.at[idx].set(item)
+        return state.replace(
+            idx=state.idx + 1,
+            elements=elements,
+        )
+
+    def add_range(self, state: CircularBufferState, items: T) -> CircularBuffer:
+        """Adds more than one elements to the buffer. If the buffer is full, the oldest elements
+        are overwritten."""
+        start = state.idx % self.capacity
+        end = start + len(items)
+        # index updating requires jitting to guarantee in-place efficiency
+        # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+        elements = state.elements.at[start:end].set(items)
+        return state.replace(idx=state.idx + len(items), elements=elements)
+
+    def sample(self, state: CircularBufferState, n: int) -> Tuple[T, CircularBuffer]:
+        """Samples `n` elements uniformly at random from the buffer,
+        and stacks them into a single pytree"""
+        state.key, k = jax.random.split(state.key)
+        size = self.size(state)
+        n = min(n, size)
+        indices = jax.random.randint(key=k, shape=(n,), minval=0, maxval=size)
+        return state.elements[indices], state.replace(key=state.key)
