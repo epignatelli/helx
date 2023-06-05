@@ -25,7 +25,7 @@ from flax import linen as nn
 from optax import GradientTransformation
 
 from ..mdp import Trajectory, Transition
-from ..memory import Buffer
+from ..memory import ReplayBuffer
 from ..networks import (
     Actor,
     AgentNetwork,
@@ -52,7 +52,7 @@ class A2CHparams(Hparams):
     learning_rate: float = 3e-4
 
 
-class A2C(Agent[A2CHparams]):
+class A2C():
     """Synchronous version of Advantage Actor Critic (A2C) with entropy regularisation,
     as described in
     "Asynchronous Methods for Deep Reinforcement Learning" (Mnih et al., 2016),

@@ -22,6 +22,7 @@ from os import PathLike
 from typing import Any, Dict, Generic, Tuple, TypeVar
 
 import flax.linen as nn
+from flax import struct
 import jax
 from chex import Array, dataclass
 from jax.random import KeyArray
@@ -33,36 +34,25 @@ from ..networks import AgentNetwork, apply_updates
 from ..spaces import Space
 
 
-@dataclass
-class Hparams:
+class Hparams(struct.PyTreeNode):
     """A base dataclass to define the hyperparameters of an agent."""
-
     obs_space: Space
     action_space: Space
+    seed: int = 0
 
     def as_dict(self):
         return {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
 
 
-
-@dataclass
-class AgentState:
-    """The agent's dynamic state containing data that changes during training.
-    Inherit from this class to add extra fields.
-    The child class must be a `chex.dataclass`."""
+T = TypeVar("T", bound=Hparams)
 
 
-T1 = TypeVar("T1", bound=Hparams)
-T2 = TypeVar("T2", bound=AgentState)
-
-
-@dataclass
-class Agent(abc.ABC, Generic[T1, T2]):
-    hparams: T1
-    optimiser: GradientTransformation
+class Agent(abc.ABC, struct.PyTreeNode):
+    hparams: Hparams = struct.field(pytree_node=False)
+    optimiser: GradientTransformation = struct.field(pytree_node=False)
 
     @abc.abstractclassmethod
-    def init(cls, *args, **kwargs) -> T2:
+    def create(cls, *args, **kwargs) -> Agent:
         """Initialises the agent's state.
         This is the state that is updated at every learning step, and does not include
         variables that do not change during learning, such as the network architecture,
@@ -73,19 +63,7 @@ class Agent(abc.ABC, Generic[T1, T2]):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def update(self, agent_state: T2, episode: Trajectory) -> Tuple[AgentState, Dict[str, Any]]:
-        """Updates the agent's state based on a trajectory of experience data,
-        or on other parts of the agent's state, such as the replay buffer.
-        Args:
-            agent_state (AgentState): The agent's current state.
-            episode (Trajectory): A trajectory of experience data *just* collected.
-        Returns (Tuple[AgentState, Dict[str, Any]]):
-            A tuple of two elements containing, respectively:
-            the updated learning state, and a dictionary of metrics to log."""
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def sample_action(self, agent_state: T2, env: Environment, eval: bool = False) -> Action:
+    def sample_action(self, env: Environment, key: KeyArray, eval: bool = False) -> Action:
         """Samples an action from the agent's policy or a set of actions if the environment is vectorised.
         Args:
             agent_state (AgentState): The agent's current state.
@@ -97,7 +75,19 @@ class Agent(abc.ABC, Generic[T1, T2]):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def loss(self, agent_state: T2, transition: Transition, *args) -> Tuple[Array, Any]:
+    def update(self, episode: Trajectory, key: KeyArray) -> Tuple[Agent, Dict[str, Any]]:
+        """Updates the agent's state based on a trajectory of experience data,
+        or on other parts of the agent's state, such as the replay buffer.
+        Args:
+            agent_state (AgentState): The agent's current state.
+            episode (Trajectory): A trajectory of experience data *just* collected.
+        Returns (Tuple[AgentState, Dict[str, Any]]):
+            A tuple of two elements containing, respectively:
+            the updated learning state, and a dictionary of metrics to log."""
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def loss(self, transition: Transition, *args) -> Tuple[Array, Any]:
         """Defines the loss of the agent on a single (unbatched) transition.
         Args:
             agent_state (AgentState): The agent's current state.
@@ -110,7 +100,7 @@ class Agent(abc.ABC, Generic[T1, T2]):
 
     def sgd_step(
         self,
-        params: nn.FrozenDict,
+        params: Any,
         transition: Transition,
         opt_state: OptState,
         *args,
@@ -140,31 +130,33 @@ class Agent(abc.ABC, Generic[T1, T2]):
         params = apply_updates(params, updates)
         return params, opt_state, loss, aux
 
-    def config(self):
-        """Returns a dictionary of the dataclass properties defined by the agent"""
-        return {k: v for k, v in self.__dataclass_fields__.items()}
-
     def name(self):
         """A printable version of the name of the agent."""
         return self.__class__.__name__
 
-    def serialise(self, state: AgentState, path: str | PathLike) -> bytes:
+    def serialise(self, path: str | PathLike) -> bytes:
         """Serialises the agent's config and state to a file using
             the latest pickle protocol."""
-        agent = {
-            "type": self.name(),
-            "config": self.config(),
-            "state": state}
-        return pickle.dumps(agent)
+        return pickle.dumps(self)
 
     @classmethod
-    def deserialise(cls, agent_bytes: bytes):
+    def deserialise(cls, agent_bytes: bytes) -> Agent:
         """Loads the agent's config and state from pickled bytes.
         Returns a tuple of the agent's config and state."""
         agent_dict = pickle.loads(agent_bytes)
-        agent = cls(**agent_dict["config"])
-        state = agent_dict["state"]
-        return agent, state
+        agent = cls(**agent_dict)
+        return agent
+
+    def save(self, path: str | PathLike):
+        with open(path, "wb") as f:
+            f.write(self.serialise(path))
+        return
+
+    @classmethod
+    def load(cls, path: str | PathLike):
+        with open(path, "rb") as f:
+            agent_bytes = f.read()
+        return cls.deserialise(agent_bytes)
 
 
 

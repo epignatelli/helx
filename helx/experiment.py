@@ -13,10 +13,12 @@
 # limitations under the License.
 
 
+from functools import partial
 from pprint import pformat
 
 import jax
 import jax.experimental
+from jax.random import KeyArray
 
 from .agents.agent import Agent
 from .environment.base import Environment
@@ -25,7 +27,7 @@ from .logging import NullLogger
 
 
 def run_episode(
-    agent: Agent, env: Environment, eval: bool = False, max_steps: int = int(2e9)
+    agent: Agent, env: Environment, key: KeyArray, eval: bool = False, max_steps: int = int(2e9)
 ) -> Trajectory:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
@@ -50,7 +52,7 @@ def run_episode(
     episode = Trajectory.start(timestep)
     while (not timestep.is_final()) and t < max_steps:
         t += 1
-        action = agent.sample_action(env, eval=eval)
+        action = agent.sample_action(env, key=key, eval=eval)
         timestep = env.step(action)
         episode.add(timestep, action)
     return episode
@@ -63,6 +65,7 @@ def run(
     num_eval_episodes: int = 5,
     eval_frequency: int = 1000,
     logger=NullLogger(),
+    seed: int=0
 ):
     logger.log(
         "Starting experiment {} with a budget of {} episodes".format(
@@ -77,19 +80,24 @@ def run(
 
     # train
     log = {}
-    state = agent.state()
+    key = jax.random.PRNGKey(seed)
     for i in range(num_episodes):
-
+        key, k1, k2 = jax.random.split(key, 3)
         # collect experience
         # this can run asynchronously because env.step, env.reset
         # and agent.sample_action might be all non-blocking
         # until the buffer is at minimum learning capacity
-        episode = run_episode(agent, env)
+        episode = run_episode(agent=agent, env=env, key=k1)
+        returns = episode.returns().item()
+
+        # log episode
+        logger.log(f"Learning episode {i}/{num_episodes} - Return: {returns}")
+        log.update({f"train/Returns": returns})
 
         # update the learner
         # this run asynchronously as well when the
         # agent is a distributed learner and the buffer is full
-        state, log = agent.update(state, episode)
+        agent, log = agent.update(episode=episode, key=k2)
 
         # log the update
         logger.record(log)
@@ -103,79 +111,84 @@ def run(
 
         for j in range(num_eval_episodes):
             log = {}
-            logger.log("Evaluating episode {} at iteration {}".format(j, i))
+
+            #  create new rng key
+            key, k3 = jax.random.split(key)
+
             #  experience a new episode
-            episode = run_episode(agent, env, eval=True)
-            # video = ensure_video_format(episode.s)
-            # if video is not None:
-            #     log.update({f"val/$\\pi_{j}$": wandb.Video(video, format="mp4")})
+            episode = run_episode(agent, env, key=k3, eval=True)
+            returns = episode.returns().item()
 
             # log episode
-            returns = episode.returns().item()
-            log.update({f"val/Return$(\\pi_{j})$": returns})
-            logger.log(
-                "Episode: {}/{} - Return: {}".format(j, num_eval_episodes - 1, returns)
-            )
+            logger.log(f"Evaluating episode {j}/{num_eval_episodes} - Return: {returns}")
+            log.update({f"val/Return": returns})
 
         # log
         logger.record(log)
 
 
-# def run_jax_jittable(
-#     agent: Agent,
-#     env: Environment,
-#     num_episodes: int,
-#     num_eval_episodes: int = 5,
-#     eval_frequency: int = 1000,
-#     logger=NullLogger(),
-# ):
-#     logger.log(
-#         "Starting experiment {} with a budget of {} episodes".format(
-#             logger.experiment_name, num_episodes
-#         )
-#     )
-#     logger.log(
-#         "The hyperparameters for the current experiment are {}".format(
-#             pformat(agent.hparams.as_dict())
-#         )
-#     )
+@partial(jax.jit, static_argnums=(2, 3, 4, 5, 6))
+def run_jitted(
+    agent: Agent,
+    env: Environment,
+    num_episodes: int,
+    num_eval_episodes: int = 5,
+    eval_frequency: int = 1000,
+    logger=NullLogger(),
+    seed=0
+):
+    logger.log(
+        "Starting experiment {} with a budget of {} episodes".format(
+            logger.experiment_name, num_episodes
+        )
+    )
+    logger.log(
+        "The hyperparameters for the current experiment are {}".format(
+            pformat(agent.hparams.as_dict())
+        )
+    )
 
-#     def eval_fun(carry, log):
-#         state, i = carry
+    def eval_fun(carry, log):
+        agent, key, i = carry
 
-#         episode = run_episode(agent, env, eval=True)
-#         log = {f"val/Return$(\\pi_{i})$": episode.returns()}
+        key, k3 = jax.random.split(key, 2)
 
-#         # log eval
-#         jax.debug.print(pformat(log))
-#         jax.experimental.io_callback(logger.record, (), log, False)
+        episode = run_episode(agent, env, key=k3, eval=True)
+        log = {f"val/Return$(\\pi_{i})$": episode.returns()}
 
-#         carry = state, i + 1
-#         return carry, log
+        # log eval
+        jax.debug.print(pformat(log))
+        jax.experimental.io_callback(logger.record, (), log, False)
 
-#     def train_fun(carry, log):
-#         state, i = carry
+        carry = agent, key, i + 1
+        return carry, log
 
-#         # train
-#         episode = run_episode(agent, env)
-#         state, log = agent.update(state, episode)
+    def train_fun(carry, log):
+        agent, key, i = carry
 
-#         # log train
-#         jax.debug.print(pformat(log))
-#         jax.experimental.io_callback(logger.record, (), log, False)
+        key, k1, k2 = jax.random.split(key, 3)
 
-#         # eval
-#         if i % eval_frequency:
-#             return log, (agent, env)
-#         init_eval_carry = (state, 0)
-#         _, eval_log = jax.lax.scan(eval_fun, init_eval_carry, None, length=num_eval_episodes)
-#         log.update(eval_log)
+        # train
+        episode = run_episode(agent=agent, env=env, key=k1)
+        agent, log = agent.update(episode, key=k2)
 
-#         carry = state, i + 1
-#         return carry, log
+        # log train
+        jax.debug.print(pformat(log))
+        jax.experimental.io_callback(logger.record, (), log, False)
 
-#     # train
-#     init_carry = (agent.state(), 0)
-#     carry, log = jax.lax.scan(train_fun, init_carry, None, length=num_episodes)
-#     state, i = carry
-#     return log, state
+        # eval
+        if i % eval_frequency:
+            return log, (agent, env)
+        init_eval_carry = (agent, 0)
+        _, eval_log = jax.lax.scan(eval_fun, init_eval_carry, None, length=num_eval_episodes)
+        log.update(eval_log)
+
+        carry = agent, key, i + 1
+        return carry, log
+
+    # train
+    key = jax.random.PRNGKey(seed)
+    init_carry = (agent, key, 0)
+    carry, log = jax.lax.scan(train_fun, init_carry, None, length=num_episodes)
+    agent, key, i = carry
+    return log, agent

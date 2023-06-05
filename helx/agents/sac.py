@@ -28,7 +28,7 @@ from optax import GradientTransformation
 import wandb
 
 from ..mdp import Trajectory, Transition
-from ..memory import Buffer
+from ..memory import ReplayBuffer
 from ..networks import (
     Actor,
     AgentNetwork,
@@ -58,7 +58,7 @@ class SACHparams(Hparams):
     learning_rate: float = 3e-4
 
 
-class SAC(Agent[SACHparams]):
+class SAC():
     """Implements Soft Actor-Critic with gaussian policy for continuous action spaces.
     Haarnoja, Tuomas, et al. "Soft actor-critic: Off-policy maximum entropy deep
         reinforcement learning with a stochastic actor."
@@ -105,7 +105,7 @@ class SAC(Agent[SACHparams]):
         )
 
         super().__init__(hparams, network, optimiser, seed)
-        self.memory = Buffer(hparams.replay_memory_size)
+        self.memory = ReplayBuffer(hparams.replay_memory_size)
         self.params_target: nn.FrozenDict = self.params.copy({})
         self.dim_actions = hparams.action_space.shape[0]
 

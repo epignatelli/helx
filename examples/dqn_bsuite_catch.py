@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 import bsuite
 import flax.linen as nn
+import jax
 import optax
 from absl import app, flags, logging
 
@@ -55,14 +55,15 @@ def main(argv):
             helx.networks.MLP(features=[32, 16]),
         ]
     )
-    agent = helx.agents.DQN(
+    agent = helx.agents.DQN.create(
         optimiser=optimiser,
         hparams=hparams,
-        seed=0,
+        key=jax.random.PRNGKey(hparams.seed),
         representation_net=representation_net,
     )
 
-    helx.experiment.run(agent, env, 2)
+    helx.experiment.run(agent=agent, env=env, num_episodes=100)
+
 
 
 if __name__ == "__main__":

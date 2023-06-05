@@ -51,6 +51,7 @@ class EGreedyHead(nn.Module):
     def __call__(
         self,
         q_values: Array,
+        key: KeyArray,
         iteration: int,
         n_actions: int = 1,
         eval: bool = False,
@@ -68,19 +69,13 @@ class EGreedyHead(nn.Module):
 
         # no epsilon during evaluation
         eps = jax.lax.select(eval, 0.0, eps)
-        # TODO(epignatelli): the following jax.lax.selects breaks because
-        # jax.lax.selects computes the 'else' value even if the condition is true
-        # key = jax.lax.select(self.has_rng("policy"), self.make_rng("policy"), self.make_rng("params"))
-        # for the moment, we use the rng from params
-        key = self.make_rng("params")
-        # sample and log probs
         distr = distrax.EpsilonGreedy(q_values, eps)  # type: ignore
-        actions, log_probs = distr.sample_and_log_prob(seed=key, sample_shape=n_actions)
+        actions, log_probs = distr.sample_and_log_prob(seed=key, sample_shape=(n_actions,))
         return actions, log_probs
 
 
 class GaussianHead(nn.Module):
-    action_shape: Shape
+    action_shape: Shape  # type: ignore
 
     @nn.compact
     def __call__(self, representation: Array, key: KeyArray) -> Tuple[Action, Array]:

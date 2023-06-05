@@ -72,8 +72,7 @@ class Formatter(logging.Formatter):
 
     def format(self, record):
         level_fmt = self.FORMATS.get(record.levelno)
-        format = (f"{WHITE}%(name)s{RESET}"
-                f"{level_fmt}[%(levelname)s]{RESET} "
+        format = (f"{WHITE}(%(name)s) {RESET}"
                 f"{WHITE}%(asctime)s{RESET} "
                 f"{WHITE}%(filename)s:%(lineno)d:{RESET} "
                 f"{level_fmt}%(message)s{RESET}")

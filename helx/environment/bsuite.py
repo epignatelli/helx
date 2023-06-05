@@ -77,7 +77,6 @@ class BsuiteAdapter(Environment[bsuite.environments.Environment]):
 
     def step(self, action: Action) -> Timestep:
         # bsuite only has discrete actions envs
-        chex.assert_scalar(action)
         next_step = self._env.step(action.item())
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_dm_env(next_step)

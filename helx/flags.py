@@ -136,7 +136,10 @@ def define_flags_from_hparams(type_):
         del fields["action_space"]
 
     # we wrap the type in a dataclass to get the default values
-    dataclass_fields = dataclasses.dataclass(type_).__dataclass_fields__
+    if not hasattr(type_, "__dataclass_fields__"):
+        raise TypeError(f"{type_} is not a dataclass")
+
+    dataclass_fields = type_.__dataclass_fields__
 
     for field in fields:
         default_value = dataclass_fields[field].default
