@@ -69,10 +69,10 @@ class DQN(Agent):
     actor: nn.Module = struct.field(pytree_node=False)
     critic: nn.Module = struct.field(pytree_node=False)
     params_actor: nn.FrozenDict = struct.field(pytree_node=False)
-    params_critic: nn.FrozenDict
-    params_target: nn.FrozenDict
-    opt_state: OptState
-    memory: ReplayBuffer
+    params_critic: nn.FrozenDict = struct.field(pytree_node=True)
+    params_target: nn.FrozenDict = struct.field(pytree_node=True)
+    opt_state: OptState = struct.field(pytree_node=True)
+    memory: ReplayBuffer = struct.field(pytree_node=True)
 
     @classmethod
     def create(cls, hparams, optimiser, key, representation_net):
