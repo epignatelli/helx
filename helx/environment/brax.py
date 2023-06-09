@@ -16,78 +16,51 @@
 from __future__ import annotations
 
 import brax.envs
-import jax
 import jax.numpy as jnp
-from chex import Array
+from jax.random import KeyArray
 
 from ..mdp import Action, StepType, Timestep
-from ..spaces import Space, Continuous
+from ..spaces import Continuous
 from .base import Environment
 
 
 class BraxAdapter(Environment[brax.envs.Env]):
     """Static class to convert between bsuite.Environment and helx environments."""
 
-    def __init__(self, env: brax.envs.Env):
-        super().__init__(env)
-        self._current_state = None
+    @classmethod
+    def create(cls, env: brax.envs.Env):
+        return cls(
+            observation_space=Continuous((env.observation_size,)),
+            action_space=Continuous((env.action_size,)),
+            reward_space=Continuous(()),
+            env=env,
+        )
 
-    def action_space(self) -> Space:
-        if self._action_space is None:
-            self._action_space = Continuous((self._env.action_size, ))
-        return self._action_space
+    def reset(self, key: KeyArray) -> Timestep:
+        # TODO(epignatelli): wrongly typed in brax/jax, KeyArray is not Array
+        next_step = self.env.reset(key)  # type: ignore
+        return Timestep(
+            observation=next_step.obs,
+            reward=next_step.reward,
+            step_type=StepType(next_step.done),
+            action=-1,
+            t=0,
+            info={"state": next_step},
+        )
 
-    def observation_space(self) -> Space:
-        if self._observation_space is None:
-            self._observation_space = Continuous((self._env.observation_size,))
-        return self._observation_space
+    def step(
+        self, current_timestep: Timestep, action: Action, seed: int = 0
+    ) -> Timestep:
+        if current_timestep.is_terminal():
+            return self.reset(seed)
 
-    def reward_space(self) -> Space:
-        if self._reward_space is None:
-            self._reward_space = Continuous(())
-
-        return self._reward_space
-
-    def state(self) -> Array:
-        if hasattr(self._env, "_get_observation"):
-            return self._env._get_observation()  # type: ignore
-
-        if self._current_observation is None:
-            raise ValueError(
-                "Environment not initialized. Run `reset` first to produce a starting state."
-            )
-        return self._current_observation
-
-    def reset(self, seed: int | None = None) -> Timestep:
-        key = jax.random.PRNGKey(seed) if seed is not None else self._key
-        next_step = self._env.reset(key)  # type: ignore
-        observation = next_step.obs
-        reward = next_step.reward
-        step_type = StepType(next_step.done)  # TODO(epignatelli): this will break with vector env
-
-        self._current_state = next_step
-        self._current_observation = jnp.asarray(observation)
-        return Timestep(observation, reward, step_type)
-
-    def step(self, action: Action) -> Timestep:
-        next_step = self._env.step(self._current_state, action)  # type: ignore
-        observation = next_step.obs
-        reward = next_step.reward
-        step_type = StepType(next_step.done)  # TODO(epignatelli): this will break with vector env
-
-        self._current_state = next_step
-        self._current_observation = observation
-        return Timestep(observation, reward, step_type)
-
-    def seed(self, seed: int) -> None:
-        self._seed = seed
-        self._key = jax.random.PRNGKey(self._seed)
-        return
-
-    def render(self, mode: str = "human"):
-        # TODO: Handle mode
-        current_state = self.state()
-        return current_state
-
-    def close(self) -> None:
-        return
+        action = jnp.asarray(action)
+        next_step = self.env.step(current_timestep.info["state"], action)
+        return Timestep(
+            observation=next_step.obs,
+            reward=next_step.reward,
+            step_type=StepType(next_step.done),
+            action=action,
+            t=current_timestep.t + 1,
+            info={"state": next_step},
+        )

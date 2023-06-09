@@ -28,7 +28,7 @@ from optax import GradientTransformation
 import wandb
 from helx.spaces import Discrete
 
-from ..mdp import Trajectory, Transition
+from ..mdp import Transition
 from ..memory import ReplayBuffer
 from ..networks import (
     Actor,
@@ -46,7 +46,7 @@ class SACDHparams(SACHparams):
     action_space: Discrete
 
 
-class SACD():
+class SACD:
     """Soft Actor-Critic agent with softmax policy for discrete action spaces
     and a twinned Q-network for value approximation with a separate target network
     updated by polyak averaging the online network parameters.

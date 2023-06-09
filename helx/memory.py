@@ -40,13 +40,13 @@ class ReplayBuffer(struct.PyTreeNode):
         """Constructs a CircularBuffer class."""
         # reserve memory
         uninitialised_elements = jax.tree_map(
-            lambda x: jnp.broadcast_to(x * 0, (capacity, *jnp.asarray(x).shape)), example_item
+            lambda x: jnp.broadcast_to(x * 0, (capacity, *jnp.asarray(x).shape)),
+            example_item,
         )
         return cls(
             elements=uninitialised_elements,
             capacity=capacity,
             idx=0,
-
         )
 
     def size(self):
@@ -74,9 +74,10 @@ class ReplayBuffer(struct.PyTreeNode):
         the oldest elements are overwritten."""
         start = self.idx % self.capacity
         end = start + len(items)
+        # transpose the list of pytrees in `items` into a pytree of lists
+        stacked_items = jax.tree_map(lambda *x: jnp.stack(x).squeeze(), *items)
         # index updating requires jitting to guarantee in-place efficiency
         # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
-        stacked_items = jax.tree_map(lambda *x: jnp.stack(x).squeeze(), *items)
         elements = jax.tree_map(
             lambda x, y: x.at[start:end].set(y), self.elements, stacked_items
         )
@@ -85,7 +86,7 @@ class ReplayBuffer(struct.PyTreeNode):
             elements=elements,
         )
 
-    def sample(self,  key: KeyArray, n: int = 1) -> Tuple[ReplayBuffer, Any]:
+    def sample(self, key: KeyArray, n: int = 1) -> Tuple[ReplayBuffer, Any]:
         """Samples `n` elements uniformly at random from the buffer,
         and stacks them into a single pytree.
         If `n` is greater than state.idx,
@@ -98,6 +99,7 @@ class ReplayBuffer(struct.PyTreeNode):
 
 class EpisodeBuffer(struct.PyTreeNode):
     """A asynchronous episodic memory buffer used for online learning."""
+
     elements: Any
     """The elements currently stored in the buffer."""
     idx: int = struct.field(pytree_node=False)
@@ -105,7 +107,7 @@ class EpisodeBuffer(struct.PyTreeNode):
     size: int = struct.field(pytree_node=False)
 
     @classmethod
-    def init(cls, example_item: Any, size: int) -> EpisodeBuffer:
+    def create(cls, example_item: Any, size: int) -> EpisodeBuffer:
         """Constructs a CircularBuffer class."""
         # reserve memory
         uninitialised_elements = jax.tree_map(
@@ -140,7 +142,6 @@ class EpisodeBuffer(struct.PyTreeNode):
         indices = jnp.arange(self.idx)[:n]
         items = jax.tree_map(lambda x: x[indices], self.elements)
         return items, self
-
 
 
 # class Buffer(Generic[PyTreeDef]):

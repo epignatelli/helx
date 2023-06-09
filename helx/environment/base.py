@@ -15,14 +15,12 @@
 
 """A set of functions to interoperate between the most common
 RL environment interfaces, like `gym`, `gymnasium`, `dm_env`, `bsuite and others."""
-from __future__ import annotations
 
 import abc
-from typing import Any, Generic, TypeVar
+from functools import wraps
+from typing import Generic, TypeVar
 
-import jax
-from chex import Array
-
+from flax import struct
 from jax.random import KeyArray
 
 from ..mdp import Action, Timestep
@@ -31,68 +29,40 @@ from ..spaces import Space
 T = TypeVar("T")
 
 
-class Environment(abc.ABC, Generic[T]):
-    def __init__(self, env: Any):
-        self._action_space: Space | None = None
-        self._observation_space: Space | None = None
-        self._reward_space: Space | None = None
-        self._current_observation: Array | None = None
-        self._seed: int = 0
-        self._key: KeyArray = jax.random.PRNGKey(self._seed)
-        self._env: T = env
-        self._n_parallel = 1
+class Environment(abc.ABC, Generic[T], struct.PyTreeNode):
+    env: T = struct.field(pytree_node=False)
+    observation_space: Space = struct.field(pytree_node=False)
+    action_space: Space = struct.field(pytree_node=False)
+    reward_space: Space = struct.field(pytree_node=False)
 
     @abc.abstractmethod
-    def action_space(self) -> Space:
+    def _reset(self, key: KeyArray) -> Timestep:
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def observation_space(self) -> Space:
+    def _step(
+        self, current_timestep: Timestep, action: Action, key: KeyArray
+    ) -> Timestep:
         raise NotImplementedError()
 
-    @abc.abstractmethod
-    def reward_space(self) -> Space:
-        raise NotImplementedError()
+    def reset(self, key: KeyArray) -> Timestep:
+        next_timestep = self._reset(key)
+        return next_timestep
 
-    @abc.abstractmethod
-    def state(self) -> Array:
-        raise NotImplementedError()
+    def step(
+        self, current_timestep: Timestep, action: Action, key: KeyArray
+    ) -> Timestep:
+        next_timestep = self._step(current_timestep, action, key)
+        return next_timestep
 
-    @abc.abstractmethod
-    def reset(self, seed: int | None = None) -> Timestep:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def step(self, action: Action) -> Timestep:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def seed(self, seed: int) -> None:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def render(self, mode: str = "human"):
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def close(self) -> None:
-        raise NotImplementedError()
-
-    # @abc.abstractmethod
-    def n_parallel(self) -> int:
-        return self._n_parallel
+    def unwrapped(self) -> T:
+        return self.env
 
     def name(self) -> str:
-        env = self._env
-        while hasattr(self._env, "unwrapped") and env.unwrapped != env:  # type: ignore
-            env = env.unwrapped  # type: ignore
+        env = self.env
+        while hasattr(env, "unwrapped"):
+            unwrapped = getattr(env, "unwrapped")
+            if unwrapped == env:
+                break
+            env = unwrapped
         return env.__class__.__name__
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self):
-        self.close()
-
-    def __del__(self):
-        self.close()

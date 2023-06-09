@@ -15,32 +15,78 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
+import logging
+from typing import Any, Dict, List
 
 import gym
 import gym.core
+import gym.spaces
 import gym.utils.seeding
-import jax
 import jax.numpy as jnp
+from jax.random import KeyArray
 import numpy as np
-from chex import Array
-from gym.envs.registration import registry
+from gym.envs.registration import EnvSpec, registry
+from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
+from jax.typing import ArrayLike
 from minigrid.minigrid_env import MiniGridEnv
 from minigrid.wrappers import ImgObsWrapper
-from gym.envs.registration import EnvSpec
 
-from ..logging import get_default_logger
 from ..mdp import Action, StepType, Timestep
-from ..spaces import Continuous, Space
+from ..spaces import Continuous, Discrete, Space
 from .base import Environment
 
-logging = get_default_logger()
+
+def continuous_from_gym(gym_space: gym.spaces.Box) -> Continuous:
+    shape = gym_space.shape
+    minimum = jnp.asarray(gym_space.low)
+    maximum = jnp.asarray(gym_space.high)
+    return Continuous(shape=shape, dtype=gym_space.dtype, lower=minimum, upper=maximum)
+
+
+def discrete_from_gym(gym_space: gym.spaces.Discrete) -> Discrete:
+    return Discrete.create(gym_space.n)
+
+
+def space_from_gym(gym_space: gym.spaces.Space) -> Space:
+    if isinstance(gym_space, gym.spaces.Discrete):
+        return discrete_from_gym(gym_space)
+    elif isinstance(gym_space, gym.spaces.Box):
+        return continuous_from_gym(gym_space)
+    else:
+        raise NotImplementedError(
+            "Cannot convert gym space of type {}".format(type(gym_space))
+        )
+
+
+def timestep_from_gym(
+    gym_step: GymTimestep, action: Action = -1, t: ArrayLike = 0
+) -> Timestep:
+    obs, reward, terminated, truncated, _ = gym_step
+
+    if terminated:
+        step_type = StepType.TERMINATION
+    elif truncated:
+        step_type = StepType.TRUNCATION
+    else:
+        step_type = StepType.TRANSITION
+
+    obs = jnp.asarray(obs)
+    reward = jnp.asarray(reward)
+    action = jnp.asarray(action)
+    return Timestep(
+        observation=obs,
+        reward=reward,
+        step_type=step_type,
+        action=action,
+        t=t,
+    )
 
 
 class GymAdapter(Environment[gym.Env]):
     """Static class to convert between gym and helx environments."""
 
-    def __init__(self, env: gym.core.Env):
+    @classmethod
+    def create(cls, env: gym.core.Env):
         if isinstance(env.unwrapped, MiniGridEnv):
             msg = (
                 "String arrays are not supported by helx yet."
@@ -50,70 +96,41 @@ class GymAdapter(Environment[gym.Env]):
                 " around an `ImgObsWrapper`."
             )
             logging.warning(msg)
-            env = ImgObsWrapper(env)
+            env = ImgObsWrapper(env)  # type: ignore
 
-        super().__init__(env)
+        return cls(
+            env=env,
+            observation_space=space_from_gym(env.observation_space),
+            action_space=space_from_gym(env.action_space),
+            reward_space=Continuous(
+                (), lower=env.reward_range[0], upper=env.reward_range[1]
+            ),
+        )
 
-    def action_space(self) -> Space:
-        if self._action_space is not None:
-            return self._action_space
-
-        self._action_space = Space.from_gym(self._env.action_space)
-        return self._action_space
-
-    def observation_space(self) -> Space:
-        if self._observation_space is not None:
-            return self._observation_space
-
-        self._observation_space = Space.from_gym(self._env.observation_space)
-        return self._observation_space
-
-    def reward_space(self) -> Space:
-        if self._reward_space is not None:
-            return self._reward_space
-
-        minimum = self._env.reward_range[0]
-        maximum = self._env.reward_range[1]
-        self._reward_space = Continuous((1,), (minimum,), (maximum,))
-        return self._reward_space
-
-    def state(self) -> Array:
-        if self._current_observation is None:
-            raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
-            )
-        return self._current_observation
-
-    def reset(self, seed: int | None = None) -> Timestep:
+    def reset(self, key: KeyArray) -> Timestep:
         try:
-            obs, _ = self._env.reset(seed=seed)
+            obs, _ = self.env.reset(seed=int(key[0]))
         except TypeError:
             # TODO(epignatelli): remove try/except when gym3 is updated.
             # see: https://github.com/openai/gym3/issues/8
-            obs, _ = self._env.reset()
-        self._current_observation = jnp.asarray(obs)
-        return Timestep(obs, None, StepType.TRANSITION)
+            obs, _ = self.env.reset()
+        # step_type is unclear from reset. What if the first state is also the last (e.g., a bandit)?
+        return Timestep(
+            observation=obs,
+            reward=0.0,
+            step_type=StepType.TRANSITION,
+            action=-1,
+            t=0,
+        )
 
-    def step(self, action: Action) -> Timestep:
-        action_ = np.asarray(action)
-        next_step = self._env.step(action_)
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_gym(next_step)
+    def step(
+        self, current_timestep: Timestep, action: Action, key: KeyArray
+    ) -> Timestep:
+        if current_timestep.is_terminal():
+            current_timestep = self.reset(key)
 
-    def seed(self, seed: int) -> None:
-        self._env.np_random, seed = gym.utils.seeding.np_random(seed)
-        self._seed = seed
-        self._key = jax.random.PRNGKey(seed)
-
-    def render(self, mode: str = "human"):
-        self._env.render_mode = mode
-        return self._env.render()
-
-    def close(self) -> None:
-        return self._env.close()
-
-    def name(self) -> str:
-        return self._env.unwrapped.__class__.__name__
+        next_step = self.env.step(action)
+        return timestep_from_gym(next_step, action, current_timestep.t + 1)
 
 
 def list_envs(namespace: str) -> List[str]:

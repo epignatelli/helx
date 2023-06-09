@@ -70,7 +70,9 @@ class EGreedyHead(nn.Module):
         # no epsilon during evaluation
         eps = jax.lax.select(eval, 0.0, eps)
         distr = distrax.EpsilonGreedy(q_values, eps)  # type: ignore
-        actions, log_probs = distr.sample_and_log_prob(seed=key, sample_shape=(n_actions,))
+        actions, log_probs = distr.sample_and_log_prob(
+            seed=key, sample_shape=(n_actions,)
+        )
         return actions, log_probs
 
 

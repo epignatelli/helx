@@ -19,204 +19,156 @@ from copy import deepcopy
 from multiprocessing.connection import Connection
 from typing import Any, List, Sequence
 
-import jax
-
-from helx.random import PRNGSequence
-
 from ..mdp import Action, Timestep
 from ..spaces import Space
 from .base import Environment
 
 
-def _actor(server: Connection, client: Connection, env: Environment):
-    """Actor definition for Actor-Learner architectures.
+# def _actor(server: Connection, client: Connection, env: Environment):
+#     """Actor definition for Actor-Learner architectures.
 
-    Args:
-        server (Connection): server connection
-        client (Connection): client connection
-        env (Environment): environment to interact with
-    """
+#     Args:
+#         server (Connection): server connection
+#         client (Connection): client connection
+#         env (Environment): environment to interact with
+#     """
 
-    def _step(env, a: int):
-        timestep = env.step(a)
-        if timestep.last():
-            timestep = env.reset()
-        return timestep
+#     def _step(env, a: int):
+#         timestep = env.step(a)
+#         if timestep.last():
+#             timestep = env.reset()
+#         return timestep
 
-    def _step_async(env, a: int, buffer: mp.Queue):
-        timestep = env.step(a)
-        buffer.put(timestep)
-        print(buffer.qsize())
-        if timestep.last():
-            timestep = env.reset()
-        return
+#     def _step_async(env, a: int, buffer: mp.Queue):
+#         timestep = env.step(a)
+#         buffer.put(timestep)
+#         print(buffer.qsize())
+#         if timestep.last():
+#             timestep = env.reset()
+#         return
 
-    #  close copy of server connection from client process
-    #  see: https://stackoverflow.com/q/8594909/6655465
-    server.close()
-    #  switch case command
-    try:
-        while True:
-            cmd, data = client.recv()
-            if cmd == "step":
-                client.send(_step(env, data))
-            elif cmd == "step_async":
-                client.send(_step_async(env, *data))
-            elif cmd == "reset":
-                client.send(env.reset())
-            elif cmd == "render":
-                client.send(env.render())
-            elif cmd == "close":
-                client.send(env.close())
-                break
-            else:
-                raise NotImplementedError("Command {} is not implemented".format(cmd))
-    except KeyboardInterrupt:
-        logging.info("SubprocVecEnv actor: got KeyboardInterrupt")
-    finally:
-        env.close()
+#     #  close copy of server connection from client process
+#     #  see: https://stackoverflow.com/q/8594909/6655465
+#     server.close()
+#     #  switch case command
+#     try:
+#         while True:
+#             cmd, data = client.recv()
+#             if cmd == "step":
+#                 client.send(_step(env, data))
+#             elif cmd == "step_async":
+#                 client.send(_step_async(env, *data))
+#             elif cmd == "reset":
+#                 client.send(env.reset(data))
+#                 break
+#             else:
+#                 raise NotImplementedError("Command {} is not implemented".format(cmd))
+#     except KeyboardInterrupt:
+#         logging.info("SubprocVecEnv actor: got KeyboardInterrupt")
 
 
-class MultiprocessEnv(Environment):
-    """
-    This class is inspired by openai's SubprocEnv.
-    https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
-    An environment that allows concurrent interactions to improve experience collection throughput, as used in:
-    https://arxiv.org/abs/1602.01783, https://arxiv.org/abs/1802.01561 and https://arxiv.org/abs/1707.06347
-    The class runs multiple subproceses and communicates with them via pipes.
-    """
+# class MultiprocessEnv(Environment):
+#     """
+#     This class is inspired by openai's SubprocEnv.
+#     https://github.com/openai/baselines/blob/master/baselines/common/vec_env/subproc_vec_env.py
+#     An environment that allows concurrent interactions to improve experience collection throughput, as used in:
+#     https://arxiv.org/abs/1602.01783, https://arxiv.org/abs/1802.01561 and https://arxiv.org/abs/1707.06347
+#     The class runs multiple subproceses and communicates with them via pipes.
+#     """
 
-    def __init__(
-        self,
-        env: Environment,
-        n_actors: int,
-        context: str = "spawn",
-        seed: int = 0,
-    ):
-        assert isinstance(
-            env, Environment
-        ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead.\
-            Try converting the environment to `helx` first with `helx.environment.to_helx".format(
-            type(env)
-        )
-        #  public:
-        self.n_actors: int = n_actors
-        self.clients: Sequence[Connection] = []
-        self.servers: Sequence[Connection] = []
-        self.envs: Sequence[Environment] = [deepcopy(env) for _ in range(n_actors)]
-        self.processes = []
+#     def __init__(
+#         self,
+#         env: Environment,
+#         n_actors: int,
+#         context: str = "spawn",
+#         seed: int = 0,
+#     ):
+#         assert isinstance(
+#             env, Environment
+#         ), "The environment to parallelise must be an instance of `helx.Environment`, got {} instead.\
+#             Try converting the environment to `helx` first with `helx.environment.to_helx".format(
+#             type(env)
+#         )
+#         #  public:
+#         self.n_actors: int = n_actors
+#         self.clients: Sequence[Connection] = []
+#         self.servers: Sequence[Connection] = []
+#         self.envs: Sequence[Environment] = [deepcopy(env) for _ in range(n_actors)]
+#         self.processes = []
 
-        #  setup parallel workers
-        rng = PRNGSequence(seed)
-        ctx = mp.get_context(context)
-        pipes = zip(*[ctx.Pipe() for _ in range(self.n_actors)])
-        self.clients, self.servers = pipes
-        for server, client, env in zip(self.servers, self.clients, self.envs):
-            env.seed(int(next(rng)[0]))
-            self.processes.append(
-                ctx.Process(  # type: ignore
-                    target=_actor,
-                    args=(server, client, env),
-                    daemon=True,
-                )
-            )
+#         #  setup parallel workers
+#         rng = PRNGSequence(seed)
+#         ctx = mp.get_context(context)
+#         pipes = zip(*[ctx.Pipe() for _ in range(self.n_actors)])
+#         self.clients, self.servers = pipes
+#         for server, client, env in zip(self.servers, self.clients, self.envs):
+#             env.seed(int(next(rng)[0]))
+#             self.processes.append(
+#                 ctx.Process(  # type: ignore
+#                     target=_actor,
+#                     args=(server, client, env),
+#                     daemon=True,
+#                 )
+#             )
 
-        for i, p in enumerate(self.processes):
-            logging.info("Starting actor {} on process {}".format(i, p))
-            p.start()
-            #  close copy of client connection from server process
-            #  see: https://stackoverflow.com/q/8594909/6655465
-            self.clients[i].close()
+#         for i, p in enumerate(self.processes):
+#             logging.info("Starting actor {} on process {}".format(i, p))
+#             p.start()
+#             #  close copy of client connection from server process
+#             #  see: https://stackoverflow.com/q/8594909/6655465
+#             self.clients[i].close()
 
-    def __del__(self):
-        self.close()
+#     def __del__(self):
+#         self.close()
 
-    def action_space(self) -> Space:
-        return self.envs[0].action_space()
+#     def action_space(self) -> Space:
+#         return self.envs[0].action_space
 
-    def observation_space(self) -> Space:
-        return self.envs[0].observation_space()
+#     def observation_space(self) -> Space:
+#         return self.envs[0].observation_space
 
-    def reward_space(self) -> Space:
-        return self.envs[0].reward_space()
+#     def reward_space(self) -> Space:
+#         return self.envs[0].reward_space
 
-    def reset(self) -> List[Any]:
-        for server in self.servers:
-            server.send(("reset", None))
-        return self._receive()
+#     def reset(self) -> List[Any]:
+#         for server in self.servers:
+#             server.send(("reset", None))
+#         return self._receive()
 
-    def step(self, actions: Sequence[Action]) -> List[Timestep]:
-        self._check_actions(actions)
-        for a, server in zip(actions, self.servers):
-            server.send(("step", a))
-        return self._receive()
+#     def step(self, actions: Sequence[Action]) -> List[Timestep]:
+#         self._check_actions(actions)
+#         for a, server in zip(actions, self.servers):
+#             server.send(("step", a))
+#         return self._receive()
 
-    def step_async(self, actions: Sequence[Action], queue: mp.Queue) -> None:
-        self._check_actions(actions)
-        for a, server in zip(actions, self.servers):
-            server.send(("step_async", (a, queue)))
-        return
+#     def step_async(self, actions: Sequence[Action], queue: mp.Queue) -> None:
+#         self._check_actions(actions)
+#         for a, server in zip(actions, self.servers):
+#             server.send(("step_async", (a, queue)))
+#         return
 
-    def close(self) -> List[Any]:
-        for server in self.servers:
-            server.send(("close", None))
-        for p in self.processes:
-            p.join()
-        return self._receive()
+#     def close(self) -> List[Any]:
+#         for server in self.servers:
+#             server.send(("close", None))
+#         for p in self.processes:
+#             p.join()
+#         return self._receive()
 
-    def render(self, mode: str = "rgb_array"):
-        for server in self.servers:
-            server.send(("render", mode))
-        return self._receive()
+#     def render(self, mode: str = "rgb_array"):
+#         for server in self.servers:
+#             server.send(("render", mode))
+#         return self._receive()
 
-    def is_waiting(self):
-        return any(server.poll() for server in self.servers)
+#     def is_waiting(self):
+#         return any(server.poll() for server in self.servers)
 
-    def _receive(self) -> List[Any]:
-        return [server.recv() for server in self.servers]
+#     def _receive(self) -> List[Any]:
+#         return [server.recv() for server in self.servers]
 
-    def _check_actions(self, actions: Sequence[Action]):
-        assert (
-            len(actions) == self.n_actors
-        ), "The number of actions must be equal to the number of parallel environments.\
-            \nReceived {} actions for {} environments. ".format(
-            len(actions), self.n_actors
-        )
-
-
-def vectorise(env: Environment, n_parallel: int, method: str="multiprocess") -> Environment:
-    """
-    Vectorise an environment to allow for parallel interactions.
-    Args:
-        env (Environment): the environment to vectorise
-        n_parallel (int): the number of parallel environments to produce
-        method (str, optional): method to use for vectorisation,
-            between "multiprocess" and "vmap", "pmap".
-            - `multiprocess` follows the producer-consumer pattern
-            and uses the `Context`s from python's `multiprocessing` module.
-            Calls are made asynchronous with `context.Pipe`s.
-            - `vmap` uses `jax.vmap` to vectorise the computation. This method
-            requires the environment to be a `jax`-compatible.
-            - `pmap` uses `jax.pmap` to parallelise the computation. This method
-            requires the environment to be a `jax`-compatible.
-
-            Defaults to "multiprocess".
-    """
-    if method=="multiprocess":
-        return MultiprocessEnv(env, n_parallel)
-    elif method=="vmap":
-        env.state = jax.vmap(env.state, axis_name="batch")
-        env.reset = jax.vmap(env.reset, axis_name="batch")
-        env.step = jax.vmap(env.step, axis_name="batch")
-        env.render = jax.vmap(env.render, axis_name="batch")
-        env.close = jax.vmap(env.close, axis_name="batch")
-        env.seed = jax.vmap(env.seed, axis_name="batch")
-    elif method=="pmap":
-        env.state = jax.pmap(env.state, axis_name="batch")
-        env.reset = jax.pmap(env.reset, axis_name="batch")
-        env.step = jax.pmap(env.step, axis_name="batch")
-        env.render = jax.pmap(env.render, axis_name="batch")
-        env.close = jax.pmap(env.close, axis_name="batch")
-        env.seed = jax.pmap(env.seed, axis_name="batch")
-
-    raise NotImplementedError(f"Vectorisation method {method} is not implemented")
+#     def _check_actions(self, actions: Sequence[Action]):
+#         assert (
+#             len(actions) == self.n_actors
+#         ), "The number of actions must be equal to the number of parallel environments.\
+#             \nReceived {} actions for {} environments. ".format(
+#             len(actions), self.n_actors
+#         )

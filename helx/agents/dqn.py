@@ -30,7 +30,7 @@ from helx.environment.base import Environment
 from helx.mdp import Action
 from helx.spaces import Discrete
 
-from ..mdp import Trajectory, Transition
+from ..mdp import Transition
 from ..memory import ReplayBuffer
 from ..networks import EGreedyHead, QHead
 from .agent import Agent, Hparams
@@ -72,7 +72,7 @@ class DQN(Agent):
     params_critic: nn.FrozenDict = struct.field(pytree_node=True)
     params_target: nn.FrozenDict = struct.field(pytree_node=True)
     opt_state: OptState = struct.field(pytree_node=True)
-    memory: ReplayBuffer = struct.field(pytree_node=True)
+    buffer: ReplayBuffer = struct.field(pytree_node=True)
 
     @classmethod
     def create(cls, hparams, optimiser, key, representation_net):
@@ -100,7 +100,7 @@ class DQN(Agent):
             hparams.obs_space.sample(key),
             False,
         )
-        memory = ReplayBuffer.create(example_item, hparams.replay_memory_size)
+        buffer = ReplayBuffer.create(example_item, hparams.replay_memory_size)
         opt_state = optimiser.init(params_critic)
 
         agent = cls(
@@ -113,16 +113,23 @@ class DQN(Agent):
             params_target=params_target,
             opt_state=opt_state,
             iteration=iteration,
-            memory=memory,
+            buffer=buffer,
         )
 
         return agent
 
-    def sample_action(self, env: Environment, key: KeyArray, eval: bool = False) -> Action:
+    def sample_action(
+        self, env: Environment, key: KeyArray, eval: bool = False
+    ) -> Action:
         n_actions = env.n_parallel()
         q_values = self.critic.apply(self.params_critic, env.state())
         actions, _ = self.actor.apply(
-            self.params_actor, q_values=q_values, key=key, iteration=self.iteration, n_actions=n_actions, eval=eval
+            self.params_actor,
+            q_values=q_values,
+            key=key,
+            iteration=self.iteration,
+            n_actions=n_actions,
+            eval=eval,
         )
         return actions
 
@@ -139,13 +146,15 @@ class DQN(Agent):
         loss = rlax.l2_loss(td_error).mean()
         return loss, ()
 
-    def update(self, episode: Trajectory, key: KeyArray) -> Tuple[Agent, Dict[str, Any]]:
+    def update(
+        self, episode: Trajectory, key: KeyArray
+    ) -> Tuple[Agent, Dict[str, Any]]:
         # update iteration
         iteration = self.iteration + 1
 
         # update memory
         transitions = episode.transitions()
-        buffer = self.memory.add_range(transitions)
+        buffer = self.buffer.add_range(transitions)
 
         # log data after update
         log = {}

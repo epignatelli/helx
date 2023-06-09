@@ -67,15 +67,17 @@ class Formatter(logging.Formatter):
         logging.INFO: GREY,
         logging.WARNING: YELLOW,
         logging.ERROR: RED,
-        logging.CRITICAL: BOLD_RED
+        logging.CRITICAL: BOLD_RED,
     }
 
     def format(self, record):
         level_fmt = self.FORMATS.get(record.levelno)
-        format = (f"{WHITE}(%(name)s) {RESET}"
-                f"{WHITE}%(asctime)s{RESET} "
-                f"{WHITE}%(filename)s:%(lineno)d:{RESET} "
-                f"{level_fmt}%(message)s{RESET}")
+        format = (
+            f"{WHITE}(%(name)s) {RESET}"
+            f"{WHITE}%(asctime)s{RESET} "
+            f"{WHITE}%(filename)s:%(lineno)d:{RESET} "
+            f"{level_fmt}%(message)s{RESET}"
+        )
         formatter = logging.Formatter(format, datefmt="%H:%M:%S")
         return formatter.format(record)
 
@@ -140,7 +142,7 @@ class CompoundLogger(Logger):
 
 
 class NullLogger(Logger):
-    def __init__(self, experiment_name: str="default", log_frequency: int = 1):
+    def __init__(self, experiment_name: str = "default", log_frequency: int = 1):
         super().__init__(experiment_name, log_frequency)
 
     def record(self, record: Dict[str, Any]):
@@ -152,7 +154,9 @@ class CsvLogger(Logger):
         super().__init__(experiment_name, log_frequency)
         path = os.path.join(folder, f"{experiment_name}.csv")
         if os.path.exists(path):
-            raise FileExistsError(f"File {path} already exists, plaese specify another name or path.")
+            raise FileExistsError(
+                f"File {path} already exists, plaese specify another name or path."
+            )
 
         self.path = path
         self.records = list()
@@ -167,7 +171,9 @@ class JsonLogger(Logger):
         super().__init__(experiment_name, log_frequency)
         path = os.path.join(folder, f"{experiment_name}.json")
         if os.path.exists(path):
-            raise FileExistsError(f"File {path} already exists, plaese specify another name or path.")
+            raise FileExistsError(
+                f"File {path} already exists, plaese specify another name or path."
+            )
 
         self.path = path
         self.records = list()

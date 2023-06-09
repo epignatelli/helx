@@ -45,7 +45,7 @@ class QHead(nn.Module):
         n_actions (int): The number of outputs of the network, i.e., the number of
         actions in a discrete action space, or the dimensionality of each action
         in a continuous action space.
-        """
+    """
 
     action_space: Space
 
@@ -57,7 +57,7 @@ class QHead(nn.Module):
         else:
             # action-in
             n_out = 1
-        q_value =  nn.Dense(features=n_out)(state_embedding)
+        q_value = nn.Dense(features=n_out)(state_embedding)
         return q_value
 
 
@@ -68,7 +68,7 @@ class DoubleQHead(nn.Module):
         actions in a discrete action space, or the dimensionality of each action
         in a continuous action space.
         representation_net (nn.Module): The network that computes the representation of the state.
-        """
+    """
 
     n_actions: int
     representation_net_a: nn.Module

@@ -22,20 +22,18 @@ import gym.core
 import gym3.interop
 import gymnasium.core
 
-from .bsuite import BsuiteAdapter
 from .dm_env import DmEnvAdapter
 from .gym import GymAdapter
 from .gymnasium import GymnasiumAdapter
-from .gym3 import Gym3Adapter
 from .brax import BraxAdapter
 from .base import Environment
 
 
 ADAPTERS_TABLE = {
-    gym3.interop.ToGymEnv: Gym3Adapter,
+    gym3.interop.ToGymEnv: GymAdapter,
     gymnasium.core.Env: GymnasiumAdapter,
     gym.core.Env: GymAdapter,
-    bsuite.environments.Environment: BsuiteAdapter,
+    bsuite.environments.Environment: DmEnvAdapter,
     dm_env.Environment: DmEnvAdapter,
     brax.envs.Env: BraxAdapter,
 }

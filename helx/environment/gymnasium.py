@@ -16,78 +16,92 @@
 from __future__ import annotations
 
 import gymnasium
+import gymnasium.spaces
 import gymnasium.utils.seeding
-import jax
 import jax.numpy as jnp
 import numpy as np
-from chex import Array
+from gymnasium.utils.step_api_compatibility import (
+    TerminatedTruncatedStepType as GymnasiumTimestep,
+)
+from jax.typing import ArrayLike
 
-from ..logging import get_default_logger
 from ..mdp import Action, StepType, Timestep
-from ..spaces import Continuous, Space
+from ..spaces import Continuous, Discrete, Space
 from .base import Environment
 
-logging = get_default_logger()
+
+def continuous_from_gymnasium(gym_space: gymnasium.spaces.Box) -> Continuous:
+    shape = gym_space.shape
+    minimum = jnp.asarray(gym_space.low)
+    maximum = jnp.asarray(gym_space.high)
+    return Continuous(shape=shape, dtype=gym_space.dtype, lower=minimum, upper=maximum)
+
+
+def discrete_from_gymnasium(gym_space: gymnasium.spaces.Discrete) -> Discrete:
+    return Discrete.create(gym_space.n)
+
+
+def space_from_gymnasium(gym_space: gymnasium.spaces.Space) -> Space:
+    if isinstance(gym_space, gymnasium.spaces.Discrete):
+        return discrete_from_gymnasium(gym_space)
+    elif isinstance(gym_space, gymnasium.spaces.Box):
+        return continuous_from_gymnasium(gym_space)
+    else:
+        raise NotImplementedError(
+            "Cannot convert gym space of type {}".format(type(gym_space))
+        )
+
+
+def timestep_from_gymnasium(
+    gym_step: GymnasiumTimestep, action: Action = -1, t: ArrayLike = 0
+) -> Timestep:
+    obs, reward, terminated, truncated, _ = gym_step
+
+    if terminated:
+        step_type = StepType.TERMINATION
+    elif truncated:
+        step_type = StepType.TRUNCATION
+    else:
+        step_type = StepType.TRANSITION
+
+    obs = jnp.asarray(obs)
+    reward = jnp.asarray(reward)
+    action = jnp.asarray(action)
+    return Timestep(
+        observation=obs,
+        reward=reward,
+        step_type=step_type,
+        action=action,
+        t=t,
+    )
 
 
 class GymnasiumAdapter(Environment[gymnasium.Env]):
     """Static class to convert between gymnasium and helx environments."""
 
-    def __init__(self, env: gymnasium.Env):
-        super().__init__(env)
-
-    def action_space(self) -> Space:
-        if self._action_space is not None:
-            return self._action_space
-
-        self._action_space = Space.from_gymnasium(self._env.action_space)
-        return self._action_space
-
-    def observation_space(self) -> Space:
-        if self._observation_space is not None:
-            return self._observation_space
-
-        self._observation_space = Space.from_gymnasium(self._env.observation_space)
-        return self._observation_space
-
-    def reward_space(self) -> Space:
-        if self._reward_space is not None:
-            return self._reward_space
-
-        minimum = self._env.reward_range[0]
-        maximum = self._env.reward_range[1]
-        self._reward_space = Continuous((1,), (minimum,), (maximum,))
-        return self._reward_space
-
-    def state(self) -> Array:
-        if self._current_observation is None:
-            raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
-            )
-        return self._current_observation
+    @classmethod
+    def create(cls, env: gymnasium.Env):
+        return cls(
+            env=env,
+            action_space=space_from_gymnasium(env.action_space),
+            observation_space=space_from_gymnasium(env.observation_space),
+            reward_space=Continuous(
+                (), lower=env.reward_range[0], upper=env.reward_range[1]
+            ),
+        )
 
     def reset(self, seed: int | None = None) -> Timestep:
-        obs, info = self._env.reset(seed=seed)
-        self._current_observation = jnp.asarray(obs)
-        return Timestep(obs, None, StepType.TRANSITION)
+        obs, _ = self.env.reset(seed=seed)
+        return Timestep(
+            observation=obs, reward=0, step_type=StepType.TRANSITION, action=-1, t=0
+        )
 
-    def step(self, action: Action) -> Timestep:
+    def step(self, current_timestep: Timestep, action: Action) -> Timestep:
+        if current_timestep.is_terminal():
+            return current_timestep
+
         action_ = np.asarray(action)
-        next_step = self._env.step(action_)
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_gymnasium(next_step)
-
-    def seed(self, seed: int) -> None:
-        self._env.np_random, seed = gymnasium.utils.seeding.np_random(seed)
-        self._seed = seed
-        self._key = jax.random.PRNGKey(seed)
-
-    def render(self, mode: str = "human"):
-        self._env.render_mode = mode
-        return self._env.render()
-
-    def close(self) -> None:
-        return self._env.close()
-
-    def name(self) -> str:
-        return self._env.unwrapped.__class__.__name__
+        next_step = self.env.step(action_)
+        return timestep_from_gymnasium(
+            next_step, action=action, t=current_timestep.t + 1
+        )

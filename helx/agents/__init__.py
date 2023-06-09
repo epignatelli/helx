@@ -18,7 +18,6 @@ and can be used for single or multi-agent learning.
 """
 
 from .agent import Agent
-from .a2c import A2C, A2CHparams
 from .dqn import DQN, DQNHparams
 from .sac import SAC, SACHparams
 from .sacd import SACD

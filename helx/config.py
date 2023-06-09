@@ -14,6 +14,7 @@
 
 
 import dataclasses
+from os import PathLike
 from typing import Sequence, get_type_hints
 
 import chex
@@ -170,6 +171,17 @@ def hparams_from_flags(
         if value is None:
             raise ValueError("Flag {} is required".format(field))
         hparams[field] = value
+    hparams["obs_space"] = obs_space
+    hparams["action_space"] = action_space
+    return cls(**hparams)
+
+
+def hparams_from_yml(cls, obs_space: Space, action_space: Space, yml_path: PathLike):
+    raise NotImplementedError()
+    import yaml
+
+    with open(yml_path, "r") as f:
+        hparams = yaml.load(f, Loader=yaml.FullLoader)
     hparams["obs_space"] = obs_space
     hparams["action_space"] = action_space
     return cls(**hparams)
