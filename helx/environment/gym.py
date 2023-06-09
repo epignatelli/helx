@@ -82,11 +82,11 @@ def timestep_from_gym(
     )
 
 
-class GymAdapter(Environment[gym.Env]):
+class GymAdapter(Environment):
     """Static class to convert between gym and helx environments."""
 
     @classmethod
-    def create(cls, env: gym.core.Env):
+    def _create(cls, env: gym.core.Env):
         if isinstance(env.unwrapped, MiniGridEnv):
             msg = (
                 "String arrays are not supported by helx yet."
@@ -107,7 +107,7 @@ class GymAdapter(Environment[gym.Env]):
             ),
         )
 
-    def reset(self, key: KeyArray) -> Timestep:
+    def _reset(self, key: KeyArray) -> Timestep:
         try:
             obs, _ = self.env.reset(seed=int(key[0]))
         except TypeError:
@@ -123,7 +123,7 @@ class GymAdapter(Environment[gym.Env]):
             t=0,
         )
 
-    def step(
+    def _step(
         self, current_timestep: Timestep, action: Action, key: KeyArray
     ) -> Timestep:
         if current_timestep.is_terminal():

@@ -62,7 +62,7 @@ def main(argv):
         representation_net=representation_net,
     )
 
-    helx.experiment.run(agent=agent, env=env, num_episodes=100)
+    helx.experiment.run(agent=agent, env=env, max_timesteps=100, num_eval_episodes=0)
 
 
 if __name__ == "__main__":

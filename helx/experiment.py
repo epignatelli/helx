@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-from functools import partial
 from pprint import pformat
 from typing import List
 
@@ -32,7 +31,6 @@ def run_episode(
     env: Environment,
     key: KeyArray,
     eval: bool = False,
-    max_steps: int = int(2e9),
 ) -> List[Timestep]:
     """Deploys the agent in the environment for a full episode.
         In case of batched environments, the each property of the episode
@@ -56,7 +54,7 @@ def run_episode(
     key, k1 = jax.random.split(key)
     timestep = env.reset(k1)
     episode = [timestep]
-    while (not timestep.is_final()) and timestep.t < max_steps:  # type: ignore
+    while (not timestep.is_final()):
         key, k1, k2 = jax.random.split(key, num=3)
         action = agent.sample_action(env, key=k1, eval=eval)
         timestep = env.step(timestep, action, k2)
@@ -65,7 +63,12 @@ def run_episode(
 
 
 def run_n_steps(
-    agent: Agent, env: Environment, state: Timestep, key: KeyArray, n_steps: int, eval: bool = False
+    agent: Agent,
+    env: Environment,
+    state: Timestep,
+    key: KeyArray,
+    n_steps: int,
+    eval: bool = False,
 ):
     """Unrolls the agent in the environment for a pre-determined number of steps,
     after which the environment does not reset.
@@ -82,7 +85,7 @@ def run_n_steps(
 def run(
     agent: Agent,
     env: Environment,
-    timesteps_budget: int,
+    max_timesteps: int,
     num_eval_episodes: int = 5,
     eval_frequency: int = 0,
     logger=NullLogger(),
@@ -90,7 +93,7 @@ def run(
 ):
     logger.log(
         "Starting experiment {} with a budget of {} episodes".format(
-            logger.experiment_name, timesteps_budget
+            logger.experiment_name, max_timesteps
         )
     )
     logger.log(
@@ -104,7 +107,7 @@ def run(
     key = jax.random.PRNGKey(seed)
     state = env.reset(key)
     i = 0
-    while i < timesteps_budget:
+    while i < max_timesteps:
         key, k1, k2 = jax.random.split(key, 3)
 
         # collect experience
@@ -113,7 +116,7 @@ def run(
         # log episode
         # TODO(epignatelli): find a clever way to compute the returns
         returns = 0.0
-        logger.log(f"Learning episode {i}/{timesteps_budget} - Return: {returns}")
+        logger.log(f"Learning episode {i}/{max_timesteps} - Return: {returns}")
         log.update({f"train/Returns": returns})
 
         # update the learner

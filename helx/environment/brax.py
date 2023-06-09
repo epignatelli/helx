@@ -24,11 +24,11 @@ from ..spaces import Continuous
 from .base import Environment
 
 
-class BraxAdapter(Environment[brax.envs.Env]):
+class BraxAdapter(Environment):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     @classmethod
-    def create(cls, env: brax.envs.Env):
+    def _create(cls, env: brax.envs.Env):
         return cls(
             observation_space=Continuous((env.observation_size,)),
             action_space=Continuous((env.action_size,)),
@@ -36,7 +36,7 @@ class BraxAdapter(Environment[brax.envs.Env]):
             env=env,
         )
 
-    def reset(self, key: KeyArray) -> Timestep:
+    def _reset(self, key: KeyArray) -> Timestep:
         # TODO(epignatelli): wrongly typed in brax/jax, KeyArray is not Array
         next_step = self.env.reset(key)  # type: ignore
         return Timestep(
@@ -48,7 +48,7 @@ class BraxAdapter(Environment[brax.envs.Env]):
             info={"state": next_step},
         )
 
-    def step(
+    def _step(
         self, current_timestep: Timestep, action: Action, seed: int = 0
     ) -> Timestep:
         if current_timestep.is_terminal():

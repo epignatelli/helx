@@ -74,10 +74,11 @@ def discounted_returns(timesteps: List[Timestep], discount) -> ArrayLike:
     # TODO(epignatelli): optimise this
     returns = 0.0
     for t, timestep in enumerate(timesteps):
-        returns += timestep.reward * discount ** t
+        returns += timestep.reward * discount**t
         if timestep.is_final():
             break
     return returns
+
 
 # @register_pytree_node_class
 # class Trajectory:

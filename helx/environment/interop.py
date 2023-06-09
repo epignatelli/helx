@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from typing import Any
+from typing import Any, Dict, Type
 
 import brax.envs
 import bsuite.environments
@@ -29,7 +29,7 @@ from .brax import BraxAdapter
 from .base import Environment
 
 
-ADAPTERS_TABLE = {
+ADAPTERS_TABLE: Dict[Type[Any], Type[Environment]]= {
     gym3.interop.ToGymEnv: GymAdapter,
     gymnasium.core.Env: GymnasiumAdapter,
     gym.core.Env: GymAdapter,
@@ -39,7 +39,7 @@ ADAPTERS_TABLE = {
 }
 
 
-def to_helx(env: Any) -> Environment[Any]:
+def to_helx(env: Any) -> Environment:
     # getting root env type for interop
     env_for_type = env
     while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
@@ -47,7 +47,7 @@ def to_helx(env: Any) -> Environment[Any]:
 
     for env_type, converter in ADAPTERS_TABLE.items():
         if isinstance(env_for_type, env_type):
-            return converter(env)
+            return converter.create(env)
 
     raise TypeError(
         f"Environment type {type(env)} is not supported. "

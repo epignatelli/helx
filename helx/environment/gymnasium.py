@@ -76,11 +76,11 @@ def timestep_from_gymnasium(
     )
 
 
-class GymnasiumAdapter(Environment[gymnasium.Env]):
+class GymnasiumAdapter(Environment):
     """Static class to convert between gymnasium and helx environments."""
 
     @classmethod
-    def create(cls, env: gymnasium.Env):
+    def _create(cls, env: gymnasium.Env):
         return cls(
             env=env,
             action_space=space_from_gymnasium(env.action_space),

@@ -49,7 +49,7 @@ def space_from_dm_env(dm_space: dm_env.specs.Array) -> Space:
 
 
 def timestep_from_dm_env(
-    dm_step: dm_env.TimeStep, action: Action = -1, t: ArrayLike = 0, gamma: float  = 1.0
+    dm_step: dm_env.TimeStep, action: Action = -1, t: ArrayLike = 0, gamma: float = 1.0
 ) -> Timestep:
     step_type = dm_step.step_type
     obs = jnp.asarray(dm_step.observation)
@@ -73,11 +73,11 @@ def timestep_from_dm_env(
     )
 
 
-class DmEnvAdapter(Environment[dm_env.Environment]):
+class DmEnvAdapter(Environment):
     """Static class to convert between dm_env and helx environments."""
 
     @classmethod
-    def create(cls, env: dm_env.Environment):
+    def _create(cls, env: dm_env.Environment):
         return cls(
             env=env,
             # TODO(epignatelli): remove `type: ignore` when bsuite correctly typed
@@ -87,11 +87,11 @@ class DmEnvAdapter(Environment[dm_env.Environment]):
             reward_space=space_from_dm_env(env.reward_spec()),
         )
 
-    def reset(self, key: KeyArray = 0) -> Timestep:
+    def _reset(self, key: KeyArray = 0) -> Timestep:
         next_step = self.env.reset()
         return timestep_from_dm_env(next_step)
 
-    def step(self, current_state: Timestep, action: Action, key: KeyArray) -> Timestep:
+    def _step(self, current_state: Timestep, action: Action, key: KeyArray) -> Timestep:
         if current_state.is_terminal():
             return self.reset(key)
 

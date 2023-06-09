@@ -69,9 +69,7 @@ class Continuous(Space):
         lower = self.lower
         upper = self.upper
         if jnp.issubdtype(self.dtype, jnp.integer):
-            return jax.random.randint(
-                key, self.shape, lower, upper, dtype=self.dtype
-            )
+            return jax.random.randint(key, self.shape, lower, upper, dtype=self.dtype)
         elif jnp.issubdtype(self.dtype, jnp.floating):
             # TODO(epignatelli): jax bug
             # see: https://github.com/google/jax/issues/14003

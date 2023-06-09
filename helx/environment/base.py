@@ -15,10 +15,11 @@
 
 """A set of functions to interoperate between the most common
 RL environment interfaces, like `gym`, `gymnasium`, `dm_env`, `bsuite and others."""
+from __future__ import annotations
 
 import abc
 from functools import wraps
-from typing import Generic, TypeVar
+from typing import Any, TypeVar
 
 from flax import struct
 from jax.random import KeyArray
@@ -29,11 +30,15 @@ from ..spaces import Space
 T = TypeVar("T")
 
 
-class Environment(abc.ABC, Generic[T], struct.PyTreeNode):
-    env: T = struct.field(pytree_node=False)
+class Environment(struct.PyTreeNode):
+    env: Any = struct.field(pytree_node=False)
     observation_space: Space = struct.field(pytree_node=False)
     action_space: Space = struct.field(pytree_node=False)
     reward_space: Space = struct.field(pytree_node=False)
+
+    @abc.abstractclassmethod
+    def _create(self, env: Any) -> Environment:
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def _reset(self, key: KeyArray) -> Timestep:
@@ -55,7 +60,7 @@ class Environment(abc.ABC, Generic[T], struct.PyTreeNode):
         next_timestep = self._step(current_timestep, action, key)
         return next_timestep
 
-    def unwrapped(self) -> T:
+    def unwrapped(self) -> Any:
         return self.env
 
     def name(self) -> str:
