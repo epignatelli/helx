@@ -14,80 +14,62 @@
 
 
 from __future__ import annotations
+from typing import Tuple, overload
 
 import gymnasium
-import gymnasium.utils.seeding
-import jax
+import gymnasium.spaces
 import jax.numpy as jnp
 import numpy as np
-from chex import Array
 
 from ..logging import get_logger
 from ..mdp import Action, StepType, Timestep
-from ..spaces import Continuous, Space
-from .base import Environment
+from ..spaces import Continuous, Discrete, Space
+from .environment import EnvironmentWrapper
 
 logging = get_logger()
 
 
-class FromGymnasiumEnv(Environment[gymnasium.Env]):
+@overload
+def to_helx(gym_space: gymnasium.spaces.Discrete) -> Discrete:
+    ...
+
+
+@overload
+def to_helx(gym_space: gymnasium.spaces.Box) -> Continuous:
+    ...
+
+
+def to_helx(gym_space: gymnasium.spaces.Space) -> Space:
+    if isinstance(gym_space, gymnasium.spaces.Discrete):
+        return Discrete(gym_space.n)
+    elif isinstance(gym_space, gymnasium.spaces.Box):
+        return Continuous(shape=gym_space.shape, minimum=gym_space.low.min().item(), maximum=gym_space.high.max().item())
+    else:
+        raise NotImplementedError(
+            "Cannot convert dm_env space of type {}".format(type(gym_space))
+        )
+
+
+class GymnasiumWrapper(EnvironmentWrapper):
     """Static class to convert between gymnasium and helx environments."""
 
-    def __init__(self, env: gymnasium.Env):
-        super().__init__(env)
-
-    def action_space(self) -> Space:
-        if self._action_space is not None:
-            return self._action_space
-
-        self._action_space = Space.from_gymnasium(self._env.action_space)
-        return self._action_space
-
-    def observation_space(self) -> Space:
-        if self._observation_space is not None:
-            return self._observation_space
-
-        self._observation_space = Space.from_gymnasium(self._env.observation_space)
-        return self._observation_space
-
-    def reward_space(self) -> Space:
-        if self._reward_space is not None:
-            return self._reward_space
-
-        minimum = self._env.reward_range[0]
-        maximum = self._env.reward_range[1]
-        self._reward_space = Continuous((1,), (minimum,), (maximum,))
-        return self._reward_space
-
-    def state(self) -> Array:
-        if self._current_observation is None:
-            raise ValueError(
-                "Environment not initialized. Run `reset` first, to set a starting state."
+    @classmethod
+    def init(cls, env: gymnasium.Env) -> Tuple[GymnasiumWrapper, Timestep]:
+        self = cls(
+            env=env,
+            observation_space=to_helx(env.observation_space),  # type: ignore
+            action_space=to_helx(env.action_space),  # type: ignore
+            reward_space=Continuous((), minimum=env.reward_range[0], maximum=env.reward_range[1])
             )
-        return self._current_observation
+        return self, self.reset()
 
     def reset(self, seed: int | None = None) -> Timestep:
-        obs, info = self._env.reset(seed=seed)
+        obs, info = self.env.reset(seed=seed)
         self._current_observation = jnp.asarray(obs)
         return Timestep(obs, None, StepType.TRANSITION)
 
     def step(self, action: Action) -> Timestep:
         action_ = np.asarray(action)
-        next_step = self._env.step(action_)
+        next_step = self.env.step(action_)
         self._current_observation = jnp.asarray(next_step[0])
         return Timestep.from_gymnasium(next_step)
-
-    def seed(self, seed: int) -> None:
-        self._env.np_random, seed = gymnasium.utils.seeding.np_random(seed)
-        self._seed = seed
-        self._key = jax.random.PRNGKey(seed)
-
-    def render(self, mode: str = "human"):
-        self._env.render_mode = mode
-        return self._env.render()
-
-    def close(self) -> None:
-        return self._env.close()
-
-    def name(self) -> str:
-        return self._env.unwrapped.__class__.__name__

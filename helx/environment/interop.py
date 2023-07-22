@@ -21,11 +21,10 @@ import gym.core
 import gym3.interop
 import gymnasium.core
 
-from .bsuite import FromBsuiteEnv
-from .dm_env import FromDmEnv
-from .gym import FromGymEnv
-from .gymnasium import FromGymnasiumEnv
-from .gym3 import FromGym3Env
+from .bsuite import BsuiteWrapper
+from .dm_env import DmEnvWrapper
+from .gym import GymWrapper
+from .gymnasium import GymnasiumWrapper
 
 
 def to_helx(env: Any) -> Any:
@@ -37,15 +36,15 @@ def to_helx(env: Any) -> Any:
     # converting the actual env, rather than the root env
     # which would remove time limits and o
     if isinstance(env_for_type, gymnasium.core.Env):
-        return FromGymnasiumEnv(env)
+        return GymnasiumWrapper.init(env)
     elif isinstance(env_for_type, gym.core.Env):
-        return FromGymEnv(env)
+        return GymWrapper.init(env)
     elif isinstance(env_for_type, gym3.interop.ToGymEnv):
-        return FromGym3Env(env)
+        return GymWrapper.init(env)
     elif isinstance(env_for_type, dm_env.Environment):
-        return FromDmEnv(env)
+        return DmEnvWrapper.init(env)
     elif isinstance(env_for_type, bsuite.environments.Environment):
-        return FromBsuiteEnv(env)
+        return BsuiteWrapper.init(env)
     else:
         raise TypeError(
             f"Environment type {type(env)} is not supported. "
