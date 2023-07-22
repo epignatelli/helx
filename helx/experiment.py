@@ -19,7 +19,7 @@ from pprint import pformat
 import wandb
 
 from .agents.agent import Agent
-from .environment.base import Environment
+from .environment.environment import Environment
 from .mdp import Episode
 from .image import ensure_video_format
 
