@@ -58,7 +58,7 @@ def run(
     key: KeyArray,
     agent: Agent,
     env: Environment,
-    n_episodes: int,
+    max_timesteps: int,
 ) -> Tuple[Agent, Timestep]:
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(k1)
@@ -74,8 +74,8 @@ def run(
         return agent, env_state, log, key
 
     agent, env_state, _, _ = jax.lax.while_loop(
-        lambda x: x[0].iteration < n_episodes,
+        lambda x: x[0].iteration < max_timesteps,
         body_fun,
-        (agent, env_state, Log(), k2),
+        (agent, env_state, Log(jnp.asarray(0), jnp.asarray(float('inf')), StepType.TRANSITION, jnp.asarray(0.0)), k2),
     )
     return agent, env_state
