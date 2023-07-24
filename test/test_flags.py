@@ -26,7 +26,7 @@ logging = helx.logging.get_logger()
 
 
 def test_flag_type():
-    hparams_list = [agents.DQNHparams, agents.SACHparams]
+    hparams_list = [agents.DQNHParams, agents.SACHparams]
     for hparams in hparams_list:
         saved_flag_values = flagsaver.save_flag_values()
         flags.define_flags_from_hparams(hparams)

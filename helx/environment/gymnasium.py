@@ -21,12 +21,9 @@ import gymnasium.spaces
 import jax.numpy as jnp
 import numpy as np
 
-from ..logging import get_logger
 from ..mdp import Action, StepType, Timestep
 from ..spaces import Continuous, Discrete, Space
 from .environment import EnvironmentWrapper
-
-logging = get_logger()
 
 
 @overload
@@ -43,7 +40,11 @@ def to_helx(gym_space: gymnasium.spaces.Space) -> Space:
     if isinstance(gym_space, gymnasium.spaces.Discrete):
         return Discrete(gym_space.n)
     elif isinstance(gym_space, gymnasium.spaces.Box):
-        return Continuous(shape=gym_space.shape, minimum=gym_space.low.min().item(), maximum=gym_space.high.max().item())
+        return Continuous(
+            shape=gym_space.shape,
+            minimum=gym_space.low.min().item(),
+            maximum=gym_space.high.max().item(),
+        )
     else:
         raise NotImplementedError(
             "Cannot convert dm_env space of type {}".format(type(gym_space))
@@ -54,14 +55,16 @@ class GymnasiumWrapper(EnvironmentWrapper):
     """Static class to convert between gymnasium and helx environments."""
 
     @classmethod
-    def init(cls, env: gymnasium.Env) -> Tuple[GymnasiumWrapper, Timestep]:
+    def to_helx(cls, env: gymnasium.Env) -> GymnasiumWrapper:
         self = cls(
             env=env,
             observation_space=to_helx(env.observation_space),  # type: ignore
             action_space=to_helx(env.action_space),  # type: ignore
-            reward_space=Continuous((), minimum=env.reward_range[0], maximum=env.reward_range[1])
-            )
-        return self, self.reset()
+            reward_space=Continuous(
+                (), minimum=env.reward_range[0], maximum=env.reward_range[1]
+            ),
+        )
+        return self
 
     def reset(self, seed: int | None = None) -> Timestep:
         obs, info = self.env.reset(seed=seed)

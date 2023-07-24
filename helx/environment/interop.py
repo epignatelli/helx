@@ -13,7 +13,7 @@
 # limitations under the License.
 
 
-from typing import Any
+from typing import Any, overload
 
 import bsuite.environments
 import dm_env
@@ -21,13 +21,39 @@ import gym.core
 import gym3.interop
 import gymnasium.core
 
+from .environment import EnvironmentWrapper
 from .bsuite import BsuiteWrapper
 from .dm_env import DmEnvWrapper
 from .gym import GymWrapper
 from .gymnasium import GymnasiumWrapper
 
 
-def to_helx(env: Any) -> Any:
+@overload
+def to_helx(env: gymnasium.core.Env) -> GymnasiumWrapper:
+    ...
+
+
+@overload
+def to_helx(env: gym.core.Env) -> GymWrapper:
+    ...
+
+
+@overload
+def to_helx(env: gym3.interop.ToGymEnv) -> GymWrapper:
+    ...
+
+
+@overload
+def to_helx(env: dm_env.Environment) -> DmEnvWrapper:
+    ...
+
+
+@overload
+def to_helx(env: bsuite.environments.Environment) -> BsuiteWrapper:
+    ...
+
+
+def to_helx(env: Any) -> EnvironmentWrapper:
     # getting root env type for interop
     env_for_type = env
     while hasattr(env_for_type, "unwrapped") and env_for_type.unwrapped != env_for_type:
@@ -36,15 +62,15 @@ def to_helx(env: Any) -> Any:
     # converting the actual env, rather than the root env
     # which would remove time limits and o
     if isinstance(env_for_type, gymnasium.core.Env):
-        return GymnasiumWrapper.init(env)
+        return GymnasiumWrapper.to_helx(env)
     elif isinstance(env_for_type, gym.core.Env):
-        return GymWrapper.init(env)
+        return GymWrapper.to_helx(env)
     elif isinstance(env_for_type, gym3.interop.ToGymEnv):
-        return GymWrapper.init(env)
+        return GymWrapper.to_helx(env)
     elif isinstance(env_for_type, dm_env.Environment):
-        return DmEnvWrapper.init(env)
+        return DmEnvWrapper.to_helx(env)
     elif isinstance(env_for_type, bsuite.environments.Environment):
-        return BsuiteWrapper.init(env)
+        return BsuiteWrapper.to_helx(env)
     else:
         raise TypeError(
             f"Environment type {type(env)} is not supported. "

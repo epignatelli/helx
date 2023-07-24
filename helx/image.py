@@ -17,7 +17,8 @@ import logging
 import jax
 import jax.numpy as jnp
 import numpy as np
-from chex import Array, Shape
+from jax import Array
+from jax.core import Shape
 
 
 def imresize(

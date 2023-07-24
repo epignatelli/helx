@@ -20,7 +20,7 @@ from absl import app, flags, logging
 
 import helx
 
-helx.flags.define_flags_from_hparams(helx.agents.DQNHparams)
+helx.flags.define_flags_from_hparams(helx.agents.DQNHParams)
 FLAGS = flags.FLAGS
 
 
@@ -42,7 +42,7 @@ def main(argv):
 
     # agent
     hparams = helx.flags.hparams_from_flags(
-        helx.agents.DQNHparams,
+        helx.agents.DQNHParams,
         obs_space=env.observation_space(),
         action_space=env.action_space(),
         replay_start=10,

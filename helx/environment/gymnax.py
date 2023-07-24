@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import annotations
 
 from gymnax.environments.environment import Environment as GymnaxEnvironment
+
 
 from .environment import EnvironmentWrapper
 
@@ -21,6 +23,6 @@ from .environment import EnvironmentWrapper
 class GymnaxWrapper(EnvironmentWrapper):
     """Static class to convert between Gymnax environments and helx environments."""
 
-    def __init__(self, env: GymnaxEnvironment):
+    def to_helx(self, env: GymnaxEnvironment) -> GymnaxWrapper:
         # TODO (epignatelli): Implement this
         raise NotImplementedError()

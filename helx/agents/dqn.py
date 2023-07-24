@@ -15,27 +15,27 @@
 
 from __future__ import annotations
 
-from typing import Any, List, Tuple
-
+from typing import Any, Tuple
+import distrax
 import jax
+
 import jax.numpy as jnp
 import rlax
 from chex import Array
 from flax import linen as nn
-from optax import GradientTransformation
+from flax import struct
+from jax.random import KeyArray
+import optax
+from optax import GradientTransformation, OptState
 
-import wandb
-from helx.networks.modules import Identity
+from ..mdp import StepType, Timestep
+from ..spaces import Discrete
 
-from helx.spaces import Discrete
-
-from ..mdp import Episode, Transition
 from ..memory import ReplayBuffer
-from ..networks import AgentNetwork, EGreedyPolicy
-from .agent import Agent, Hparams
+from .agent import Agent, HParams, Log
 
 
-class DQNHparams(Hparams):
+class DQNHParams(HParams):
     # network
     hidden_size: int = 128
     # rl
@@ -56,91 +56,158 @@ class DQNHparams(Hparams):
     min_squared_gradient: float = 0.01
 
 
-class DQN(Agent[DQNHparams]):
+class DQNLog(Log):
+    buffer_size: Array
+    critic_loss: Array
+
+
+class DQN(Agent):
     """Implements a Deep Q-Network:
     Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
     Nature 518.7540 (2015): 529-533.
     https://www.nature.com/articles/nature14236"""
 
-    def __init__(
-        self,
-        hparams: DQNHparams,
+    # Static state
+    hparams: DQNHParams = struct.field(pytree_node=False)
+    optimiser: GradientTransformation = struct.field(pytree_node=False)
+    critic: nn.Module = struct.field(pytree_node=False)
+    # Dynamic state
+    iteration: Array = struct.field(pytree_node=True)
+    params_critic: nn.FrozenDict = struct.field(pytree_node=True)
+    params_target: nn.FrozenDict = struct.field(pytree_node=True)
+    opt_state: OptState = struct.field(pytree_node=True)
+    buffer: ReplayBuffer = struct.field(pytree_node=True)
+
+    @classmethod
+    def create(
+        cls,
+        key: KeyArray,
+        hparams: DQNHParams,
         optimiser: GradientTransformation,
-        seed: int,
-        representation_net: nn.Module,
+        backbone: nn.Module,
     ):
+        # config
         assert isinstance(hparams.action_space, Discrete)
-        n_actions = hparams.action_space.n_bins
-        critic_net = nn.Sequential([representation_net, nn.Dense(features=n_actions)])
-        actor_net = EGreedyPolicy(
-            hparams.replay_start,
-            hparams.initial_exploration,
-            hparams.final_exploration,
-            hparams.final_exploration_frame,
+        iteration = 0
+        critic = nn.Sequential([backbone, nn.Dense(int(hparams.action_space.maximum))])
+        params = critic.init(
+            key, hparams.obs_space.sample(key), hparams.action_space.sample(key)
         )
-        network = AgentNetwork(
-            shared_net=critic_net,
-            actor_net=actor_net,
-            critic_net=Identity(),
+        params_target = params_critic.copy({})  # type: ignore
+        example_item = (
+            hparams.obs_space.sample(key),
+            hparams.action_space.sample(key),
+            0.0,
+            hparams.obs_space.sample(key),
+            False,
         )
-        super().__init__(hparams, network, optimiser, seed)
-        self.memory = ReplayBuffer[Transition](hparams.replay_memory_size)
-        self.params_target = self.params.copy({})
+        buffer = ReplayBuffer.create(example_item, hparams.replay_memory_size)
+        opt_state = optimiser.init(params)
+
+        agent = cls(
+            hparams=hparams,
+            optimiser=optimiser,
+            critic=critic,
+            params=params,  # type: ignore
+            params_target=params_target,
+            opt_state=opt_state,
+            iteration=iteration,
+            buffer=buffer,
+        )
+
+        return agent
+
+    def sample_action(self, obs: Array, key: KeyArray, eval: bool = False) -> Array:
+        q_values = self.critic.apply(self.params, obs)
+        eps = optax.polynomial_schedule(
+            init_value=self.hparams.initial_exploration,
+            end_value=self.hparams.final_exploration,
+            transition_steps=self.hparams.final_exploration_frame
+            - self.hparams.replay_start,
+            transition_begin=self.hparams.replay_start,
+            power=1.0,
+        )(self.iteration)
+        action = distrax.EpsilonGreedy(q_values, eps).sample(seed=key)  # type: ignore
+        return action
 
     def loss(
         self,
         params: nn.FrozenDict,
-        transition: Transition,
-        params_target: nn.FrozenDict,
+        transition: Timestep,
     ) -> Tuple[Array, Any]:
-        s_0, a_0, r_1, s_1, d = transition
-        q_0 = self.network.critic(params, s_0)
-        q_1 = self.network.critic(params_target, s_1)
+        s_tm1 = transition.observation[0:-1]
+        s_t = transition.observation[1:]
+        a_tm1 = transition.action
+        r_t = transition.reward
+        d_tm1 = transition.step_type == transition.step_type.TERMINATION
+        discount_t = self.hparams.discount ** transition.t[:-1]
 
-        # ignoring type because flax modules can return anything
-        # we should either strongly type the network or cast the output
-        q_1 = jax.lax.stop_gradient(jnp.max(q_1))  # type: ignore
-        td_error = r_1 + (1 - d) * self.hparams.discount * q_1 - q_0[a_0]  # type: ignore
-        loss = jnp.mean(rlax.l2_loss(td_error))
-        return loss, ()
-
-    def update(self, episode: Episode) -> Array:
-        # increment iteration
-        self.iteration += 1
-        wandb.log({"Iteration": self.iteration})
-
-        # update memory
-        transitions: List[Transition] = episode.transitions()
-        self.memory.add_range(transitions)
-        wandb.log({"Buffer size": len(self.memory)})
-
-        # if replay buffer is smaller than the minimum size, there is nothing else to do
-        if len(self.memory) < self.hparams.replay_start:
-            return jnp.asarray([])
-
-        # update every `update_frequency` steps
-        if self.iteration % self.hparams.update_frequency != 0:
-            return jnp.asarray([])
-
-        episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
-
-        params, opt_state, loss, _ = self.sgd_step(
-            self.params,
-            episode_batch,
-            self.opt_state,
-            self.params_target,
+        q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
+        q_t = jnp.asarray(self.critic.apply(self.params_target, s_t)) * (
+            d_tm1 == StepType.TERMINATION
         )
 
-        # update dqn state
-        self.opt_state = opt_state
-        self.params = params
-        self.params_target = rlax.periodic_update(
+        td_error = rlax.q_learning(
+            q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True
+        )
+        loss = jnp.mean(td_error**2 / 2)
+        return loss, ()
+
+    def update(
+        self, transition: Timestep, key: KeyArray, cached_log: DQNLog
+    ) -> Tuple[Agent, DQNLog]:
+        # update iteration
+        iteration = jnp.asarray(self.iteration + 1, dtype=jnp.int32)
+
+        # update memory
+        buffer = self.buffer.add(transition)
+
+        # update critic
+        def _sgd_step(params, opt_state):
+            transitions = buffer.sample(key, self.hparams.batch_size)
+            loss_fn = lambda params, trans: jnp.mean(
+                jax.vmap(self.loss, in_axes=(0, None)(params, trans))  # type: ignore
+            )
+            loss, grads = jax.value_and_grad(loss_fn)(params, transitions)
+            opt_state = self.optimiser.update(grads, opt_state)
+            params = optax.apply_updates(params, opt_state)
+            return params, opt_state, loss
+
+        cond = buffer.size() < self.hparams.replay_memory_size
+        cond = jnp.logical_or(cond, iteration % self.hparams.update_frequency != 0)
+        params, opt_state, loss = jax.lax.cond(
+            cond,
+            lambda p, o: _sgd_step(p, o),
+            lambda p, o: (p, o, jnp.asarray([])),
             self.params,
+            self.opt_state,
+        )
+
+        # update target critic
+        params_target = optax.periodic_update(
             self.params_target,
-            jnp.asarray(self.iteration),
+            self.critic_target.parameters,  # type: ignore
+            jnp.asarray(iteration, dtype=jnp.int32),
             self.hparams.target_network_update_frequency,
         )
 
-        wandb.log({"train/total_loss": loss.item()})
-        wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
-        return loss
+        # log
+        log = DQNLog(
+            iteration=iteration,
+            loss=loss,
+            step_type=transition.step_type,
+            returns=cached_log.returns
+            + self.hparams.discount ** transition.t[:-1] * transition.reward,
+            buffer_size=buffer.size(),
+            critic_loss=loss,
+        )
+
+        # update agent
+        updated = self.replace(
+            iteration=iteration,
+            opt_state=opt_state,
+            params=params,
+            params_target=params_target,
+            buffer=buffer,
+        )
+        return updated, log

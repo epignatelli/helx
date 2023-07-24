@@ -14,12 +14,12 @@
 
 
 from typing import Any
-from .base import Environment
+from .environment import EnvironmentWrapper
 
 
-class FromDMControlEnv(Environment):
+class FromDMControlEnv(EnvironmentWrapper):
     """Static class to convert between dm_control environments and helx environments."""
 
-    def __init__(self, env: Any):
+    def to_helx(self, env: Any):
         # TODO (epignatelli): Implement this
         raise NotImplementedError()

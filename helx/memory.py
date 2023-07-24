@@ -15,76 +15,107 @@
 
 from __future__ import annotations
 
-from typing import Generic, List, Sequence, TypeVar, Deque
-from collections import deque
+from typing import Any, List, Tuple
+from flax import struct
 
 import jax
 from jax.random import KeyArray
-from .mdp import tree_stack
+import jax.numpy as jnp
 
 
-T = TypeVar("T")
-
-
-class ReplayBuffer(Generic[T]):
+class ReplayBuffer(struct.PyTreeNode):
     """A circular buffer used for Experience Replay (ER):
     Li, L., 1993, https://apps.dtic.mil/sti/pdfs/ADA261434.pdf.
-    This type of buffer is usually used
-    with off-policy methods, such as DQN or ACER.
-    Note that, to save memory, it stores only the two extremes
-    of the trajectory and accumulates the discunted rewards
-    at each time step, to calculate the value target.
-    However, this does not allow for off-policy corrections with nstep methods
-    at consumption time. To perform off-policy corrections, please store
-    the action probabilities foreach time step in the buffer.
+    Use the `CircularBuffer.init` method to construct a buffer."""
 
-    Args:
-        capacity (int): The maximum number of elements that can be stored in the buffer.
-        seed (int): The seed used to initialise the random number generator for sampling.
-    """
+    capacity: int = struct.field(pytree_node=False)
+    """Returns the capacity of the buffer."""
+    elements: Any
+    """The elements currently stored in the buffer."""
+    idx: jax.Array
+    """The index of the next element to be added to the buffer."""
 
-    def __init__(self, capacity: int, seed: int = 0):
-        self.elements: Deque[T] = deque(maxlen=capacity)
-        self.key: KeyArray = jax.random.PRNGKey(seed)
+    @classmethod
+    def create(cls, example_item: Any, capacity: int) -> ReplayBuffer:
+        """Constructs a CircularBuffer class."""
+        # reserve memory
+        uninitialised_elements = jax.tree_map(
+            lambda x: jnp.broadcast_to(x * 0, (capacity, *jnp.asarray(x).shape)),
+            example_item,
+        )
+        return cls(
+            capacity=capacity,
+            elements=uninitialised_elements,
+            idx=jnp.asarray(0),
+        )
 
-    def __len__(self):
-        return len(self.elements)
+    def size(self) -> jax.Array:
+        """Returns the number of elements currently stored in the buffer."""
+        return self.idx
 
-    def __getitem__(self, idx):
-        return self.elements[idx]
+    def add(self, item: Any) -> ReplayBuffer:
+        """Adds a single element to the buffer. If the buffer is full,
+        the oldest element is overwritten."""
+        idx = self.idx % self.capacity
+        elements = jax.tree_map(lambda x, y: x.at[idx].set(y), self.elements, item)
+        return self.replace(
+            idx=self.idx + 1,
+            elements=elements,
+        )
 
-    @property
-    def capacity(self) -> int:
-        """Returns the capacity of the buffer."""
-        return self.elements.maxlen or 0
+    def sample(self, key: KeyArray, n: int = 1) -> Tuple[ReplayBuffer, Any]:
+        """Samples `n` elements uniformly at random from the buffer,
+        and stacks them into a single pytree.
+        If `n` is greater than state.idx,
+        the function returns uninitialised elements"""
+        indices = jax.random.randint(key=key, shape=(n,), minval=0, maxval=self.idx)
+        items = jax.tree_map(lambda x: x[indices], self.elements)
+        buffer = self.replace(key=key)
+        return buffer, items
 
-    def full(self) -> bool:
-        """Returns whether the buffer has reached its capacity."""
-        return len(self) == self.capacity
 
-    def add(self, transition: T) -> None:
-        """Adds an element to the buffer. If the buffer is full, the oldest element
-        is overwritten."""
-        self.elements.append(transition)
+class EpisodeBuffer(struct.PyTreeNode):
+    """A asynchronous episodic memory buffer used for online learning."""
 
-    def add_range(self, elements: Sequence[T]) -> None:
-        """Adds more than one elements to the buffer.
-        Args:
-            elements (Sequence[T]): A sequence of elements to add to the buffer.
-        """
-        for element in elements:
-            self.elements.append(element)
+    elements: Any
+    """The elements currently stored in the buffer."""
+    idx: int = struct.field(pytree_node=False)
+    """The index of the next element to be added to the buffer."""
+    size: int = struct.field(pytree_node=False)
 
-    def sample(self, n: int) -> T:
-        """Samples `n` elements from the buffer, and stacks them into a single pytree
-        to form a batch of `T` elements.
-        Args:
-            n (int): The number of elements to sample.
-        Returns:
-            T: A pytree of `n` elements, where each element in the pytree has an
-            additional batch dimension.
-        """
-        self.key, k = jax.random.split(self.key)
-        n = min(n, len(self.elements))
-        indices = jax.random.randint(k, (n,), 0, len(self))
-        return tree_stack([self.elements[i] for i in indices])
+    @classmethod
+    def create(cls, example_item: Any, size: int) -> EpisodeBuffer:
+        """Constructs a CircularBuffer class."""
+        # reserve memory
+        uninitialised_elements = jax.tree_map(
+            lambda x: jnp.broadcast_to(x * 0, (size, *x.shape)), example_item
+        )
+        return cls(elements=uninitialised_elements, idx=0, size=size)
+
+    def add(self, item: Any) -> EpisodeBuffer:
+        """Adds a single element to the buffer. If the buffer is full,
+        the oldest element is overwritten."""
+        # index updating requires jitting to guarantee in-place efficiency
+        # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+        elements = jax.tree_map(lambda x, y: x.at[self.idx].set(y), self.elements, item)
+        return self.replace(elements=elements, idx=self.idx + 1)
+
+    def add_range(self, items: List[Any]) -> EpisodeBuffer:
+        """Adds more than one elements to the buffer. If the buffer is full,
+        the oldest elements are overwritten."""
+        start = self.idx % self.size
+        end = start + len(items)
+        # index updating requires jitting to guarantee in-place efficiency
+        # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+        elements = jax.tree_map(
+            lambda x, y: x.at[start:end].set(jnp.stack(y)), self.elements, items
+        )
+        return self.replace(elements=elements, idx=self.idx + len(items))
+
+    def sample(self, n: int = 1) -> Tuple[Any, EpisodeBuffer]:
+        """Samples `n` elements uniformly at random from the buffer,
+        and stacks them into a single pytree. If `n` is greater than state.idx,
+        the function returns uninitialised elements"""
+        indices = jnp.arange(self.idx)[:n]
+        items = jax.tree_map(lambda x: x[indices], self.elements)
+        return items, self
