@@ -8,11 +8,11 @@ patchelf
 numpy<1.24  # bsuite 0.3.5 fails, see https://github.com/deepmind/bsuite/issues/47
 jax
 wandb
-jax_dataclasses
-chex
+jax_enums
 optax
 rlax
 flax
+# envs
 dm_env
 bsuite
 gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
