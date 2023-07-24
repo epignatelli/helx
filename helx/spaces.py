@@ -31,8 +31,8 @@ MAX_INT_ARR = jnp.asarray(MAX_INT)
 
 
 class Space(ShapedArray):
-    minimum: float = MIN_INT
-    maximum: float = MAX_INT
+    minimum: int = MIN_INT
+    maximum: int = MAX_INT
 
     def __repr__(self):
         return "{}, min={}, max={})".format(
@@ -50,15 +50,15 @@ class Discrete(Space):
         self.maximum = n_elements - 1
 
     def sample(self, key: KeyArray) -> Array:
-        item = jax.random.randint(
-            key, self.shape, self.minimum, self.maximum
-        )
+        item = jax.random.randint(key, self.shape, self.minimum, self.maximum)
         # randint cannot draw jnp.uint, so we cast it later
         return jnp.asarray(item, dtype=self.dtype)
 
 
 class Continuous(Space):
-    def __init__(self, shape: Shape = (), minimum: float=MIN_INT, maximum: float=MAX_INT):
+    def __init__(
+        self, shape: Shape = (), minimum: int = MIN_INT, maximum: int = MAX_INT
+    ):
         super().__init__(shape, jnp.float32)
         self.minimum = minimum
         self.maximum = maximum

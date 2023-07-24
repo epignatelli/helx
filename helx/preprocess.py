@@ -15,9 +15,9 @@
 
 import jax
 import jax.numpy as jnp
-from chex import Shape
+from jax.core import Shape
 
-from helx.image import greyscale, imresize
+from .image import greyscale, imresize
 
 
 def preprocess_atari(x):

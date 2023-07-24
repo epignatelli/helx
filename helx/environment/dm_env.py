@@ -14,7 +14,7 @@
 
 
 from __future__ import annotations
-from typing import Tuple, overload
+from typing import overload
 
 import dm_env
 import dm_env.specs
@@ -40,7 +40,11 @@ def to_helx(dm_space: dm_env.specs.Array) -> Space:
     if isinstance(dm_space, dm_env.specs.DiscreteArray):
         return Discrete(dm_space.num_values)
     elif isinstance(dm_space, dm_env.specs.BoundedArray):
-        return Continuous(shape=dm_space.shape, minimum=dm_space.minimum.min().item(), maximum=dm_space.maximum.max().item())
+        return Continuous(
+            shape=dm_space.shape,
+            minimum=dm_space.minimum.min().item(),
+            maximum=dm_space.maximum.max().item(),
+        )
     else:
         raise NotImplementedError(
             "Cannot convert dm_env space of type {}".format(type(dm_space))
@@ -49,15 +53,16 @@ def to_helx(dm_space: dm_env.specs.Array) -> Space:
 
 class DmEnvWrapper(EnvironmentWrapper):
     """Static class to convert between dm_env and helx environments."""
+
     @classmethod
-    def init(cls, env: dm_env.Environment) -> Tuple[DmEnvWrapper, Timestep]:
+    def to_helx(cls, env: dm_env.Environment) -> DmEnvWrapper:
         self = cls(
             env=env,
-            observation_space=to_helx(env.observation_spec()),
-            action_space=to_helx(env.action_spec()),
-            reward_space=to_helx(env.reward_spec()),
+            observation_space=to_helx(env.observation_spec()),  # type: ignore
+            action_space=to_helx(env.action_spec()),  # type: ignore
+            reward_space=to_helx(env.reward_spec()),  # type: ignore
         )
-        return self, self.reset(seed=0)
+        return self
 
     def reset(self, seed: int | None = None) -> Timestep:
         next_step = self.env.reset()

@@ -22,11 +22,11 @@ import jax.numpy as jnp
 from chex import Array
 from flax import linen as nn
 
-from ..mdp import Action, Episode, Transition
-from .agent import Agent, Hparams
+from .agent import Agent, HParams
+from ..mdp import Timestep
 
 
-class Random(Agent[Hparams]):
+class Random(Agent):
     """Implements a Deep Q-Network:
     Mnih, Volodymyr, et al. "Human-level control through deep reinforcement learning."
     Nature 518.7540 (2015): 529-533.
@@ -34,23 +34,23 @@ class Random(Agent[Hparams]):
 
     def __init__(
         self,
-        hparams: Hparams,
+        hparams: HParams,
         seed: int,
     ):
         self.key: jax.random.KeyArray = jax.random.PRNGKey(seed)
-        self.hparams: Hparams = hparams
+        self.hparams: HParams = hparams
         self.iteration: int = 0
 
-    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Action:
+    def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Array:
         return self.hparams.action_space.sample(self.key)
 
     def loss(
         self,
         params: nn.FrozenDict,
-        transition: Transition,
+        transition: Timestep,
         params_target: nn.FrozenDict,
     ) -> Tuple[Array, Any]:
         return (jnp.asarray(0), ())
 
-    def update(self, episode: Episode) -> Array:
-        return jnp.asarray(0)
+    def update(self, episode: Timestep) -> Array:
+        return jnp.asarray(())

@@ -41,7 +41,11 @@ def to_helx(dm_space: dm_env.specs.Array) -> Space:
     if isinstance(dm_space, dm_env.specs.DiscreteArray):
         return Discrete(dm_space.num_values)
     elif isinstance(dm_space, dm_env.specs.BoundedArray):
-        return Continuous(shape=dm_space.shape, minimum=dm_space.minimum.item(), maximum=dm_space.maximum.item())
+        return Continuous(
+            shape=dm_space.shape,
+            minimum=dm_space.minimum.item(),
+            maximum=dm_space.maximum.item(),
+        )
     else:
         raise NotImplementedError(
             "Cannot convert dm_env space of type {}".format(type(dm_space))
@@ -52,14 +56,14 @@ class BsuiteWrapper(EnvironmentWrapper):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     @classmethod
-    def init(cls, env: bsuite.environments.Environment) -> Tuple[BsuiteWrapper, Timestep]:
+    def to_helx(cls, env: bsuite.environments.Environment) -> BsuiteWrapper:
         self = cls(
             env=env,
-            observation_space=to_helx(env.observation_spec()),
-            action_space=to_helx(env.action_spec()),
-            reward_space=to_helx(env.reward_spec()),
+            observation_space=to_helx(env.observation_spec()),  # type: ignore
+            action_space=to_helx(env.action_spec()),  # type: ignore
+            reward_space=to_helx(env.reward_spec()),  # type: ignore
         )
-        return self, self.reset()
+        return self
 
     def reset(self, seed: int | None = None) -> Timestep:
         next_step = self.env.reset()

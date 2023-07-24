@@ -52,7 +52,7 @@ class EnvironmentWrapper(Environment):
     reward_space: Space = struct.field(pytree_node=False)
 
     @abc.abstractclassmethod
-    def init(self, env: Any) -> Tuple[EnvironmentWrapper, Timestep]:
+    def to_helx(self, env: Any) -> EnvironmentWrapper:
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -65,9 +65,7 @@ class EnvironmentWrapper(Environment):
     ) -> Timestep:
         raise NotImplementedError()
 
-    def step(
-        self, key: KeyArray | int, timestep: Timestep, action: Action
-    ) -> Timestep:
+    def step(self, key: KeyArray | int, timestep: Timestep, action: Action) -> Timestep:
         # autoreset
         next_timestep = jax.lax.cond(
             timestep.step_type == StepType.TRANSITION,
