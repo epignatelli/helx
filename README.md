@@ -14,7 +14,7 @@
 
 Helx provides a single **interface** to:
 
-**a.** interoperate between a variety of Reinforcement Learning (RL) environments and   
+**a.** interoperate between a variety of Reinforcement Learning (RL) environments and
 **b.** interact with them through a unified agent interface.
 
 It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
@@ -118,7 +118,7 @@ class Agent(ABC):
     """A minimal RL agent interface."""
 
     @abstractmethod
-    def sample_action(self, timestep: Timestep) -> Action:
+    def sample_action(self, timestep: Timestep) -> Array:
         """Applies the agent's policy to the current timestep to sample an action."""
 
     @abstractmethod

@@ -15,18 +15,20 @@
 
 import bsuite
 import flax.linen as nn
+import jax
 import optax
-from absl import app, flags, logging
+from absl import app, flags
 
 import helx
 
-helx.flags.define_flags_from_hparams(helx.agents.DQNHParams)
+helx.config.define_flags_from_hparams(helx.agents.DQNHParams)
 FLAGS = flags.FLAGS
 
 
 def main(argv):
     del argv
-    logging.info("Starting")
+
+    key = jax.random.PRNGKey(FLAGS.seed)
 
     # environment
     env = bsuite.load_from_id("catch/0")
@@ -41,28 +43,29 @@ def main(argv):
     )
 
     # agent
-    hparams = helx.flags.hparams_from_flags(
+    hparams = helx.config.hparams_from_flags(
         helx.agents.DQNHParams,
-        obs_space=env.observation_space(),
-        action_space=env.action_space(),
+        obs_space=env.observation_space,
+        action_space=env.action_space,
         replay_start=10,
         batch_size=2,
     )
 
-    representation_net = nn.Sequential(
+    backbone = nn.Sequential(
         [
-            helx.networks.Flatten(),
-            helx.networks.MLP(features=[32, 16]),
+            helx.modules.Flatten(),
+            helx.modules.MLP(features=[32, 16]),
         ]
     )
+    critic = nn.Sequential([backbone, nn.Dense(int(hparams.action_space.maximum))])
     agent = helx.agents.DQN(
-        optimiser=optimiser,
         hparams=hparams,
-        seed=0,
-        representation_net=representation_net,
+        optimiser=optimiser,
+        critic=critic,
     )
 
-    helx.experiment.run(agent, env, 2)
+    _, k1 = jax.random.split(key)
+    helx.experiment.run(key=k1, agent=agent, env=env, max_timesteps=1000)
 
 
 if __name__ == "__main__":

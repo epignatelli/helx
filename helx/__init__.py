@@ -19,16 +19,14 @@ import procgen
 
 from . import (
     agents,
+    config,
     environment,
     experiment,
-    flags,
     image,
     logging,
     mdp,
     memory,
     modules,
     preprocess,
-    random,
     spaces,
-    stax,
 )

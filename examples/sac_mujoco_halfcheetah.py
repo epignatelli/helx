@@ -20,7 +20,7 @@ from absl import app, flags, logging
 import helx
 from helx.networks import MLP
 
-helx.flags.define_flags_from_hparams(helx.agents.SACHparams)
+helx.config.define_flags_from_hparams(helx.agents.SACHparams)
 FLAGS = flags.FLAGS
 
 
@@ -36,7 +36,7 @@ def main(argv):
     optimiser = optax.adam(learning_rate=FLAGS.learning_rate)
 
     # agent
-    hparams = helx.flags.hparams_from_flags(
+    hparams = helx.config.hparams_from_flags(
         helx.agents.SACHparams,
         obs_space=env.observation_space(),
         action_space=env.action_space(),

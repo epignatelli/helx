@@ -14,12 +14,23 @@
 
 
 from typing import Any
+
+import jax
+from jax.random import KeyArray
+
+from helx.mdp import Timestep
 from .environment import EnvironmentWrapper
 
 
 class FromDMControlEnv(EnvironmentWrapper):
     """Static class to convert between dm_control environments and helx environments."""
 
-    def to_helx(self, env: Any):
+    def wraps(self, env: Any):
         # TODO (epignatelli): Implement this
+        raise NotImplementedError()
+
+    def reset(self, key: KeyArray) -> Timestep:
+        raise NotImplementedError()
+
+    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         raise NotImplementedError()

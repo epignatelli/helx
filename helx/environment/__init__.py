@@ -13,10 +13,8 @@
 # limitations under the License.
 
 
-from .bsuite import FromBsuiteEnv
-from .dm_env import FromDmEnv
+from .bsuite import BsuiteWrapper
+from .dm_env import DmEnvWrapper
 from .gym import GymWrapper
-from .gym3 import FromGym3Env
 from .gymnasium import GymnasiumWrapper
-from .distributed import MultiprocessEnv, _actor
 from .interop import to_helx

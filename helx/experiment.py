@@ -2,25 +2,31 @@ from typing import Tuple
 import jax
 from jax.random import KeyArray
 import jax.numpy as jnp
+
 from .environment.environment import Environment
 
+from .agents.agent import AgentState
 from .mdp import Timestep, StepType
 from .agents import Agent
 from .logging import Log, host_log_wandb
 
 
 def run_episode(
-    key: KeyArray,
     agent: Agent,
+    agent_state: AgentState,
     env: Environment,
     eval: bool = False,
+    *,
+    key: KeyArray,
 ) -> Timestep:
     key, k1 = jax.random.split(key)
     timestep = env.reset(k1)
     timesteps = [timestep]
     while timestep.step_type == StepType.TRANSITION:
         key, k1, k2 = jax.random.split(key, 3)
-        action = agent.sample_action(k1, timestep.observation, eval=eval)
+        action = agent.sample_action(
+            agent_state, timestep.observation, key=k1, eval=eval
+        )
         timestep = env.step(k2, timestep, action)
         timesteps.append(timestep)
 
@@ -30,17 +36,21 @@ def run_episode(
 
 
 def run_n_steps(
-    key: KeyArray,
     agent: Agent,
     env: Environment,
+    agent_state: AgentState,
     env_state: Timestep,
     n_steps: int,
+    *,
+    key: KeyArray,
     eval: bool = False,
 ) -> Timestep:
     timesteps = []
     for _ in range(n_steps):
         key, k1, k2 = jax.random.split(key, num=3)
-        action = agent.sample_action(k1, env_state.observation, eval=eval)
+        action = agent.sample_action(
+            agent_state, env_state.observation, key=k1, eval=eval
+        )
         env_state = env.step(k2, env_state, action)
         timesteps.append(env_state)
 
@@ -55,27 +65,76 @@ def run_n_steps(
 
 
 def run(
-    key: KeyArray,
     agent: Agent,
     env: Environment,
     max_timesteps: int,
-) -> Tuple[Agent, Timestep]:
+    *,
+    key: KeyArray,
+) -> Tuple[AgentState, Timestep]:
+    # init
     key, k1, k2 = jax.random.split(key, num=3)
-    env_state = env.reset(k1)
+    env_state = env.reset(key=k1)
+    agent_state = agent.init(key=k2)
+    log = Log(
+        jnp.asarray(0),
+        jnp.asarray(float("inf")),
+        StepType.TRANSITION,
+        jnp.asarray(0.0),
+    )
 
+    for _ in range(max_timesteps):
+        key, k1, k2 = jax.random.split(key, num=3)
+        timesteps = run_n_steps(
+            agent, env, agent_state, env_state, n_steps=agent.hparams.n_steps, key=key
+        )
+        agent_state, log = agent.update(agent_state, timesteps, log, key=key)
+
+        host_log_wandb(
+            log
+        )  # potentially blocking, this call is on the host, not on the device, despite jitting
+
+    return agent_state, env_state
+
+
+def jrun(
+    agent: Agent,
+    env: Environment,
+    max_timesteps: int,
+    *,
+    key: KeyArray,
+) -> Tuple[AgentState, Timestep]:
     def body_fun(
-        val: Tuple[Agent, Timestep, Log, KeyArray]
-    ) -> Tuple[Agent, Timestep, Log, KeyArray]:
-        agent, env_state, log, key = val
-        timesteps = run_n_steps(key, agent, env, env_state, n_steps=agent.hparams.n_steps)  # type: ignore
-        agent, log = agent.update(key, timesteps, log)
-        # potentially blocking, this call is on the host, not on the device, despite jitting
-        host_log_wandb(log)
-        return agent, env_state, log, key
+        val: Tuple[AgentState, Timestep, Log, KeyArray]
+    ) -> Tuple[AgentState, Timestep, Log, KeyArray]:
+        agent_state, env_state, log, key = val
+        key, k1, k2 = jax.random.split(key, num=3)
+        timesteps = run_n_steps(
+            agent, env, agent_state, env_state, n_steps=agent.hparams.n_steps, key=k1
+        )
+        agent_state, log = agent.update(agent_state, timesteps, log, key=k2)
+        host_log_wandb(
+            log
+        )  # potentially blocking, this call is on the host, not on the device, despite jitting
+        return agent_state, env_state, log, key
 
-    agent, env_state, _, _ = jax.lax.while_loop(
+    # init
+    key, k1, k2 = jax.random.split(key, num=3)
+    env_state = env.reset(key=k1)
+    agent_state = agent.init(key=k2)
+
+    agent_state, env_state, _, _ = jax.lax.while_loop(
         lambda x: x[0].iteration < max_timesteps,
         body_fun,
-        (agent, env_state, Log(jnp.asarray(0), jnp.asarray(float('inf')), StepType.TRANSITION, jnp.asarray(0.0)), k2),
+        (
+            agent_state,
+            env_state,
+            Log(
+                jnp.asarray(0),
+                jnp.asarray(float("inf")),
+                StepType.TRANSITION,
+                jnp.asarray(0.0),
+            ),
+            key,
+        ),
     )
-    return agent, env_state
+    return agent_state, env_state

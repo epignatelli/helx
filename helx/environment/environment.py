@@ -18,13 +18,13 @@ RL environment interfaces, like `gym`, `gymnasium`, `dm_env`, `bsuite and others
 from __future__ import annotations
 
 import abc
-from typing import Any, Tuple
+from typing import Any
 
 from flax import struct
 import jax
 from jax.random import KeyArray
 
-from ..mdp import Action, StepType, Timestep
+from ..mdp import StepType, Timestep
 from ..spaces import Space
 
 
@@ -38,34 +38,12 @@ class Environment(struct.PyTreeNode):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def step(self, key: KeyArray, timestep: Timestep, action: Action) -> Timestep:
+    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         raise NotImplementedError()
 
-    def name(self) -> str:
-        return self.__class__.__name__
-
-
-class EnvironmentWrapper(Environment):
-    env: Any = struct.field(pytree_node=False)
-    observation_space: Space = struct.field(pytree_node=False)
-    action_space: Space = struct.field(pytree_node=False)
-    reward_space: Space = struct.field(pytree_node=False)
-
-    @abc.abstractclassmethod
-    def to_helx(self, env: Any) -> EnvironmentWrapper:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def reset(self, key: KeyArray | int) -> Timestep:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def _step(
-        self, key: KeyArray | int, timestep: Timestep, action: Action
+    def step(
+        self, key: KeyArray | int, timestep: Timestep, action: jax.Array
     ) -> Timestep:
-        raise NotImplementedError()
-
-    def step(self, key: KeyArray | int, timestep: Timestep, action: Action) -> Timestep:
         # autoreset
         next_timestep = jax.lax.cond(
             timestep.step_type == StepType.TRANSITION,
@@ -75,14 +53,13 @@ class EnvironmentWrapper(Environment):
         )
         return next_timestep
 
+
+class EnvironmentWrapper(Environment):
+    env: Any = struct.field(pytree_node=False)
+
+    @abc.abstractmethod
+    def wraps(self, env: Any) -> Timestep:
+        raise NotImplementedError()
+
     def unwrapped(self) -> Any:
         return self.env
-
-    def name(self) -> str:
-        env = self.env
-        while hasattr(env, "unwrapped"):
-            unwrapped = getattr(env, "unwrapped")
-            if unwrapped == env:
-                break
-            env = unwrapped
-        return env.__class__.__name__

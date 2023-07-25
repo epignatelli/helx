@@ -16,13 +16,12 @@ from __future__ import annotations
 
 from gymnax.environments.environment import Environment as GymnaxEnvironment
 
-
 from .environment import EnvironmentWrapper
 
 
 class GymnaxWrapper(EnvironmentWrapper):
     """Static class to convert between Gymnax environments and helx environments."""
 
-    def to_helx(self, env: GymnaxEnvironment) -> GymnaxWrapper:
+    def wraps(self, env: GymnaxEnvironment) -> GymnaxWrapper:
         # TODO (epignatelli): Implement this
         raise NotImplementedError()

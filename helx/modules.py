@@ -18,7 +18,7 @@ import copy
 
 import operator
 from functools import reduce, wraps
-from typing import Callable, Sequence, Tuple
+from typing import Any, Callable, Sequence, Tuple
 
 import distrax
 import flax.linen as nn
@@ -26,9 +26,17 @@ import jax
 import jax.numpy as jnp
 from jax import Array
 from jax.core import Shape
-from jax.lax import stop_gradient
 from jax.random import KeyArray
 import optax
+
+
+def nameof(module: Any) -> str:
+    while hasattr(module, "unwrapped"):
+        unwrapped = getattr(module, "unwrapped")
+        if unwrapped == module:
+            break
+        module = unwrapped
+    return module.__class__.__name__
 
 
 def deep_copy(module: nn.Module):
@@ -213,7 +221,7 @@ class EGreedyHead(nn.Module):
 
         distr = distrax.EpsilonGreedy(q_values, eps)  # type: ignore
         action, log_probs = distr.sample_and_log_prob(seed=key)
-        return action, log_probs
+        return jnp.asarray(action), jnp.asarray(log_probs)
 
     def forward(
         self, params: nn.FrozenDict, key: KeyArray, q_values: Array
@@ -240,7 +248,7 @@ class GaussianHead(nn.Module):
 
         assert action.shape == self.action_shape
         assert log_prob.shape == self.action_shape
-        return action, log_prob
+        return action, jnp.asarray(log_prob)
 
 
 class SoftmaxPolicy(nn.Module):

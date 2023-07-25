@@ -20,4 +20,4 @@ gym[all]>=0.26  # 0.26 introduced the termination/truncation API
 dm_control
 gym_minigrid
 minigrid
-# procgen
+procgen

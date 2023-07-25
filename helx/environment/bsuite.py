@@ -14,17 +14,19 @@
 
 
 from __future__ import annotations
-from typing import Tuple, overload
+from typing import overload
 
 
 import bsuite.environments
 import dm_env.specs
-import chex
+from jax import Array
+from jax.random import KeyArray
 import jax.numpy as jnp
 
-from ..mdp import Action, Timestep
+from ..mdp import StepType, Timestep
 from ..spaces import Space, Discrete, Continuous
 from .environment import EnvironmentWrapper
+from .dm_env import timestep_to_helx
 
 
 @overload
@@ -56,7 +58,7 @@ class BsuiteWrapper(EnvironmentWrapper):
     """Static class to convert between bsuite.Environment and helx environments."""
 
     @classmethod
-    def to_helx(cls, env: bsuite.environments.Environment) -> BsuiteWrapper:
+    def wraps(cls, env: bsuite.environments.Environment) -> BsuiteWrapper:
         self = cls(
             env=env,
             observation_space=to_helx(env.observation_spec()),  # type: ignore
@@ -65,14 +67,10 @@ class BsuiteWrapper(EnvironmentWrapper):
         )
         return self
 
-    def reset(self, seed: int | None = None) -> Timestep:
+    def reset(self, key: int | None = None) -> Timestep:
         next_step = self.env.reset()
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_dm_env(next_step)
+        return timestep_to_helx(next_step, jnp.asarray(-1), jnp.asarray(0))
 
-    def step(self, action: Action) -> Timestep:
-        # bsuite only has discrete actions envs
-        chex.assert_scalar(action)
+    def _step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
         next_step = self.env.step(action.item())
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_dm_env(next_step)
+        return timestep_to_helx(next_step, action, timestep.t + 1)

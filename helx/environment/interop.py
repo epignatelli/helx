@@ -62,15 +62,15 @@ def to_helx(env: Any) -> EnvironmentWrapper:
     # converting the actual env, rather than the root env
     # which would remove time limits and o
     if isinstance(env_for_type, gymnasium.core.Env):
-        return GymnasiumWrapper.to_helx(env)
+        return GymnasiumWrapper.wraps(env)
     elif isinstance(env_for_type, gym.core.Env):
-        return GymWrapper.to_helx(env)
+        return GymWrapper.wraps(env)
     elif isinstance(env_for_type, gym3.interop.ToGymEnv):
-        return GymWrapper.to_helx(env)
+        return GymWrapper.wraps(env)
     elif isinstance(env_for_type, dm_env.Environment):
-        return DmEnvWrapper.to_helx(env)
+        return DmEnvWrapper.wraps(env)
     elif isinstance(env_for_type, bsuite.environments.Environment):
-        return BsuiteWrapper.to_helx(env)
+        return BsuiteWrapper.wraps(env)
     else:
         raise TypeError(
             f"Environment type {type(env)} is not supported. "
