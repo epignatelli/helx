@@ -14,6 +14,7 @@
 
 
 import dataclasses
+from os import PathLike
 from typing import Sequence, get_type_hints
 
 import chex
@@ -61,9 +62,8 @@ def DEFINE_shape(  # pylint: disable=invalid-name,redefined-builtin
 class SpaceParser(_argument_parser.ListParser):
     def parse(self, space: Space):
         shape = tuple(map(int, super().parse(space.shape)))
-        dtype = space.dtype
         if shape != (1,):
-            space = Continuous(shape, dtype)
+            space = Continuous(shape)
         else:
             space = Discrete(1)
         return (shape, space.dtype)
@@ -136,7 +136,10 @@ def define_flags_from_hparams(type_):
         del fields["action_space"]
 
     # we wrap the type in a dataclass to get the default values
-    dataclass_fields = dataclasses.dataclass(type_).__dataclass_fields__
+    if not hasattr(type_, "__dataclass_fields__"):
+        raise TypeError(f"{type_} is not a dataclass")
+
+    dataclass_fields = type_.__dataclass_fields__
 
     for field in fields:
         default_value = dataclass_fields[field].default
@@ -167,6 +170,17 @@ def hparams_from_flags(
         if value is None:
             raise ValueError("Flag {} is required".format(field))
         hparams[field] = value
+    hparams["obs_space"] = obs_space
+    hparams["action_space"] = action_space
+    return cls(**hparams)
+
+
+def hparams_from_yml(cls, obs_space: Space, action_space: Space, yml_path: PathLike):
+    raise NotImplementedError()
+    import yaml
+
+    with open(yml_path, "r") as f:
+        hparams = yaml.load(f, Loader=yaml.FullLoader)
     hparams["obs_space"] = obs_space
     hparams["action_space"] = action_space
     return cls(**hparams)

@@ -20,8 +20,9 @@ import dm_env
 import dm_env.specs
 import jax
 import jax.numpy as jnp
+from jax.random import KeyArray
 
-from ..mdp import Action, Timestep
+from ..mdp import StepType, Timestep
 from ..spaces import Space, Discrete, Continuous
 from .environment import EnvironmentWrapper
 
@@ -36,6 +37,11 @@ def to_helx(dm_space: dm_env.specs.BoundedArray) -> Continuous:
     ...
 
 
+@overload
+def to_helx(dm_space: dm_env.specs.Array) -> Continuous:
+    ...
+
+
 def to_helx(dm_space: dm_env.specs.Array) -> Space:
     if isinstance(dm_space, dm_env.specs.DiscreteArray):
         return Discrete(dm_space.num_values)
@@ -45,17 +51,44 @@ def to_helx(dm_space: dm_env.specs.Array) -> Space:
             minimum=dm_space.minimum.min().item(),
             maximum=dm_space.maximum.max().item(),
         )
+    elif isinstance(dm_space, dm_env.specs.Array):
+        return Continuous(shape=dm_space.shape)
     else:
         raise NotImplementedError(
             "Cannot convert dm_env space of type {}".format(type(dm_space))
         )
 
 
+def timestep_to_helx(
+    timestep: dm_env.TimeStep, action: jax.Array, t: jax.Array
+) -> Timestep:
+    step_type = timestep.step_type
+    obs = jnp.asarray(timestep.observation)
+    reward = jnp.asarray(timestep.reward)
+    discount = timestep.discount
+
+    if timestep.step_type == dm_env.StepType.LAST:
+        step_type = StepType.TERMINATION
+    elif discount is not None and float(discount) == 0.0:
+        step_type = StepType.TRUNCATION
+    else:
+        step_type = StepType.TRANSITION
+
+    return Timestep(
+        observation=obs,
+        reward=reward,
+        step_type=step_type,
+        action=action,
+        t=t,
+        state=None,
+    )
+
+
 class DmEnvWrapper(EnvironmentWrapper):
     """Static class to convert between dm_env and helx environments."""
 
     @classmethod
-    def to_helx(cls, env: dm_env.Environment) -> DmEnvWrapper:
+    def wraps(cls, env: dm_env.Environment) -> DmEnvWrapper:
         self = cls(
             env=env,
             observation_space=to_helx(env.observation_spec()),  # type: ignore
@@ -64,17 +97,10 @@ class DmEnvWrapper(EnvironmentWrapper):
         )
         return self
 
-    def reset(self, seed: int | None = None) -> Timestep:
+    def reset(self, key: KeyArray | int) -> Timestep:
         next_step = self.env.reset()
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_dm_env(next_step)
+        return timestep_to_helx(next_step, jnp.asarray(-1), jnp.asarray(0))
 
-    def step(self, action: Action) -> Timestep:
+    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         next_step = self.env.step(action.item())
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_dm_env(next_step)
-
-    def seed(self, seed: int) -> None:
-        self._seed = seed
-        self._key = jax.random.PRNGKey(self._seed)
-        return
+        return timestep_to_helx(next_step, action, timestep.t + 1)

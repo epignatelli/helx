@@ -63,15 +63,14 @@ class ReplayBuffer(struct.PyTreeNode):
             elements=elements,
         )
 
-    def sample(self, key: KeyArray, n: int = 1) -> Tuple[ReplayBuffer, Any]:
+    def sample(self, key: KeyArray, n: int = 1) -> Any:
         """Samples `n` elements uniformly at random from the buffer,
         and stacks them into a single pytree.
         If `n` is greater than state.idx,
         the function returns uninitialised elements"""
         indices = jax.random.randint(key=key, shape=(n,), minval=0, maxval=self.idx)
         items = jax.tree_map(lambda x: x[indices], self.elements)
-        buffer = self.replace(key=key)
-        return buffer, items
+        return items
 
 
 class EpisodeBuffer(struct.PyTreeNode):

@@ -18,10 +18,14 @@ from typing import Tuple, overload
 
 import gymnasium
 import gymnasium.spaces
+from jax import Array
 import jax.numpy as jnp
+from jax.random import KeyArray
 import numpy as np
-
-from ..mdp import Action, StepType, Timestep
+from gymnasium.utils.step_api_compatibility import (
+    TerminatedTruncatedStepType as GymnasiumTimestep,
+)
+from ..mdp import StepType, Timestep
 from ..spaces import Continuous, Discrete, Space
 from .environment import EnvironmentWrapper
 
@@ -51,28 +55,48 @@ def to_helx(gym_space: gymnasium.spaces.Space) -> Space:
         )
 
 
+def timestep_from_gym(gym_step: GymnasiumTimestep, action: Array, t: Array) -> Timestep:
+    obs, reward, terminated, truncated, _ = gym_step
+
+    if terminated:
+        step_type = StepType.TERMINATION
+    elif truncated:
+        step_type = StepType.TRUNCATION
+    else:
+        step_type = StepType.TRANSITION
+
+    obs = jnp.asarray(obs)
+    reward = jnp.asarray(reward)
+    action = jnp.asarray(action)
+    return Timestep(
+        observation=obs,
+        reward=reward,
+        step_type=step_type,
+        action=action,
+        t=t,
+        state=None,
+    )
+
+
 class GymnasiumWrapper(EnvironmentWrapper):
     """Static class to convert between gymnasium and helx environments."""
 
     @classmethod
-    def to_helx(cls, env: gymnasium.Env) -> GymnasiumWrapper:
+    def wraps(cls, env: gymnasium.Env) -> GymnasiumWrapper:
         self = cls(
             env=env,
             observation_space=to_helx(env.observation_space),  # type: ignore
             action_space=to_helx(env.action_space),  # type: ignore
             reward_space=Continuous(
-                (), minimum=env.reward_range[0], maximum=env.reward_range[1]
+                (), minimum=int(env.reward_range[0]), maximum=int(env.reward_range[1])
             ),
         )
         return self
 
     def reset(self, seed: int | None = None) -> Timestep:
-        obs, info = self.env.reset(seed=seed)
-        self._current_observation = jnp.asarray(obs)
-        return Timestep(obs, None, StepType.TRANSITION)
+        timestep = self.env.reset(seed=seed)
+        return timestep_from_gym(timestep, action=jnp.asarray(-1), t=jnp.asarray(0))
 
-    def step(self, action: Action) -> Timestep:
-        action_ = np.asarray(action)
-        next_step = self.env.step(action_)
-        self._current_observation = jnp.asarray(next_step[0])
-        return Timestep.from_gymnasium(next_step)
+    def _step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
+        next_step = self.env.step(np.asarray(action))
+        return timestep_from_gym(next_step, action, timestep.t + 1)
