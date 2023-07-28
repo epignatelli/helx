@@ -22,6 +22,9 @@ import jax
 from jax.random import KeyArray
 import jax.numpy as jnp
 
+from .spaces import Space
+from .mdp import Timestep, StepType
+
 
 class ReplayBuffer(struct.PyTreeNode):
     """A circular buffer used for Experience Replay (ER):
@@ -36,12 +39,20 @@ class ReplayBuffer(struct.PyTreeNode):
     """The index of the next element to be added to the buffer."""
 
     @classmethod
-    def create(cls, example_item: Any, capacity: int) -> ReplayBuffer:
+    def create(cls, obs_space: Space, action_space: Space, n_steps: int, capacity: int) -> ReplayBuffer:
         """Constructs a CircularBuffer class."""
         # reserve memory
+        item = Timestep(
+            t=jnp.asarray(0),
+            observation=jnp.zeros(obs_space.shape, dtype=obs_space.dtype),
+            action=jnp.zeros(action_space.shape, dtype=action_space.dtype),
+            reward=jnp.asarray(0.0),
+            step_type=StepType.TRANSITION,
+            state=None,
+        )
         uninitialised_elements = jax.tree_map(
-            lambda x: jnp.broadcast_to(x * 0, (capacity, *jnp.asarray(x).shape)),
-            example_item,
+            lambda x: jnp.broadcast_to(jnp.asarray(x * 0, dtype=x.dtype), (capacity, n_steps + 1, *jnp.asarray(x).shape)),
+            item,
         )
         return cls(
             capacity=capacity,

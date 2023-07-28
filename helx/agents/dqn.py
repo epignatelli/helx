@@ -86,15 +86,8 @@ class DQN(Agent):
             key, hparams.obs_space.sample(key), hparams.action_space.sample(key)
         )
         params_target = jtu.tree_map(lambda x: x, params)  # copy params
-        example_item = Timestep(
-            t=jnp.asarray(0),
-            observation=hparams.obs_space.sample(key),
-            action=hparams.action_space.sample(key),
-            reward=jnp.asarray(0.0),
-            step_type=StepType.TRANSITION,
-            state=None,
-        )
-        buffer = ReplayBuffer.create(example_item, hparams.replay_memory_size)
+        buffer = ReplayBuffer.create(
+            hparams.obs_space, hparams.action_space, hparams.n_steps, hparams.replay_memory_size)
         opt_state = self.optimiser.init(params)
         return DQNState(
             iteration=iteration,
