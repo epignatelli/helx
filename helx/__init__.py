@@ -14,9 +14,6 @@
 
 # Make sure that the gym registry is populated
 # with exteral environments.
-import minigrid
-import procgen
-
 from . import (
     agents,
     config,
