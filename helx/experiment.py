@@ -2,6 +2,7 @@ from typing import Tuple
 import jax
 from jax.random import KeyArray
 import jax.numpy as jnp
+import wandb
 
 from .environment.environment import Environment
 
@@ -45,7 +46,7 @@ def run_n_steps(
     key: KeyArray,
     eval: bool = False,
 ) -> Timestep:
-    timesteps = []
+    timesteps = [env_state]
     for _ in range(n_steps):
         key, k1, k2 = jax.random.split(key, num=3)
         action = agent.sample_action(
@@ -54,12 +55,9 @@ def run_n_steps(
         env_state = env.step(k2, env_state, action)
         timesteps.append(env_state)
 
-    if n_steps == 1:
-        return timesteps[0]
-
     # convert list of timesteps into a batched timestep object
     timesteps = jax.tree_util.tree_map(
-        lambda *x: jnp.squeeze(jnp.stack(x), 0), *timesteps
+        lambda *x: jnp.stack(x), *timesteps
     )
     return timesteps
 
@@ -81,6 +79,7 @@ def run(
         StepType.TRANSITION,
         jnp.asarray(0.0),
     )
+    wandb.init(mode="disabled")
 
     for _ in range(max_timesteps):
         key, k1, k2 = jax.random.split(key, num=3)

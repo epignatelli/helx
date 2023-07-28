@@ -51,13 +51,13 @@ def main(argv):
         batch_size=2,
     )
 
-    backbone = nn.Sequential(
+    critic = nn.Sequential(
         [
             helx.modules.Flatten(),
             helx.modules.MLP(features=[32, 16]),
+            nn.Dense(int(hparams.action_space.maximum))
         ]
     )
-    critic = nn.Sequential([backbone, nn.Dense(int(hparams.action_space.maximum))])
     agent = helx.agents.DQN(
         hparams=hparams,
         optimiser=optimiser,

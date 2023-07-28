@@ -118,23 +118,19 @@ class DQN(Agent):
         transition: Timestep,
         params_target: Params,
     ) -> Array:
-        s_tm1 = transition.observation[0:-1]
+        s_tm1 = transition.observation[:-1]
         s_t = transition.observation[1:]
-        a_tm1 = transition.action
-        r_t = transition.reward
-        d_tm1 = transition.step_type == transition.step_type.TERMINATION
-        discount_t = self.hparams.discount ** transition.t[:-1]
+        a_tm1 = transition.action[:-1][0]  # [0] because scalar
+        r_t = transition.reward[:-1][0]  # [0] because scalar
+        terminal_tm1 = transition.step_type[:-1] != StepType.TERMINATION
+        discount_t = self.hparams.discount ** transition.t[:-1][0]  # [0] because scalar
 
         q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
-        q_t = jnp.asarray(self.critic.apply(params_target, s_t)) * (
-            d_tm1 == StepType.TERMINATION
-        )
+        q_t = jnp.asarray(self.critic.apply(params_target, s_t)) * terminal_tm1
 
-        td_error = rlax.q_learning(
-            q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True
-        )
-        loss = jnp.mean(td_error**2 / 2)
-        return loss
+        td_error = rlax.q_learning(q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True)
+        td_loss = jnp.mean(0.5 * td_error**2)
+        return td_loss
 
     def update(
         self,
@@ -159,8 +155,8 @@ class DQN(Agent):
                 )
             )
             loss, grads = jax.value_and_grad(loss_fn)(params, transitions)
-            opt_state = self.optimiser.update(grads, opt_state)
-            params = optax.apply_updates(params, opt_state)
+            updates, opt_state = self.optimiser.update(grads, opt_state)
+            params = optax.apply_updates(params, updates)
             return params, opt_state, loss
 
         cond = buffer.size() < self.hparams.replay_memory_size
@@ -168,15 +164,15 @@ class DQN(Agent):
         params, opt_state, loss = jax.lax.cond(
             cond,
             lambda p, o: _sgd_step(p, o),
-            lambda p, o: (p, o, jnp.asarray([])),
+            lambda p, o: (p, o, jnp.asarray(float("inf"))),
             train_state.params,
             train_state.opt_state,
         )
 
         # update target critic
         params_target = optax.periodic_update(
+            params,
             train_state.params_target,
-            train_state.critic_target.parameters,  # type: ignore
             jnp.asarray(iteration, dtype=jnp.int32),
             self.hparams.target_network_update_frequency,
         )
