@@ -14,6 +14,7 @@
 
 
 from __future__ import annotations
+from typing import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -31,6 +32,7 @@ MAX_INT_ARR = jnp.asarray(MAX_INT)
 
 
 class Space(ShapedArray):
+    shape: Sequence[int]
     minimum: int = MIN_INT
     maximum: int = MAX_INT
 
