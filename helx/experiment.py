@@ -56,9 +56,7 @@ def run_n_steps(
         timesteps.append(env_state)
 
     # convert list of timesteps into a batched timestep object
-    timesteps = jax.tree_util.tree_map(
-        lambda *x: jnp.stack(x), *timesteps
-    )
+    timesteps = jax.tree_util.tree_map(lambda *x: jnp.stack(x), *timesteps)
     return timesteps
 
 
@@ -73,12 +71,6 @@ def run(
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2)
-    log = Log(
-        jnp.asarray(0),
-        jnp.asarray(float("inf")),
-        StepType.TRANSITION,
-        jnp.asarray(0.0),
-    )
     wandb.init(mode="disabled")
 
     for _ in range(max_timesteps):
@@ -86,10 +78,10 @@ def run(
         timesteps = run_n_steps(
             agent, env, agent_state, env_state, n_steps=agent.hparams.n_steps, key=key
         )
-        agent_state, log = agent.update(agent_state, timesteps, log, key=key)
+        agent_state = agent.update(agent_state, timesteps, key=key)
 
         host_log_wandb(
-            log
+            agent_state.log
         )  # potentially blocking, this call is on the host, not on the device, despite jitting
 
     return agent_state, env_state
@@ -103,36 +95,30 @@ def jrun(
     key: KeyArray,
 ) -> Tuple[AgentState, Timestep]:
     def body_fun(
-        val: Tuple[AgentState, Timestep, Log, KeyArray]
-    ) -> Tuple[AgentState, Timestep, Log, KeyArray]:
-        agent_state, env_state, log, key = val
+        val: Tuple[AgentState, Timestep, KeyArray]
+    ) -> Tuple[AgentState, Timestep, KeyArray]:
+        agent_state, env_state, key = val
         key, k1, k2 = jax.random.split(key, num=3)
         timesteps = run_n_steps(
             agent, env, agent_state, env_state, n_steps=agent.hparams.n_steps, key=k1
         )
-        agent_state, log = agent.update(agent_state, timesteps, log, key=k2)
+        agent_state = agent.update(agent_state, timesteps, key=k2)
         host_log_wandb(
-            log
+            agent_state.log
         )  # potentially blocking, this call is on the host, not on the device, despite jitting
-        return agent_state, env_state, log, key
+        return agent_state, env_state, key
 
     # init
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2)
 
-    agent_state, env_state, _, _ = jax.lax.while_loop(
+    agent_state, env_state, _ = jax.lax.while_loop(
         lambda x: x[0].iteration < max_timesteps,
         body_fun,
         (
             agent_state,
             env_state,
-            Log(
-                jnp.asarray(0),
-                jnp.asarray(float("inf")),
-                StepType.TRANSITION,
-                jnp.asarray(0.0),
-            ),
             key,
         ),
     )
