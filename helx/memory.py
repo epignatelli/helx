@@ -39,7 +39,9 @@ class ReplayBuffer(struct.PyTreeNode):
     """The index of the next element to be added to the buffer."""
 
     @classmethod
-    def create(cls, obs_space: Space, action_space: Space, n_steps: int, capacity: int) -> ReplayBuffer:
+    def create(
+        cls, obs_space: Space, action_space: Space, n_steps: int, capacity: int
+    ) -> ReplayBuffer:
         """Constructs a CircularBuffer class."""
         # reserve memory
         item = Timestep(
@@ -51,7 +53,10 @@ class ReplayBuffer(struct.PyTreeNode):
             state=None,
         )
         uninitialised_elements = jax.tree_map(
-            lambda x: jnp.broadcast_to(jnp.asarray(x * 0, dtype=x.dtype), (capacity, n_steps + 1, *jnp.asarray(x).shape)),
+            lambda x: jnp.broadcast_to(
+                jnp.asarray(x * 0, dtype=x.dtype),
+                (capacity, n_steps + 1, *jnp.asarray(x).shape),
+            ),
             item,
         )
         return cls(
