@@ -13,19 +13,21 @@
 # limitations under the License.
 
 
-from typing import Any, overload
+from typing import Any, Tuple, overload
 
 import bsuite.environments
 import dm_env
 import gym.core
 import gym3.interop
 import gymnasium.core
+from gymnax.environments.environment import Environment as GymnaxEnvironment, EnvParams
 
 from .environment import EnvironmentWrapper
 from .bsuite import BsuiteWrapper
 from .dm_env import DmEnvWrapper
 from .gym import GymWrapper
 from .gymnasium import GymnasiumWrapper
+from .gymnax import GymnaxWrapper
 
 
 @overload
@@ -53,6 +55,11 @@ def to_helx(env: bsuite.environments.Environment) -> BsuiteWrapper:
     ...
 
 
+@overload
+def to_helx(env: Tuple[GymnaxEnvironment, EnvParams]) -> GymnaxWrapper:
+    ...
+
+
 def to_helx(env: Any) -> EnvironmentWrapper:
     # getting root env type for interop
     env_for_type = env
@@ -71,6 +78,12 @@ def to_helx(env: Any) -> EnvironmentWrapper:
         return DmEnvWrapper.wraps(env)
     elif isinstance(env_for_type, bsuite.environments.Environment):
         return BsuiteWrapper.wraps(env)
+    elif (
+        isinstance(env_for_type, tuple)
+        and issubclass(type(env[0]), GymnaxEnvironment)
+        # and issubclass(type(env[1]), EnvParams)  # gymnax EnvParams do not have a base class
+    ):
+        return GymnaxWrapper.wraps(env)
     else:
         raise TypeError(
             f"Environment type {type(env)} is not supported. "
