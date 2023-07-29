@@ -14,14 +14,81 @@
 
 from __future__ import annotations
 
-from gymnax.environments.environment import Environment as GymnaxEnvironment
+from typing import Tuple
 
+import jax
+import jax.numpy as jnp
+from jax import Array
+from gymnax.environments.environment import Environment as GymnaxEnvironment, EnvParams
+from gymnax.environments.environment import EnvParams
+from gymnax.environments.spaces import Space as GymnaxSpace, gymnax_space_to_gym_space
+from jax.random import KeyArray
+
+from ..spaces import Space, Continuous
+from ..mdp import StepType, Timestep
 from .environment import EnvironmentWrapper
+from .gym import to_helx as gym_to_helx
+
+
+def to_helx(gym_space: GymnaxSpace) -> Space:
+    gym_space = gymnax_space_to_gym_space(gym_space)  # type: ignore
+    return gym_to_helx(gym_space)  # type: ignore
+
+
+def timestep_from_gym(
+    obs, state, reward, done, info, action: Array, t: Array
+) -> Timestep:
+    return Timestep(
+        observation=jnp.asarray(obs),
+        reward=jnp.asarray(reward),
+        step_type=(StepType.TRANSITION, StepType.TERMINATION)[done],
+        action=jnp.asarray(action),
+        t=t,
+        state=state,
+        info=info,
+    )
 
 
 class GymnaxWrapper(EnvironmentWrapper):
     """Static class to convert between Gymnax environments and helx environments."""
 
-    def wraps(self, env: GymnaxEnvironment) -> GymnaxWrapper:
-        # TODO (epignatelli): Implement this
-        raise NotImplementedError()
+    params: EnvParams
+
+    @classmethod
+    def wraps(cls, env: Tuple[GymnaxEnvironment, EnvParams]) -> GymnaxWrapper:
+        env_, params = env
+        return cls(
+            env=env_,
+            observation_space=to_helx(env_.observation_space(params)),
+            action_space=to_helx(env_.action_space(params)),
+            reward_space=Continuous(),
+            params=params,
+        )
+
+    def reset(self, key: KeyArray) -> Timestep:
+        obs, state = self.env.reset(key, self.params)
+        return Timestep(
+            t=jnp.asarray(0),
+            observation=jnp.asarray(obs),
+            reward=jnp.asarray(0.0),
+            step_type=StepType.TRANSITION,
+            action=jnp.asarray(-1),
+            state=state,
+        )
+
+    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
+        obs, state, reward, done, info = self.env.step(
+            key=key, state=timestep.state, action=action, params=self.params
+        )
+        idx = 2 * done + jnp.asarray(
+            timestep.t > self.params.max_steps_in_episode, dtype=jnp.int32
+        )  # out-of-bounds returns clamps to 2
+        step_type = StepType.TRANSITION
+        return Timestep(
+            t=timestep.t + 1,
+            observation=jnp.asarray(obs),
+            reward=jnp.asarray(reward),
+            step_type=step_type,
+            action=jnp.asarray(action),
+            state=state,
+        )
