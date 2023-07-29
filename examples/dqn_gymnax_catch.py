@@ -13,11 +13,12 @@
 # limitations under the License.
 
 
-import bsuite
+import gymnax
 import flax.linen as nn
 import jax
 import optax
 from absl import app, flags
+import wandb
 
 import helx
 
@@ -31,8 +32,8 @@ def main(argv):
     key = jax.random.PRNGKey(FLAGS.seed)
 
     # environment
-    env = bsuite.load_from_id("catch/0")
-    env = helx.environment.to_helx(env)
+    env = gymnax.make("Catch-bsuite")
+    env = helx.environment.to_helx(env)  # type: ignore
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -64,8 +65,9 @@ def main(argv):
         critic=critic,
     )
 
+    wandb.init(mode="disabled")
     _, k1 = jax.random.split(key)
-    helx.experiment.run(key=k1, agent=agent, env=env, max_timesteps=1000)
+    helx.experiment.jrun(key=k1, agent=agent, env=env, max_timesteps=1000)
 
 
 if __name__ == "__main__":
