@@ -57,15 +57,16 @@ class DQNHParams(HParams):
     min_squared_gradient: float = 0.01
 
 
+class DQNLog(Log):
+    buffer_size: Array
+    critic_loss: Array
+
+
 class DQNState(AgentState):
     params: Params = struct.field(pytree_node=True)
     params_target: Params = struct.field(pytree_node=True)
     buffer: ReplayBuffer = struct.field(pytree_node=True)
-
-
-class DQNLog(Log):
-    buffer_size: Array
-    critic_loss: Array
+    log: DQNLog = struct.field(pytree_node=True)
 
 
 class DQN(Agent):
@@ -87,7 +88,11 @@ class DQN(Agent):
         )
         params_target = jtu.tree_map(lambda x: x, params)  # copy params
         buffer = ReplayBuffer.create(
-            hparams.obs_space, hparams.action_space, hparams.n_steps, hparams.replay_memory_size)
+            hparams.obs_space,
+            hparams.action_space,
+            hparams.n_steps,
+            hparams.replay_memory_size,
+        )
         opt_state = self.optimiser.init(params)
         return DQNState(
             iteration=iteration,
@@ -95,6 +100,13 @@ class DQN(Agent):
             params_target=params_target,
             opt_state=opt_state,
             buffer=buffer,
+            log=DQNLog(
+                iteration=iteration,
+                critic_loss=jnp.asarray(float("inf")),
+                buffer_size=jnp.asarray(0),
+                step_type=StepType.TRANSITION,
+                returns=jnp.asarray(0.0),
+            )
         )
 
     def sample_action(
@@ -128,7 +140,9 @@ class DQN(Agent):
         q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
         q_t = jnp.asarray(self.critic.apply(params_target, s_t)) * terminal_tm1
 
-        td_error = rlax.q_learning(q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True)
+        td_error = rlax.q_learning(
+            q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True
+        )
         td_loss = jnp.mean(0.5 * td_error**2)
         return td_loss
 
@@ -136,10 +150,9 @@ class DQN(Agent):
         self,
         train_state: DQNState,
         transition: Timestep,
-        cached_log: DQNLog,
         *,
         key: KeyArray,
-    ) -> Tuple[DQNState, DQNLog]:
+    ) -> DQNState:
         # update iteration
         iteration = jnp.asarray(train_state.iteration + 1, dtype=jnp.int32)
 
@@ -180,12 +193,11 @@ class DQN(Agent):
         # log
         log = DQNLog(
             iteration=iteration,
-            loss=loss,
-            step_type=transition.step_type,
-            returns=cached_log.returns
-            + self.hparams.discount ** transition.t[:-1] * transition.reward,
-            buffer_size=buffer.size(),
             critic_loss=loss,
+            step_type=transition.step_type[-1],
+            returns=train_state.log.returns
+            + jnp.sum(self.hparams.discount ** transition.t[:-1] * transition.reward[:-1]),
+            buffer_size=buffer.size(),
         )
 
         # update train_state
@@ -195,5 +207,6 @@ class DQN(Agent):
             params=params,
             params_target=params_target,
             buffer=buffer,
+            log=log
         )
-        return train_state, log
+        return train_state

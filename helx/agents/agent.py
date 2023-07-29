@@ -23,7 +23,6 @@ class HParams(struct.PyTreeNode):
 
 class Log(struct.PyTreeNode):
     iteration: Array
-    loss: Array
     step_type: StepType
     returns: Array
 
@@ -31,6 +30,7 @@ class Log(struct.PyTreeNode):
 class AgentState(struct.PyTreeNode):
     iteration: Array
     opt_state: OptState
+    log: Log
 
 
 class Agent(struct.PyTreeNode):
@@ -52,8 +52,7 @@ class Agent(struct.PyTreeNode):
         self,
         agent_state: AgentState,
         transitions: Timestep,
-        cached_log: Log,
         *,
         key: KeyArray,
-    ) -> Tuple[AgentState, Log]:
+    ) -> AgentState:
         raise NotImplementedError
