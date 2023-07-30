@@ -18,6 +18,7 @@ import flax.linen as nn
 import jax
 import optax
 from absl import app, flags
+import wandb
 
 import helx
 
@@ -26,9 +27,7 @@ FLAGS = flags.FLAGS
 
 
 def main(argv):
-    del argv
-
-    key = jax.random.PRNGKey(FLAGS.seed)
+    wandb.init(mode="disabled")
 
     # environment
     env = bsuite.load_from_id("catch/0")
@@ -64,8 +63,7 @@ def main(argv):
         critic=critic,
     )
 
-    _, k1 = jax.random.split(key)
-    helx.experiment.run(key=k1, agent=agent, env=env, max_timesteps=1000)
+    helx.experiment.run(seed=FLAGS.seed, agent=agent, env=env, max_timesteps=1000)
 
 
 if __name__ == "__main__":
