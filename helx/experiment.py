@@ -61,13 +61,13 @@ def run_n_steps(
 
 
 def run(
+    seed: jax.Array,
     agent: Agent,
     env: Environment,
     max_timesteps: int,
-    *,
-    key: KeyArray,
 ) -> Tuple[AgentState, Timestep]:
     # init
+    key = jax.random.PRNGKey(seed)
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2)
@@ -88,11 +88,10 @@ def run(
 
 
 def jrun(
+    seed: jax.Array,
     agent: Agent,
     env: Environment,
     max_timesteps: int,
-    *,
-    key: KeyArray,
 ) -> Tuple[AgentState, Timestep]:
     def body_fun(
         val: Tuple[AgentState, Timestep, KeyArray]
@@ -109,6 +108,7 @@ def jrun(
         return agent_state, env_state, key
 
     # init
+    key = jax.random.PRNGKey(seed)
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2)

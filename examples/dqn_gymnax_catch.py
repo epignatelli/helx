@@ -27,9 +27,7 @@ FLAGS = flags.FLAGS
 
 
 def main(argv):
-    del argv
-
-    key = jax.random.PRNGKey(FLAGS.seed)
+    wandb.init(mode="disabled")
 
     # environment
     env = gymnax.make("Catch-bsuite")
@@ -65,9 +63,7 @@ def main(argv):
         critic=critic,
     )
 
-    wandb.init(mode="disabled")
-    _, k1 = jax.random.split(key)
-    helx.experiment.jrun(key=k1, agent=agent, env=env, max_timesteps=1000)
+    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, max_timesteps=1000)
 
 
 if __name__ == "__main__":
