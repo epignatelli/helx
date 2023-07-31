@@ -1,7 +1,9 @@
+import logging
 from typing import TypeVar
 
 import wandb
 
+import jax.numpy as jnp
 import jax.experimental.host_callback as hcb
 import flax.linen as nn
 
@@ -17,6 +19,8 @@ def log_wandb(logs: Log) -> Log:
     for k, v in log_dict.items():
         if k.startswith("_"):
             continue
+        if jnp.isnan(v):
+            logging.warning(f"NaN value for {k}")
         # do not log returns unless episode has finished
         if k == "returns":
             if not "step_type" in log_dict:

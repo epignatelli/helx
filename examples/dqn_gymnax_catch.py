@@ -13,14 +13,13 @@
 # limitations under the License.
 
 
-import gymnax
 import flax.linen as nn
-import jax
+import gymnax
 import optax
 from absl import app, flags
-import wandb
 
 import helx
+import wandb
 
 helx.config.define_flags_from_hparams(helx.agents.DQNHParams)
 FLAGS = flags.FLAGS

@@ -15,12 +15,11 @@
 
 import bsuite
 import flax.linen as nn
-import jax
 import optax
 from absl import app, flags
-import wandb
 
 import helx
+import wandb
 
 helx.config.define_flags_from_hparams(helx.agents.DQNHParams)
 FLAGS = flags.FLAGS
