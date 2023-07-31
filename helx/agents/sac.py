@@ -121,20 +121,10 @@ class SAC(Agent):
             self.hparams.n_steps,
             self.hparams.replay_memory_size
         )
-        log = SACLog(
-            iteration=jnp.asarray(0),
-            step_type=StepType.TRANSITION,
-            returns=jnp.asarray(0),
-            buffer_size=jnp.asarray(0),
-            critic_loss=jnp.asarray(0),
-            actor_loss=jnp.asarray(0),
-            temperature_loss=jnp.asarray(0),
-            total_loss=jnp.asarray(0),
-        )
         return SACState(
             iteration=jnp.asarray(0),
             opt_state=opt_state,
-            log=log,
+            log=SACLog(),
             params=params,
             buffer=buffer,
         )
@@ -155,10 +145,8 @@ class SAC(Agent):
     ) -> Tuple[Array, Tuple[Array, Array, Array, Array, Array]]:
         s_tm1 = transition.observation[:-1]
         s_t = transition.observation[1:]
-        a_tm1 = transition.action[:-1][0]  # [0] because scalar
         r_t = transition.reward[:-1][0]  # [0] because scalar
         terminal_tm1 = transition.step_type[:-1] != StepType.TERMINATION
-        discount_t = self.hparams.discount ** transition.t[:-1][0]  # [0] because scalar
 
         # params
         params_actor, params_critic, params_temperature = params
@@ -166,8 +154,8 @@ class SAC(Agent):
         # current estimates
         temperature = jnp.asarray(self.temperature.apply(params_temperature))
         alpha = jax.lax.stop_gradient(temperature)
-        _, logprobs_a_tm1 = self.actor(params_actor, s_tm1)
-        _, logprobs_a_t = self.actor(params_actor, s_t)
+        logprobs_a_tm1 = self.actor(params_actor, s_tm1)
+        logprobs_a_t = self.actor(params_actor, s_t)
         probs_a_tm1 = jnp.exp(logprobs_a_tm1)
 
         # augment reward with policy entropy
@@ -187,7 +175,7 @@ class SAC(Agent):
         # critic losses
         q_t = jnp.min(jnp.stack([qA_t, qB_t], axis=0), axis=0)
         v_t = q_t - alpha * logprobs_a_t
-        q_target = jax.lax.stop_gradient(r_t + (1 - terminal_tm1) * self.hparams.discount * v_t)
+        q_target = jax.lax.stop_gradient(r_t + terminal_tm1 * self.hparams.discount * v_t)
         critic_loss = jnp.asarray(optax.l2_loss(qA_tm1, q_target) + optax.l2_loss(qB_tm1, q_target))
 
         # temperature loss
@@ -257,51 +245,3 @@ class SAC(Agent):
             log=log
         )
         return train_state
-
-    # def update(self, episode: Episode) -> Array:
-    #     # update iteration
-    #     self.iteration += 1
-    #     wandb.log({"Iteration": self.iteration})
-
-    #     # update memory
-    #     transitions: List[Transition] = episode.transitions()
-    #     self.memory.add_range(transitions)
-    #     wandb.log({"Buffer size": len(self.memory)})
-
-    #     # if replay buffer is smaller than the minimum size, there is nothing else to do
-    #     if len(self.memory) < self.hparams.replay_start:
-    #         return jnp.asarray([])
-
-    #     # check update period
-    #     if self.iteration % self.hparams.update_frequency != 0:
-    #         return jnp.asarray([])
-
-    #     episode_batch: Transition = self.memory.sample(self.hparams.batch_size)
-    #     params, opt_state, loss, aux = self.sgd_step(
-    #         self.params,
-    #         episode_batch,
-    #         self.opt_state,
-    #         self._new_key(),
-    #         self.params_target,
-    #     )
-
-    #     # update dqn state
-    #     self.opt_state = opt_state
-    #     self.params = params
-    #     self.params_target = jax.tree_map(
-    #         lambda theta, theta_: theta * self.hparams.tau
-    #         + (1 - self.hparams.tau) * theta_,
-    #         self.params,
-    #         self.params_target,
-    #     )
-
-    #     aux = jax.tree_map(jnp.mean, aux)  # reduce aux
-    #     actor_loss, critic_loss, temperature_loss, policy_entropy, alpha = aux
-    #     wandb.log({"train/total_loss": loss.item()})
-    #     wandb.log({"train/actor_loss": actor_loss.item()})
-    #     wandb.log({"train/critic_loss": critic_loss.item()})
-    #     wandb.log({"train/temperature_loss": temperature_loss.item()})
-    #     wandb.log({"train/policy_entropy": policy_entropy.item()})
-    #     wandb.log({"train/alpha": alpha.item()})
-    #     wandb.log({"train/Return": jnp.sum(episode.r).item()})  # type: ignore
-    #     return loss
