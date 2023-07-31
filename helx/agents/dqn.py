@@ -98,7 +98,7 @@ class DQN(Agent):
             params_target=params_target,
             opt_state=opt_state,
             buffer=buffer,
-            log=DQNLog()
+            log=DQNLog(),
         )
 
     def sample_action(
@@ -188,7 +188,9 @@ class DQN(Agent):
             critic_loss=loss,
             step_type=transition.step_type[-1],
             returns=train_state.log.returns
-            + jnp.sum(self.hparams.discount ** transition.t[:-1] * transition.reward[:-1]),
+            + jnp.sum(
+                self.hparams.discount ** transition.t[:-1] * transition.reward[:-1]
+            ),
             buffer_size=buffer.size(),
         )
 
@@ -199,6 +201,6 @@ class DQN(Agent):
             params=params,
             params_target=params_target,
             buffer=buffer,
-            log=log
+            log=log,
         )
         return train_state

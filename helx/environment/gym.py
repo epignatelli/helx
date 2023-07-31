@@ -81,6 +81,7 @@ def timestep_from_gym(gym_step: GymTimestep, action: Array, t: Array) -> Timeste
 
 class GymWrapper(EnvironmentWrapper):
     """Static class to convert between gym and helx environments."""
+    env: gym.Env
 
     @classmethod
     def wraps(cls, env: gym.Env) -> GymWrapper:

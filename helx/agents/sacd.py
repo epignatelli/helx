@@ -11,26 +11,27 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 from __future__ import annotations
 
 from typing import Tuple
 
 import distrax
+import flax.linen as nn
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import optax
 from flax.core.scope import VariableDict as Params
 from jax import Array
 from jax.random import KeyArray
 
+from ..modules import Temperature, Split, Parallel
 from ..mdp import StepType, Timestep
 from ..spaces import Discrete
 from .sac import SAC, SACHParams, SACState
 
 
-class SACDHparams(SACHParams):
+class SACDHParams(SACHParams):
     action_space: Discrete
 
 
@@ -46,6 +47,33 @@ class SACD(SAC):
         3. Christodoulou P., 2019 (https://arxiv.org/abs/1910.07207)
             for the adaptation to discrete action spaces
     """
+
+    @classmethod
+    def create(
+        cls,
+        hparams: SACDHParams,
+        optimiser: optax.GradientTransformation,
+        actor_backbone: nn.Module,
+        critic_backbone: nn.Module,
+    ) -> SACD:
+        n_actions = hparams.action_space.maximum
+        actor = nn.Sequential([actor_backbone, nn.Dense(n_actions)])
+        critic = nn.Sequential(
+            [
+                Split(2),
+                Parallel((critic_backbone, jtu.tree_map(lambda x: x, critic_backbone))),
+                Parallel((nn.Dense(n_actions), nn.Dense(n_actions))),
+            ]
+        )
+        temperature = Temperature()
+        return SACD(
+            hparams=hparams,
+            optimiser=optimiser,
+            actor=actor,
+            critic=critic,
+            temperature=temperature,
+        )
+
     def sample_action(
         self, train_state: SACState, obs: Array, *, key: KeyArray, eval: bool = False
     ) -> Array:
@@ -87,7 +115,9 @@ class SACD(SAC):
         qA_t, qB_t = self.critic(params_critic, s_t)
 
         # actor_target: $V(s_t) = \pi(s_t)^T \cdot [\alpha \log(\pi(s_t)) + Q(s_t)]$
-        q_tm1 = jax.lax.stop_gradient(jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0))
+        q_tm1 = jax.lax.stop_gradient(
+            jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0)
+        )
         actor_loss = batch_matmul(probs_a_tm1, alpha * logprobs_a_tm1 - q_tm1)
 
         # critic target: $V(s_{t+1}) = \pi(s_{t+1})^T \cdot [Q(s_{t+1}) - \alpha \log(\pi(s_{t+1}))]$
@@ -98,7 +128,9 @@ class SACD(SAC):
         # Here we have the q and action probs for all actions
         # so we calculate the state-value as the expectation of the q-values
         v_1 = batch_matmul(probs_a_t, (q_t - alpha * logprobs_a_t))
-        q_target = jax.lax.stop_gradient(r_t + terminal_tm1 * self.hparams.discount * v_1)
+        q_target = jax.lax.stop_gradient(
+            r_t + terminal_tm1 * self.hparams.discount * v_1
+        )
         critic_loss = optax.l2_loss(qA_tm1, q_target) + optax.l2_loss(qB_tm1, q_target)
         critic_loss = jnp.asarray(critic_loss)
 

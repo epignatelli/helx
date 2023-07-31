@@ -86,6 +86,7 @@ def timestep_to_helx(
 
 class DmEnvWrapper(EnvironmentWrapper):
     """Static class to convert between dm_env and helx environments."""
+    env: dm_env.Environment
 
     @classmethod
     def wraps(cls, env: dm_env.Environment) -> DmEnvWrapper:
