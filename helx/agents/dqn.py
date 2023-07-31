@@ -15,8 +15,6 @@
 
 from __future__ import annotations
 
-from typing import Tuple
-
 import distrax
 import jax
 import jax.numpy as jnp
@@ -58,8 +56,8 @@ class DQNHParams(HParams):
 
 
 class DQNLog(Log):
-    buffer_size: Array
-    critic_loss: Array
+    buffer_size: Array = jnp.asarray(0)
+    critic_loss: Array = jnp.asarray(float("inf"))
 
 
 class DQNState(AgentState):

@@ -1,12 +1,10 @@
 from __future__ import annotations
 from abc import abstractmethod
 
-from typing import Collection, Tuple
-
 from jax import Array
 from jax.random import KeyArray
+import jax.numpy as jnp
 from flax import struct
-import flax.linen as nn
 from optax import GradientTransformation, OptState
 
 from ..spaces import Space
@@ -22,9 +20,9 @@ class HParams(struct.PyTreeNode):
 
 
 class Log(struct.PyTreeNode):
-    iteration: Array
-    step_type: StepType
-    returns: Array
+    iteration: Array = jnp.asarray(0)
+    step_type: StepType = StepType.TRANSITION
+    returns: Array = jnp.asarray(0.0)
 
 
 class AgentState(struct.PyTreeNode):
