@@ -25,7 +25,7 @@ import numpy as np
 from gymnasium.utils.step_api_compatibility import (
     TerminatedTruncatedStepType as GymnasiumTimestep,
 )
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TRANSITION, TERMINATION, TRUNCATION
 from ..spaces import Continuous, Discrete, Space
 from .environment import EnvironmentWrapper
 
@@ -59,11 +59,11 @@ def timestep_from_gym(gym_step: GymnasiumTimestep, action: Array, t: Array) -> T
     obs, reward, terminated, truncated, _ = gym_step
 
     if terminated:
-        step_type = StepType.TERMINATION
+        step_type = TERMINATION
     elif truncated:
-        step_type = StepType.TRUNCATION
+        step_type = TRUNCATION
     else:
-        step_type = StepType.TRANSITION
+        step_type = TRANSITION
 
     obs = jnp.asarray(obs)
     reward = jnp.asarray(reward)

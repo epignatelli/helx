@@ -17,4 +17,7 @@ from .bsuite import BsuiteWrapper
 from .dm_env import DmEnvWrapper
 from .gym import GymWrapper
 from .gymnasium import GymnasiumWrapper
+from .gymnax import GymnaxWrapper
+from .brax import BraxWrapper
+# from .navix import NavixWrapper
 from .interop import to_helx

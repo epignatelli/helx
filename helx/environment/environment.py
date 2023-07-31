@@ -24,7 +24,7 @@ from flax import struct
 import jax
 from jax.random import KeyArray
 
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TRANSITION
 from ..spaces import Space
 
 
@@ -46,7 +46,7 @@ class Environment(struct.PyTreeNode):
     ) -> Timestep:
         # autoreset
         next_timestep = jax.lax.cond(
-            timestep.step_type == StepType.TRANSITION,
+            timestep.step_type == TRANSITION,
             lambda timestep: self._step(key, timestep, action),
             lambda timestep: self.reset(key),
             timestep,

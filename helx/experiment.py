@@ -7,7 +7,7 @@ import wandb
 from .environment.environment import Environment
 
 from .agents.agent import AgentState
-from .mdp import Timestep, StepType
+from .mdp import Timestep, TRANSITION, TERMINATION, TRUNCATION
 from .agents import Agent
 from .logging import Log, host_log_wandb
 
@@ -23,7 +23,7 @@ def run_episode(
     key, k1 = jax.random.split(key)
     timestep = env.reset(k1)
     timesteps = [timestep]
-    while timestep.step_type == StepType.TRANSITION:
+    while timestep.step_type == TRANSITION:
         key, k1, k2 = jax.random.split(key, 3)
         action = agent.sample_action(
             agent_state, timestep.observation, key=k1, eval=eval
