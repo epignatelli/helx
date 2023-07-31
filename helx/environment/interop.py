@@ -21,6 +21,8 @@ import gym.core
 import gym3.interop
 import gymnasium.core
 from gymnax.environments.environment import Environment as GymnaxEnvironment, EnvParams
+import brax.envs
+import navix as nx
 
 from .environment import EnvironmentWrapper
 from .bsuite import BsuiteWrapper
@@ -28,6 +30,8 @@ from .dm_env import DmEnvWrapper
 from .gym import GymWrapper
 from .gymnasium import GymnasiumWrapper
 from .gymnax import GymnaxWrapper
+from .brax import BraxWrapper
+from .navix import NavixWrapper
 
 
 @overload
@@ -57,6 +61,16 @@ def to_helx(env: bsuite.environments.Environment) -> BsuiteWrapper:
 
 @overload
 def to_helx(env: Tuple[GymnaxEnvironment, EnvParams]) -> GymnaxWrapper:
+    ...
+
+
+@overload
+def to_helx(env: brax.envs.Env) -> BraxWrapper:
+    ...
+
+
+@overload
+def to_helx(env: nx.environments.Environment) -> NavixWrapper:
     ...
 
 

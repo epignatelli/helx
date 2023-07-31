@@ -51,7 +51,7 @@ def timestep_from_gym(
 
 class GymnaxWrapper(EnvironmentWrapper):
     """Static class to convert between Gymnax environments and helx environments."""
-
+    env: GymnaxEnvironment
     params: EnvParams
 
     @classmethod
@@ -83,7 +83,14 @@ class GymnaxWrapper(EnvironmentWrapper):
         idx = 2 * done + jnp.asarray(
             timestep.t > self.params.max_steps_in_episode, dtype=jnp.int32
         )  # out-of-bounds returns clamps to 2
-        step_type = StepType.TRANSITION
+        step_type = jax.lax.switch(
+            idx,
+            (
+                lambda: StepType.TRANSITION,
+                lambda: StepType.TRUNCATION,
+                lambda: StepType.TERMINATION,
+            ),
+        )
         return Timestep(
             t=timestep.t + 1,
             observation=jnp.asarray(obs),

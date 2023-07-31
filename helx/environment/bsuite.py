@@ -56,6 +56,7 @@ def to_helx(dm_space: dm_env.specs.Array) -> Space:
 
 class BsuiteWrapper(EnvironmentWrapper):
     """Static class to convert between bsuite.Environment and helx environments."""
+    env: bsuite.environments.Environment
 
     @classmethod
     def wraps(cls, env: bsuite.environments.Environment) -> BsuiteWrapper:

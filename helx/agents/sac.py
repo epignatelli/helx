@@ -21,6 +21,7 @@ from typing import Tuple
 import distrax
 import jax
 import jax.numpy as jnp
+import jax.tree_util as jtu
 import optax
 from flax import linen as nn
 from flax import struct
@@ -29,6 +30,7 @@ from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
 
+from ..modules import Parallel, Split, Temperature
 from ..mdp import StepType, Timestep
 from ..memory import ReplayBuffer
 from ..spaces import Continuous
@@ -99,6 +101,38 @@ class SAC(Agent):
     critic: nn.Module = struct.field(pytree_node=False)
     temperature: nn.Module = struct.field(pytree_node=False)
 
+    @classmethod
+    def create(
+        cls,
+        hparams: SACHParams,
+        optimiser: optax.GradientTransformation,
+        actor_backbone: nn.Module,
+        critic_backbone: nn.Module,
+    ) -> SAC:
+        action_ndim = hparams.action_space.ndim
+        actor = nn.Sequential(
+            [
+                actor_backbone,
+                Split(2),
+                Parallel((nn.Dense(action_ndim), nn.Dense(action_ndim))),
+            ]
+        )
+        critic = nn.Sequential(
+            [
+                Split(2),
+                Parallel((critic_backbone, jtu.tree_map(lambda x: x, critic_backbone))),
+                Parallel((nn.Dense(1), nn.Dense(1))),
+            ]
+        )
+        temperature = Temperature()
+        return SAC(
+            hparams=hparams,
+            optimiser=optimiser,
+            actor=actor,
+            critic=critic,
+            temperature=temperature,
+        )
+
     def init(self, key: KeyArray) -> SACState:
         """Initialises the agent state.
 
@@ -114,12 +148,12 @@ class SAC(Agent):
             self.critic.init(k2),
             self.temperature.init(k3),
         )
-        opt_state = (self.optimiser.init(params))
+        opt_state = self.optimiser.init(params)
         buffer = ReplayBuffer.create(
             self.hparams.obs_space,
             self.hparams.action_space,
             self.hparams.n_steps,
-            self.hparams.replay_memory_size
+            self.hparams.replay_memory_size,
         )
         return SACState(
             iteration=jnp.asarray(0),
@@ -169,19 +203,27 @@ class SAC(Agent):
         qA_t, qB_t = self.critic(params_critic, s_t)
 
         # actor loss
-        q_tm1 = jax.lax.stop_gradient(jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0))
+        q_tm1 = jax.lax.stop_gradient(
+            jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0)
+        )
         actor_loss = jnp.asarray(alpha * logprobs_a_tm1 - q_tm1)
 
         # critic losses
         q_t = jnp.min(jnp.stack([qA_t, qB_t], axis=0), axis=0)
         v_t = q_t - alpha * logprobs_a_t
-        q_target = jax.lax.stop_gradient(r_t + terminal_tm1 * self.hparams.discount * v_t)
-        critic_loss = jnp.asarray(optax.l2_loss(qA_tm1, q_target) + optax.l2_loss(qB_tm1, q_target))
+        q_target = jax.lax.stop_gradient(
+            r_t + terminal_tm1 * self.hparams.discount * v_t
+        )
+        critic_loss = jnp.asarray(
+            optax.l2_loss(qA_tm1, q_target) + optax.l2_loss(qB_tm1, q_target)
+        )
 
         # temperature loss
         target_entropy = -self.hparams.action_space.ndim
         logprobs_a_tm1 = jax.lax.stop_gradient(logprobs_a_tm1)
-        temperature_loss = jnp.asarray(-(temperature * (logprobs_a_tm1 + target_entropy)))
+        temperature_loss = jnp.asarray(
+            -(temperature * (logprobs_a_tm1 + target_entropy))
+        )
 
         loss = actor_loss + critic_loss + temperature_loss
         aux = (actor_loss, critic_loss, temperature_loss, policy_entropy, alpha)
@@ -205,8 +247,11 @@ class SAC(Agent):
             def _loss_fn(params, transition):
                 loss, aux = jax.vmap(self.loss, in_axes=(None, 0))(params, transition)
                 return jnp.mean(loss), aux
+
             transitions = buffer.sample(key, self.hparams.batch_size)
-            (loss, aux), grads = jax.value_and_grad(_loss_fn, has_aux=True)(params, transitions)
+            (loss, aux), grads = jax.value_and_grad(_loss_fn, has_aux=True)(
+                params, transitions
+            )
             updates, opt_state = self.optimiser.update(grads, opt_state)
             params = optax.apply_updates(params, updates)
             return params, opt_state, loss, aux
@@ -232,7 +277,9 @@ class SAC(Agent):
             alpha=aux[4],
             step_type=transition.step_type[-1],
             returns=train_state.log.returns
-            + jnp.sum(self.hparams.discount ** transition.t[:-1] * transition.reward[:-1]),
+            + jnp.sum(
+                self.hparams.discount ** transition.t[:-1] * transition.reward[:-1]
+            ),
             buffer_size=buffer.size(),
         )
 
@@ -242,6 +289,6 @@ class SAC(Agent):
             opt_state=opt_state,
             params=params,
             buffer=buffer,
-            log=log
+            log=log,
         )
         return train_state

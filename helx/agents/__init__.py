@@ -16,4 +16,4 @@
 from .agent import Agent
 from .dqn import DQN, DQNHParams
 from .sac import SAC, SACHParams
-from .sacd import SACD
+from .sacd import SACD, SACDHParams
