@@ -98,13 +98,7 @@ class DQN(Agent):
             params_target=params_target,
             opt_state=opt_state,
             buffer=buffer,
-            log=DQNLog(
-                iteration=iteration,
-                critic_loss=jnp.asarray(float("inf")),
-                buffer_size=jnp.asarray(0),
-                step_type=StepType.TRANSITION,
-                returns=jnp.asarray(0.0),
-            )
+            log=DQNLog()
         )
 
     def sample_action(
