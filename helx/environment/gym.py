@@ -21,12 +21,13 @@ import gym
 import gym.core
 import gym.spaces
 import gym.utils.seeding
+from jax import Array
 import jax.numpy as jnp
 from jax.random import KeyArray
 import numpy as np
 from gym.utils.step_api_compatibility import TerminatedTruncatedStepType as GymTimestep
 
-from ..mdp import Array, StepType, Timestep
+from ..mdp import Timestep, TERMINATION, TRANSITION, TRUNCATION
 from ..spaces import Continuous, Discrete, Space
 from .environment import EnvironmentWrapper
 
@@ -60,11 +61,11 @@ def timestep_from_gym(gym_step: GymTimestep, action: Array, t: Array) -> Timeste
     obs, reward, terminated, truncated, _ = gym_step
 
     if terminated:
-        step_type = StepType.TERMINATION
+        step_type = TERMINATION
     elif truncated:
-        step_type = StepType.TRUNCATION
+        step_type = TRUNCATION
     else:
-        step_type = StepType.TRANSITION
+        step_type = TRANSITION
 
     obs = jnp.asarray(obs)
     reward = jnp.asarray(reward)

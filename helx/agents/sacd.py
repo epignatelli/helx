@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import Tuple
 
-import distrax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
@@ -26,7 +25,7 @@ from jax import Array
 from jax.random import KeyArray
 
 from ..modules import Temperature, Split, Parallel
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TERMINATION
 from ..spaces import Discrete
 from .sac import SAC, SACHParams, SACState
 
@@ -78,9 +77,8 @@ class SACD(SAC):
         self, train_state: SACState, obs: Array, *, key: KeyArray, eval: bool = False
     ) -> Array:
         params_actor, _, _ = train_state.params
-        log_probs = self.actor.apply(params_actor, obs)
-        log_probs = jnp.asarray(log_probs)
-        action = distrax.Categorical(probs=jnp.exp(log_probs)).sample(seed=key)
+        logits = jnp.asarray(self.actor.apply(params_actor, obs))
+        action = jax.random.categorical(key, logits)
         return action
 
     def loss(
@@ -91,7 +89,7 @@ class SACD(SAC):
         s_tm1 = transition.observation[:-1]
         s_t = transition.observation[1:]
         r_t = transition.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = transition.step_type[:-1] != StepType.TERMINATION
+        terminal_tm1 = transition.step_type[:-1] != TERMINATION
 
         # params
         batch_matmul = lambda a, b: jnp.sum(a * b, axis=-1, keepdims=True)
@@ -100,8 +98,10 @@ class SACD(SAC):
         # current estimates
         temperature = self.temperature(params_temperature)
         alpha = jax.lax.stop_gradient(temperature)
-        logprobs_a_tm1 = self.actor(params_actor, s_tm1)
-        logprobs_a_t = self.actor(params_actor, s_t)
+        logits_a_tm1 = self.actor(params_actor, s_tm1)
+        logits_a_t = self.actor(params_actor, s_t)
+        logprobs_a_tm1 = jax.nn.log_softmax(logits_a_tm1)
+        logprobs_a_t = jax.nn.log_softmax(logits_a_t)
         probs_a_tm1 = jnp.exp(logprobs_a_tm1)
 
         # augment reward with policy entropy

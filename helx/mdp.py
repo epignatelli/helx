@@ -18,14 +18,13 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from jax import Array
+import jax.numpy as jnp
 from flax import struct
-from jax_enums import Enumerable
 
 
-class StepType(Enumerable):
-    TRANSITION = 0
-    TRUNCATION = 1
-    TERMINATION = 2
+TRANSITION = jnp.asarray(0)
+TRUNCATION = jnp.asarray(1)
+TERMINATION = jnp.asarray(2)
 
 
 class Timestep(struct.PyTreeNode):
@@ -37,8 +36,8 @@ class Timestep(struct.PyTreeNode):
     """The action taken by the agent at the current timestep a_t = $\\pi(s_t)$, where $s_t$ is `state`"""
     reward: Array
     """The reward $r_{t=1}$ received by the agent after taking action $a_t$"""
-    step_type: StepType
-    """The type of the current timestep (see `StepType`)"""
+    step_type: Array
+    """The type of the current timestep (see `helx.mdp`)"""
     state: Any
     """The true state of the MDP, $s_t$ before taking action `action`"""
     info: Dict[str, Any] = struct.field(default_factory=dict)

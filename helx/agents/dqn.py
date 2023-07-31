@@ -28,7 +28,7 @@ from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
 
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TERMINATION
 from ..memory import ReplayBuffer
 from ..spaces import Discrete
 from .agent import Agent, HParams, Log, AgentState
@@ -126,7 +126,7 @@ class DQN(Agent):
         s_t = transition.observation[1:]
         a_tm1 = transition.action[:-1][0]  # [0] because scalar
         r_t = transition.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = transition.step_type[:-1] != StepType.TERMINATION
+        terminal_tm1 = transition.step_type[:-1] != TERMINATION
         discount_t = self.hparams.discount ** transition.t[:-1][0]  # [0] because scalar
 
         q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))

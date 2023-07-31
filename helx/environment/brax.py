@@ -19,7 +19,7 @@ import brax.envs
 from jax.random import KeyArray
 
 from ..spaces import MAX_INT_ARR, Continuous
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TRANSITION, TERMINATION
 from .environment import EnvironmentWrapper
 
 
@@ -42,7 +42,7 @@ class BraxWrapper(EnvironmentWrapper):
             t=jnp.asarray(0),
             observation=state.obs,
             reward=state.reward,
-            step_type=StepType.TRANSITION,
+            step_type=TRANSITION,
             action=jnp.asarray(-1),
             state=state.pipeline_state,
             info={**state.info, **state.metrics}
@@ -54,7 +54,7 @@ class BraxWrapper(EnvironmentWrapper):
             pipeline_state=timestep.state,
             obs=timestep.observation,
             reward=timestep.reward,
-            done=jnp.asarray(timestep.step_type == StepType.TERMINATION),
+            done=jnp.asarray(timestep.step_type == TERMINATION),
             info=timestep.info,
             metrics=timestep.info
         )
@@ -64,17 +64,7 @@ class BraxWrapper(EnvironmentWrapper):
 
         # wrap again
         truncation = state.info.get("truncation", state.metrics.get("truncation", MAX_INT_ARR))
-        idx = 2 * state.done + jnp.asarray(
-            timestep.t > truncation, dtype=jnp.int32
-        )  # out-of-bounds returns clamps to 2
-        step_type = jax.lax.switch(
-            idx,
-            (
-                lambda: StepType.TRANSITION,
-                lambda: StepType.TRUNCATION,
-                lambda: StepType.TERMINATION,
-            ),
-        )
+        step_type = 2 * state.done + timestep.t > truncation
         return Timestep(
             t=timestep.t + 1,
             observation=state.obs,

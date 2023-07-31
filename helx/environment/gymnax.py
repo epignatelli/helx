@@ -25,7 +25,7 @@ from gymnax.environments.spaces import Space as GymnaxSpace, gymnax_space_to_gym
 from jax.random import KeyArray
 
 from ..spaces import Space, Continuous
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TRANSITION, TERMINATION, TRUNCATION
 from .environment import EnvironmentWrapper
 from .gym import to_helx as gym_to_helx
 
@@ -41,7 +41,7 @@ def timestep_from_gym(
     return Timestep(
         observation=jnp.asarray(obs),
         reward=jnp.asarray(reward),
-        step_type=(StepType.TRANSITION, StepType.TERMINATION)[done],
+        step_type=(TRANSITION, TERMINATION)[done],
         action=jnp.asarray(action),
         t=t,
         state=state,
@@ -71,7 +71,7 @@ class GymnaxWrapper(EnvironmentWrapper):
             t=jnp.asarray(0),
             observation=jnp.asarray(obs),
             reward=jnp.asarray(0.0),
-            step_type=StepType.TRANSITION,
+            step_type=TRANSITION,
             action=jnp.asarray(-1),
             state=state,
         )
@@ -86,9 +86,9 @@ class GymnaxWrapper(EnvironmentWrapper):
         step_type = jax.lax.switch(
             idx,
             (
-                lambda: StepType.TRANSITION,
-                lambda: StepType.TRUNCATION,
-                lambda: StepType.TERMINATION,
+                lambda: TRANSITION,
+                lambda: TRUNCATION,
+                lambda: TERMINATION,
             ),
         )
         return Timestep(

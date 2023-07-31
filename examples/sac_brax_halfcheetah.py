@@ -33,11 +33,8 @@ def main(argv):
     env = helx.environment.to_helx(env)
 
     # optimiser
-    optimiser = optax.rmsprop(
+    optimiser = optax.adam(
         learning_rate=FLAGS.learning_rate,
-        momentum=FLAGS.gradient_momentum,
-        eps=FLAGS.min_squared_gradient,
-        centered=True,
     )
 
     # agent

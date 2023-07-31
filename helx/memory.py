@@ -23,7 +23,7 @@ from jax.random import KeyArray
 import jax.numpy as jnp
 
 from .spaces import Space
-from .mdp import Timestep, StepType
+from .mdp import Timestep, TRANSITION
 
 
 class ReplayBuffer(struct.PyTreeNode):
@@ -49,7 +49,7 @@ class ReplayBuffer(struct.PyTreeNode):
             observation=jnp.zeros(obs_space.shape, dtype=obs_space.dtype),
             action=jnp.zeros(action_space.shape, dtype=action_space.dtype),
             reward=jnp.asarray(0.0),
-            step_type=StepType.TRANSITION,
+            step_type=TRANSITION,
             state=None,
         )
         uninitialised_elements = jax.tree_map(

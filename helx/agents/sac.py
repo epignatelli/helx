@@ -31,7 +31,7 @@ from jax.random import KeyArray
 from optax import GradientTransformation
 
 from ..modules import Parallel, Split, Temperature
-from ..mdp import StepType, Timestep
+from ..mdp import Timestep, TERMINATION
 from ..memory import ReplayBuffer
 from ..spaces import Continuous
 from .agent import Agent, AgentState, HParams, Log
@@ -143,9 +143,10 @@ class SAC(Agent):
             SACState: the initial agent state.
         """
         key, k1, k2, k3 = jax.random.split(key, num=4)
+        obs = self.hparams.obs_space.sample(key=key)
         params = (
-            self.actor.init(k1),
-            self.critic.init(k2),
+            self.actor.init(k1, obs),
+            self.critic.init(k2, obs),
             self.temperature.init(k3),
         )
         opt_state = self.optimiser.init(params)
@@ -180,7 +181,7 @@ class SAC(Agent):
         s_tm1 = transition.observation[:-1]
         s_t = transition.observation[1:]
         r_t = transition.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = transition.step_type[:-1] != StepType.TERMINATION
+        terminal_tm1 = transition.step_type[:-1] != TERMINATION
 
         # params
         params_actor, params_critic, params_temperature = params
