@@ -15,5 +15,7 @@
 
 from .agent import Agent
 from .dqn import DQN, DQNHParams
+from .ddqn import DDQN, DDQNHParams
+from .dueling_dqn import DuelingDQN, DuelingDQNHParams
 from .sac import SAC, SACHParams
 from .sacd import SACD, SACDHParams

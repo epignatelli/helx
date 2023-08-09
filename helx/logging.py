@@ -1,5 +1,7 @@
 import logging
+from pprint import pformat
 from typing import TypeVar
+import logging
 
 import wandb
 
@@ -12,6 +14,19 @@ from .mdp import TRANSITION
 
 
 T = TypeVar("T", bound=nn.Module)
+
+class Color:
+    PURPLE = '\033[95m'
+    CYAN = '\033[96m'
+    DARKCYAN = '\033[36m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    RESET = '\033[0m'
+    WHITE = '\033[1;37m'
 
 
 def log_wandb(logs: Log) -> Log:
@@ -35,3 +50,9 @@ def log_wandb(logs: Log) -> Log:
 def host_log_wandb(logs: Log) -> Log:
     hcb.id_tap(lambda x, _: log_wandb(x), logs)
     return logs
+
+
+def log_start(seed, agent, env, budget):
+    logging.info(Color.BOLD + Color.WHITE + "Experiment starts with seed {} and budget {}".format(seed, budget) + Color.RESET)
+    logging.info(pformat(agent))
+    logging.info(pformat(env))

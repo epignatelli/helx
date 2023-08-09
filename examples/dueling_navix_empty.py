@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
+import navix as nx
 import flax.linen as nn
-import gymnax
 import optax
 from absl import app, flags
 
@@ -29,7 +29,7 @@ def main(argv):
     wandb.init(mode="disabled")
 
     # environment
-    env = gymnax.make("Catch-bsuite")
+    env = nx.environments.Room(5, 5, 100)
     env = helx.environment.to_helx(env)  # type: ignore
 
     # optimiser
@@ -42,27 +42,26 @@ def main(argv):
 
     # agent
     hparams = helx.config.hparams_from_flags(
-        helx.agents.DQNHParams,
+        helx.agents.DuelingDQNHParams,
         obs_space=env.observation_space,
         action_space=env.action_space,
         replay_start=10,
         batch_size=2,
     )
 
-    critic = nn.Sequential(
+    backbone = nn.Sequential(
         [
             helx.modules.Flatten(),
             helx.modules.MLP(features=[32, 16]),
-            nn.Dense(int(hparams.action_space.maximum)),
         ]
     )
-    agent = helx.agents.DQN(
+    agent = helx.agents.DuelingDQN.create(
         hparams=hparams,
         optimiser=optimiser,
-        critic=critic,
+        backbone=backbone,
     )
 
-    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, max_timesteps=1000)
+    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, budget=1000)
 
 
 if __name__ == "__main__":

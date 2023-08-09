@@ -13,8 +13,8 @@
 # limitations under the License.
 
 
-import bsuite
 import flax.linen as nn
+import gymnax
 import optax
 from absl import app, flags
 
@@ -29,8 +29,8 @@ def main(argv):
     wandb.init(mode="disabled")
 
     # environment
-    env = bsuite.load_from_id("catch/0")
-    env = helx.environment.to_helx(env)
+    env = gymnax.make("Catch-bsuite")
+    env = helx.environment.to_helx(env)  # type: ignore
 
     # optimiser
     optimiser = optax.rmsprop(
@@ -61,7 +61,7 @@ def main(argv):
         backbone=backbone,
     )
 
-    helx.experiment.run(seed=FLAGS.seed, agent=agent, env=env, budget=1000)
+    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, budget=1000)
 
 
 if __name__ == "__main__":

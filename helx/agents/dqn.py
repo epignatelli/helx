@@ -28,10 +28,11 @@ from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
 
-from ..mdp import Timestep, TERMINATION
+from ..mdp import Timestep
 from ..memory import ReplayBuffer
 from ..spaces import Discrete
 from .agent import Agent, HParams, Log, AgentState
+from .. import losses
 
 
 class DQNHParams(HParams):
@@ -77,19 +78,37 @@ class DQN(Agent):
     optimiser: GradientTransformation = struct.field(pytree_node=False)
     critic: nn.Module = struct.field(pytree_node=False)
 
-    def init(self, key: KeyArray) -> DQNState:
+    @classmethod
+    def create(
+        cls,
+        hparams: DQNHParams,
+        optimiser: optax.GradientTransformation,
+        backbone: nn.Module,
+    ) -> DQN:
+        critic = nn.Sequential(
+            [
+                backbone,
+                nn.Dense(hparams.action_space.maximum),
+            ]
+        )
+        return DQN(
+            hparams=hparams,
+            optimiser=optimiser,
+            critic=critic,
+        )
+
+    def init(self, timestep: Timestep, *, key: KeyArray) -> DQNState:
         hparams = self.hparams
         assert isinstance(hparams.action_space, Discrete)
         iteration = jnp.asarray(0)
         params = self.critic.init(
-            key, hparams.obs_space.sample(key), hparams.action_space.sample(key)
+            key, hparams.obs_space.sample(key)
         )
         params_target = jtu.tree_map(lambda x: x, params)  # copy params
         buffer = ReplayBuffer.create(
-            hparams.obs_space,
-            hparams.action_space,
-            hparams.n_steps,
+            timestep,
             hparams.replay_memory_size,
+            hparams.n_steps,
         )
         opt_state = self.optimiser.init(params)
         return DQNState(
@@ -113,7 +132,7 @@ class DQN(Agent):
             transition_begin=self.hparams.replay_start,
             power=1.0,
         )(train_state.iteration)
-        action = distrax.EpsilonGreedy(q_values, eps).sample(seed=key)  # type: ignore
+        action = distrax.EpsilonGreedy(jnp.asarray(q_values), jnp.asarray(eps)).sample(seed=key)  # type: ignore
         return action
 
     def loss(
@@ -122,21 +141,13 @@ class DQN(Agent):
         transition: Timestep,
         params_target: Params,
     ) -> Array:
-        s_tm1 = transition.observation[:-1]
-        s_t = transition.observation[1:]
-        a_tm1 = transition.action[:-1][0]  # [0] because scalar
-        r_t = transition.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = transition.step_type[:-1] != TERMINATION
-        discount_t = self.hparams.discount ** transition.t[:-1][0]  # [0] because scalar
-
-        q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
-        q_t = jnp.asarray(self.critic.apply(params_target, s_t)) * terminal_tm1
-
-        td_error = rlax.q_learning(
-            q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True
+        return losses.dqn_loss(
+            transition,
+            self.critic,
+            params,
+            params_target,
+            self.hparams.discount,
         )
-        td_loss = jnp.mean(0.5 * td_error**2)
-        return td_loss
 
     def update(
         self,

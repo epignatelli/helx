@@ -24,7 +24,11 @@ from .environment import EnvironmentWrapper
 
 
 class BraxWrapper(EnvironmentWrapper):
-    """Static class to convert between Gymnax environments and helx environments."""
+    """Static class to convert between Brax environments and helx environments.
+    The current environments are supported:
+    ['ant', 'halfcheetah', 'hopper', 'humanoid', 'humanoidstandup',
+    'inverted_pendulum', 'inverted_double_pendulum', 'pusher',
+    'reacher', 'walker2d']"""
     env: brax.envs.Env
 
     @classmethod
@@ -43,7 +47,7 @@ class BraxWrapper(EnvironmentWrapper):
             observation=state.obs,
             reward=state.reward,
             step_type=TRANSITION,
-            action=jnp.asarray(-1),
+            action=self.action_space.sample(key),
             state=state.pipeline_state,
             info={**state.info, **state.metrics}
         )
@@ -54,7 +58,7 @@ class BraxWrapper(EnvironmentWrapper):
             pipeline_state=timestep.state,
             obs=timestep.observation,
             reward=timestep.reward,
-            done=jnp.asarray(timestep.step_type == TERMINATION),
+            done=timestep.step_type == TERMINATION,
             info=timestep.info,
             metrics=timestep.info
         )
@@ -69,7 +73,8 @@ class BraxWrapper(EnvironmentWrapper):
             t=timestep.t + 1,
             observation=state.obs,
             reward=state.reward,
-            step_type=step_type,
+            step_type=jnp.asarray(step_type, dtype=jnp.int32),
             action=action,
             state=state.pipeline_state,
+            info={**state.info, **state.metrics}
         )
