@@ -7,9 +7,9 @@ import wandb
 from .environment.environment import Environment
 
 from .agents.agent import AgentState
-from .mdp import Timestep, TRANSITION, TERMINATION, TRUNCATION
+from .mdp import Timestep, TRANSITION
 from .agents import Agent
-from .logging import Log, host_log_wandb
+from .logging import host_log_wandb, log_start
 
 
 def run_episode(
@@ -64,16 +64,17 @@ def run(
     seed: jax.Array,
     agent: Agent,
     env: Environment,
-    max_timesteps: int,
+    budget: int,
 ) -> Tuple[AgentState, Timestep]:
     # init
     key = jax.random.PRNGKey(seed)
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
-    agent_state = agent.init(key=k2)
+    agent_state = agent.init(key=k2, timestep=env_state)
     wandb.init(mode="disabled")
+    log_start(seed, agent, env, budget)
 
-    for _ in range(max_timesteps):
+    for _ in range(budget):
         key, k1, k2 = jax.random.split(key, num=3)
         timesteps = run_n_steps(
             agent, env, agent_state, env_state, n_steps=agent.hparams.n_steps, key=key
@@ -91,7 +92,7 @@ def jrun(
     seed: jax.Array,
     agent: Agent,
     env: Environment,
-    max_timesteps: int,
+    budget: int,
 ) -> Tuple[AgentState, Timestep]:
     def body_fun(
         val: Tuple[AgentState, Timestep, KeyArray]
@@ -108,13 +109,14 @@ def jrun(
         return agent_state, env_state, key
 
     # init
+    log_start(seed, agent, env, budget)
     key = jax.random.PRNGKey(seed)
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
-    agent_state = agent.init(key=k2)
+    agent_state = agent.init(key=k2, timestep=env_state)
 
     agent_state, env_state, _ = jax.lax.while_loop(
-        lambda x: x[0].iteration < max_timesteps,
+        lambda x: x[0].iteration < budget,
         body_fun,
         (
             agent_state,

@@ -45,6 +45,14 @@ class Parallel(nn.Module):
         return jtu.tree_map(lambda f, x: f(x), self.functions, inputs)
 
 
+class Lambda(nn.Module):
+    function: Callable[[Array], Array]
+
+    @nn.compact
+    def __call__(self, x: Array) -> Array:
+        return self.function(x)
+
+
 class Flatten(nn.Module):
     """A Flax module that flattens the input array."""
 

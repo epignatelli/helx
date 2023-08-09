@@ -36,7 +36,11 @@ class Agent(struct.PyTreeNode):
     optimiser: GradientTransformation = struct.field(pytree_node=False)
 
     @abstractmethod
-    def init(self, *, key: KeyArray) -> AgentState:
+    def create(*args) -> Agent:
+        return
+
+    @abstractmethod
+    def init(self, key: KeyArray, timestep: Timestep) -> AgentState:
         raise NotImplementedError
 
     @abstractmethod

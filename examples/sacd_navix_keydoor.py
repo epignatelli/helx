@@ -65,7 +65,7 @@ def main(argv):
         critic_backbone=critic_backbone,
     )
 
-    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, max_timesteps=1000)
+    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, budget=1000)
 
 
 if __name__ == "__main__":

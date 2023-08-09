@@ -29,8 +29,9 @@ from flax.core.scope import VariableDict as Params
 from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
+import rlax
 
-from ..modules import Parallel, Split, Temperature
+from ..modules import Lambda, Parallel, Split, Temperature
 from ..mdp import Timestep, TERMINATION
 from ..memory import ReplayBuffer
 from ..spaces import Continuous
@@ -65,7 +66,7 @@ class SACLog(Log):
 
 
 class SACState(AgentState):
-    params: Tuple[Params, Params, Params] = struct.field(pytree_node=True)
+    params: Tuple[Params, Params, Params, Params] = struct.field(pytree_node=True)
     buffer: ReplayBuffer = struct.field(pytree_node=True)
     log: SACLog = struct.field(pytree_node=True)
 
@@ -99,6 +100,7 @@ class SAC(Agent):
     optimiser: GradientTransformation = struct.field(pytree_node=False)
     actor: nn.Module = struct.field(pytree_node=False)
     critic: nn.Module = struct.field(pytree_node=False)
+    critic_target: nn.Module = struct.field(pytree_node=False)
     temperature: nn.Module = struct.field(pytree_node=False)
 
     @classmethod
@@ -109,31 +111,29 @@ class SAC(Agent):
         actor_backbone: nn.Module,
         critic_backbone: nn.Module,
     ) -> SAC:
-        action_ndim = hparams.action_space.ndim
+        action_size = hparams.action_space.size
+        reshape = Lambda(lambda x: x.reshape(hparams.action_space.shape))
         actor = nn.Sequential(
             [
                 actor_backbone,
                 Split(2),
-                Parallel((nn.Dense(action_ndim), nn.Dense(action_ndim))),
+                Parallel((nn.Dense(action_size), nn.Dense(action_size))),
+                Parallel((reshape, jtu.tree_map(lambda x: x, reshape)))
             ]
         )
-        critic = nn.Sequential(
-            [
-                Split(2),
-                Parallel((critic_backbone, jtu.tree_map(lambda x: x, critic_backbone))),
-                Parallel((nn.Dense(1), nn.Dense(1))),
-            ]
-        )
+        critic = nn.Sequential([critic_backbone, nn.Dense(1)])
+        critic_target = nn.Sequential([critic_backbone, nn.Dense(1)])
         temperature = Temperature()
         return SAC(
             hparams=hparams,
             optimiser=optimiser,
             actor=actor,
             critic=critic,
+            critic_target=critic_target,
             temperature=temperature,
         )
 
-    def init(self, key: KeyArray) -> SACState:
+    def init(self, timestep: Timestep, *, key: KeyArray) -> SACState:
         """Initialises the agent state.
 
         Args:
@@ -147,14 +147,14 @@ class SAC(Agent):
         params = (
             self.actor.init(k1, obs),
             self.critic.init(k2, obs),
+            self.critic_target.init(k2, obs),
             self.temperature.init(k3),
         )
         opt_state = self.optimiser.init(params)
         buffer = ReplayBuffer.create(
-            self.hparams.obs_space,
-            self.hparams.action_space,
-            self.hparams.n_steps,
+            timestep,
             self.hparams.replay_memory_size,
+            self.hparams.n_steps
         )
         return SACState(
             iteration=jnp.asarray(0),
@@ -167,49 +167,61 @@ class SAC(Agent):
     def sample_action(
         self, train_state: SACState, obs: Array, *, key: KeyArray, eval: bool = False
     ) -> Array:
-        params_actor, _, _ = train_state.params
-        mu, logvar = self.actor.apply(params_actor, obs)
-        mu, logvar = jnp.asarray(mu), jnp.asarray(logvar)
-        action = distrax.Normal(mu, logvar).sample(seed=key)
+        params_actor = train_state.params[0]
+        mu, logvar = jtu.tree_map(jnp.asarray, self.actor.apply(params_actor, obs))
+        # SAC uses a tanh squashing function
+        # see https://arxiv.org/pdf/1801.01290.pdf, Appendix C.
+        # and https://github.com/openai/spinningup/blob/master/spinup/algos/pytorch/sac/core.py#L29
+        policy = distrax.Transformed(distrax.Normal(mu, jnp.exp(logvar)), distrax.Tanh())
+        action = policy.sample(seed=key)
         return action
 
     def loss(
         self,
-        params: Tuple[Params, Params, Params],
+        params: Tuple[Params, Params, Params, Params],
         transition: Timestep,
+        *,
+        key: KeyArray,
     ) -> Tuple[Array, Tuple[Array, Array, Array, Array, Array]]:
         s_tm1 = transition.observation[:-1]
         s_t = transition.observation[1:]
         r_t = transition.reward[:-1][0]  # [0] because scalar
         terminal_tm1 = transition.step_type[:-1] != TERMINATION
+        k1, k2 = jax.random.split(key, num=2)
 
         # params
-        params_actor, params_critic, params_temperature = params
+        params_actor, params_critic, params_critic_target, params_temperature = params
 
-        # current estimates
+        # autotuning temp
         temperature = jnp.asarray(self.temperature.apply(params_temperature))
         alpha = jax.lax.stop_gradient(temperature)
-        logprobs_a_tm1 = self.actor(params_actor, s_tm1)
-        logprobs_a_t = self.actor(params_actor, s_t)
-        probs_a_tm1 = jnp.exp(logprobs_a_tm1)
+
+        # actor
+        mu_tm1, logvar_tm1 = jtu.tree_map(jnp.asarray, self.actor.apply(params_actor, s_tm1))
+        policy_tm1 = distrax.Transformed(distrax.Normal(mu_tm1, jnp.exp(logvar_tm1)), distrax.Tanh())
+        a_tm1, logprobs_a_tm1 = policy_tm1.sample_and_log_prob(seed=k1)
+
+        mu_t, logvar_t = jtu.tree_map(jnp.asarray, self.actor.apply(params_actor, s_t))
+        policy_t = distrax.Transformed(distrax.Normal(mu_t, jnp.exp(logvar_t)), distrax.Tanh())
+        a_t, logprobs_a_t = policy_t.sample_and_log_prob(seed=k1)
+
+        # critic
+        q_tm1 = self.critic.apply(params_critic, s_tm1)
+        qA_t, qB_t = jtu.tree_map(jnp.asarray, self.critic.apply(params_critic, s_t))
+        q_target = jnp.min(jnp.asarray([qA_t, qB_t]), axis=0)
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_tm1 * logprobs_a_tm1, axis=-1)
-        # SACLite: https://arxiv.org/abs/2201.12434
-        policy_entropy = jnp.asarray(policy_entropy * self.hparams.entropy_rewards)
-        r_t = r_t + alpha * policy_entropy
 
-        # critic is a double Q network
-        qA_tm1, qB_tm1 = self.critic(params_critic, s_tm1)
-        qA_t, qB_t = self.critic(params_critic, s_t)
+        # critic loss
+        qA_tm1, qB_tm1 = self.critic.apply(params_critic, s_tm1)
+        qA_t, qB_t = self.critic.apply(params_critic, s_t)
+        q_target = jnp.min(jnp.asarray([qA_t, qB_t]), axis=0)
+        v_t = q_target - alpha * logprobs_a_t
+        rlax.double_q_learning(q_tm1, a_tm1, r_t, discount_t, q_target,)
 
-        # actor loss
-        q_tm1 = jax.lax.stop_gradient(
-            jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0)
-        )
-        actor_loss = jnp.asarray(alpha * logprobs_a_tm1 - q_tm1)
-
-        # critic losses
+        qA_tm1, qB_tm1 = jnp.asarray(qA_tm1), jnp.asarray(qB_tm1)
+        qA_t, qB_t = jnp.asarray(qA_t), jnp.asarray(qB_t)
         q_t = jnp.min(jnp.stack([qA_t, qB_t], axis=0), axis=0)
         v_t = q_t - alpha * logprobs_a_t
         q_target = jax.lax.stop_gradient(
@@ -218,6 +230,13 @@ class SAC(Agent):
         critic_loss = jnp.asarray(
             optax.l2_loss(qA_tm1, q_target) + optax.l2_loss(qB_tm1, q_target)
         )
+
+        # actor loss
+        q_tm1 = jax.lax.stop_gradient(
+            jnp.min(jnp.stack([qA_tm1, qB_tm1], axis=0), axis=0)
+        )
+        rlax.policy_gradient_loss()
+        actor_loss = jnp.asarray(alpha * logprobs_a_tm1 - q_tm1)
 
         # temperature loss
         target_entropy = -self.hparams.action_space.ndim

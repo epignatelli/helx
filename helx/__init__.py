@@ -26,4 +26,5 @@ from . import (
     modules,
     preprocess,
     spaces,
+    losses
 )
