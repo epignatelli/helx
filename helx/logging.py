@@ -56,3 +56,18 @@ def log_start(seed, agent, env, budget):
     logging.info(Color.BOLD + Color.WHITE + "Experiment starts with seed {} and budget {}".format(seed, budget) + Color.RESET)
     logging.info(pformat(agent))
     logging.info(pformat(env))
+
+
+def log_end(seed, agent, env, budget):
+    logging.info(Color.BOLD + Color.WHITE + "Experiment completed with seed {} and budget {}".format(seed, budget) + Color.RESET)
+    logging.info(pformat(agent))
+    logging.info(pformat(env))
+
+
+def report(run_fn):
+    def wrapped(seed, agent, env, budget):
+        log_start(seed, agent, env, budget)
+        results = run_fn(seed, agent, env, budget)
+        log_end(seed, agent, env, budget)
+        return results
+    return wrapped

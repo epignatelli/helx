@@ -1,3 +1,4 @@
+from typing import Tuple
 import flax.linen as nn
 from flax.core.scope import VariableDict as Params
 from jax import Array
@@ -8,6 +9,15 @@ import rlax
 from .mdp import TERMINATION, Timestep
 
 
+def flatten_timesteps(timesteps: Timestep, discount: float = 1.0) -> Tuple[Array, Array, Array, Array, Array, Array]:
+    s_tm1 = timesteps.observation[:-1]
+    s_t = timesteps.observation[1:]
+    a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
+    r_t = timesteps.reward[:-1][0]  # [0] because scalar
+    terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
+    discount_t = discount ** timesteps.t[:-1][0]  # [0] because scalar
+    return s_tm1, s_t, a_tm1, r_t, terminal_tm1, discount_t
+
 def dqn_loss(
     timesteps: Timestep,
     critic: nn.Module,
@@ -15,12 +25,7 @@ def dqn_loss(
     params_target: Params,
     discount: float = 0.99,
 ) -> Array:
-    s_tm1 = timesteps.observation[:-1]
-    s_t = timesteps.observation[1:]
-    a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
-    r_t = timesteps.reward[:-1][0]  # [0] because scalar
-    terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
-    discount_t = discount ** timesteps.t[:-1][0]  # [0] because scalar
+    s_tm1, s_t, a_tm1, r_t, terminal_tm1, discount_t = flatten_timesteps(timesteps, discount)
 
     q_tm1 = jnp.asarray(critic.apply(params, s_tm1))
     q_t = jnp.asarray(critic.apply(params_target, s_t)) * terminal_tm1
@@ -39,14 +44,9 @@ def double_dqn_loss(
     params_target: Params,
     discount: float = 0.99,
 ):
-    s_tm1 = timesteps.observation[:-1]
-    s_t = timesteps.observation[1:]
-    a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
-    r_t = timesteps.reward[:-1][0]  # [0] because scalar
-    terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
-    discount_t = discount ** timesteps.t[:-1][0]  # [0] because scalar
-    q_tm1 = jnp.asarray(critic.apply(params, s_tm1))
+    s_tm1, s_t, a_tm1, r_t, terminal_tm1, discount_t = flatten_timesteps(timesteps, discount)
 
+    q_tm1 = jnp.asarray(critic.apply(params, s_tm1))
     a_t = jnp.argmax(jnp.asarray(critic.apply(params, s_t)) * terminal_tm1)
     q_t = critic.apply(params_target, s_t)
     q_target = r_t + discount_t * q_t[a_t]
@@ -60,6 +60,10 @@ def soft_q_loss(
     critic: nn.Module,
     params: Params,
     params_target: Params,
+    entropy: Array,
     discount: float = 0.99,
 ):
+    s_tm1, s_t, a_tm1, r_t, terminal_tm1, discount_t = flatten_timesteps(timesteps, discount)
+
+
     raise NotImplementedError()

@@ -5,11 +5,10 @@ import jax.numpy as jnp
 import wandb
 
 from .environment.environment import Environment
-
 from .agents.agent import AgentState
 from .mdp import Timestep, TRANSITION
 from .agents import Agent
-from .logging import host_log_wandb, log_start
+from .logging import host_log_wandb, report
 
 
 def run_episode(
@@ -60,6 +59,7 @@ def run_n_steps(
     return timesteps
 
 
+@report
 def run(
     seed: jax.Array,
     agent: Agent,
@@ -72,7 +72,6 @@ def run(
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2, timestep=env_state)
     wandb.init(mode="disabled")
-    log_start(seed, agent, env, budget)
 
     for _ in range(budget):
         key, k1, k2 = jax.random.split(key, num=3)
@@ -88,6 +87,7 @@ def run(
     return agent_state, env_state
 
 
+@report
 def jrun(
     seed: jax.Array,
     agent: Agent,
@@ -109,11 +109,11 @@ def jrun(
         return agent_state, env_state, key
 
     # init
-    log_start(seed, agent, env, budget)
     key = jax.random.PRNGKey(seed)
     key, k1, k2 = jax.random.split(key, num=3)
     env_state = env.reset(key=k1)
     agent_state = agent.init(key=k2, timestep=env_state)
+    wandb.init(mode="disabled")
 
     agent_state, env_state, _ = jax.lax.while_loop(
         lambda x: x[0].iteration < budget,
