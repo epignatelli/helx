@@ -69,10 +69,6 @@ all = [
     ]
 
 
-[project.scripts]
-helx-download-extras = "helx.download:download_all"
-
-
 [tool.setuptools.dynamic]
 version = {attr = "helx._version.__version__"}
 dependencies = {file = "./requirements.txt"}
