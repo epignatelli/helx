@@ -28,7 +28,7 @@ from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
 
-from ..mdp import Timestep
+from ..mdp import TERMINATION, Timestep
 from ..memory import ReplayBuffer
 from ..spaces import Discrete
 from .agent import Agent, HParams, Log, AgentState
@@ -138,16 +138,24 @@ class DQN(Agent):
     def loss(
         self,
         params: Params,
-        transition: Timestep,
+        timesteps: Timestep,
         params_target: Params,
     ) -> Array:
-        return losses.dqn_loss(
-            transition,
-            self.critic,
-            params,
-            params_target,
-            self.hparams.discount,
+        s_tm1 = timesteps.observation[:-1]
+        s_t = timesteps.observation[1:]
+        a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
+        r_t = timesteps.reward[:-1][0]  # [0] because scalar
+        terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
+        discount_t = self.hparams.discount ** timesteps.t[:-1][0]  # [0] because scalar
+
+        q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
+        q_t = jnp.asarray(self.critic.apply(params_target, s_t)) * terminal_tm1
+
+        td_error = rlax.q_learning(
+            q_tm1, a_tm1, r_t, discount_t, q_t, stop_target_gradients=True
         )
+        td_loss = jnp.mean(0.5 * td_error**2)
+        return td_loss
 
     def update(
         self,

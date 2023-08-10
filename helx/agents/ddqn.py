@@ -15,10 +15,12 @@ from __future__ import annotations
 
 from flax.core.scope import VariableDict as Params
 from jax import Array
+import jax.numpy as jnp
+import optax
 
 from ..mdp import Timestep
 from .dqn import DQNHParams, DQNLog, DQNState, DQN
-from .. import losses
+from ..mdp import TERMINATION
 
 
 class DDQNHParams(DQNHParams):
@@ -42,13 +44,20 @@ class DDQN(DQN):
     def loss(
         self,
         params: Params,
-        transition: Timestep,
+        timesteps: Timestep,
         params_target: Params,
     ) -> Array:
-        return losses.double_dqn_loss(
-            transition,
-            self.critic,
-            params,
-            params_target,
-            self.hparams.discount,
-        )
+        s_tm1 = timesteps.observation[:-1]
+        s_t = timesteps.observation[1:]
+        a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
+        r_t = timesteps.reward[:-1][0]  # [0] because scalar
+        terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
+        discount_t = self.hparams.discount ** timesteps.t[:-1][0]  # [0] because scalar
+        q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
+
+        a_t = jnp.argmax(jnp.asarray(self.critic.apply(params, s_t)) * terminal_tm1)
+        q_t = self.critic.apply(params_target, s_t)
+        q_target = r_t + discount_t * q_t[a_t]
+
+        td_loss = optax.l2_loss(q_tm1[a_tm1] - q_target)
+        return jnp.asarray(td_loss)
