@@ -35,6 +35,7 @@ from ..modules import Lambda, Parallel, Split, Temperature
 from ..mdp import Timestep, TERMINATION
 from ..memory import ReplayBuffer
 from ..spaces import Continuous
+from .. import losses
 from .agent import Agent, AgentState, HParams, Log
 
 
@@ -179,14 +180,14 @@ class SAC(Agent):
     def loss(
         self,
         params: Tuple[Params, Params, Params, Params],
-        transition: Timestep,
+        timesteps: Timestep,
         *,
         key: KeyArray,
     ) -> Tuple[Array, Tuple[Array, Array, Array, Array, Array]]:
-        s_tm1 = transition.observation[:-1]
-        s_t = transition.observation[1:]
-        r_t = transition.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = transition.step_type[:-1] != TERMINATION
+        s_tm1 = timesteps.observation[:-1]
+        s_t = timesteps.observation[1:]
+        r_t = timesteps.reward[:-1][0]  # [0] because scalar
+        terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
         k1, k2 = jax.random.split(key, num=2)
 
         # params
@@ -209,6 +210,9 @@ class SAC(Agent):
         q_tm1 = self.critic.apply(params_critic, s_tm1)
         qA_t, qB_t = jtu.tree_map(jnp.asarray, self.critic.apply(params_critic, s_t))
         q_target = jnp.min(jnp.asarray([qA_t, qB_t]), axis=0)
+        critic_loss = losses.double_dqn_loss(
+            timesteps, self.critic, params_critic, params_critic_target, self.hparams.discount
+            )
 
         # augment reward with policy entropy
         policy_entropy = -jnp.sum(probs_a_tm1 * logprobs_a_tm1, axis=-1)

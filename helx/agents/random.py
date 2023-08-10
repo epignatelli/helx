@@ -44,13 +44,5 @@ class Random(Agent):
     def sample_action(self, observation: Array, eval: bool = False, **kwargs) -> Array:
         return self.hparams.action_space.sample(self.key)
 
-    def loss(
-        self,
-        params: nn.FrozenDict,
-        transition: Timestep,
-        params_target: nn.FrozenDict,
-    ) -> Tuple[Array, Any]:
-        return (jnp.asarray(0), ())
-
     def update(self, episode: Timestep) -> Array:
         return jnp.asarray(())
