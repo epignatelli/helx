@@ -53,7 +53,7 @@ class Agent(struct.PyTreeNode):
     def update(
         self,
         agent_state: AgentState,
-        transitions: Timestep,
+        timesteps: Timestep,
         *,
         key: KeyArray,
     ) -> AgentState:
