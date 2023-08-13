@@ -18,7 +18,6 @@ from typing import Any, Tuple
 import jax
 import jax.numpy as jnp
 from chex import Array
-from flax import linen as nn
 
 from .agent import Agent, HParams
 from ..mdp import Timestep
