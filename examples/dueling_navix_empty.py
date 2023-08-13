@@ -29,7 +29,7 @@ def main(argv):
     wandb.init(mode="disabled")
 
     # environment
-    env = nx.environments.Room(5, 5, 100)
+    env = nx.environments.Room(5, 5, 100, observation_fn=nx.observations.categorical)
     env = helx.environment.to_helx(env)  # type: ignore
 
     # optimiser

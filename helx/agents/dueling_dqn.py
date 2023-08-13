@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
+from functools import partial
 
 import jax.numpy as jnp
 import optax
@@ -52,7 +53,7 @@ class DuelingDQN(DQN):
                 backbone,
                 Split(2),
                 Parallel((nn.Dense(1), nn.Dense(hparams.action_space.maximum))),  # v, A
-                Merge(jnp.sum) # q = v + A
+                Merge(partial(jnp.sum, axis=-1)) # q = v + A
             ]
         )
         return DuelingDQN(

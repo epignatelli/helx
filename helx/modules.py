@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
+from functools import partial
 
 from typing import Callable, Sequence, Tuple
 
@@ -30,11 +31,13 @@ class Split(nn.Module):
 
 
 class Merge(nn.Module):
-    aggregate: Callable[[Array], Array]
+    aggregate: Callable[[Array], Array] = partial(jnp.sum, axis=-1)
 
     @nn.compact
     def __call__(self, *arrays: Tuple[Array, ...]) -> Array:
-        return self.aggregate(jnp.asarray(arrays))
+        x = jnp.broadcast_arrays(*arrays)  # type: ignore
+        x = jnp.asarray(x)
+        return self.aggregate(x)
 
 
 class Parallel(nn.Module):
