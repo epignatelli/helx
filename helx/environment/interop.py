@@ -22,6 +22,7 @@ import gym3.interop
 import gymnasium.core
 from gymnax.environments.environment import Environment as GymnaxEnvironment, EnvParams
 import brax.envs
+import navix as nx
 
 from .environment import EnvironmentWrapper
 from .bsuite import BsuiteWrapper
@@ -30,7 +31,7 @@ from .gym import GymWrapper
 from .gymnasium import GymnasiumWrapper
 from .gymnax import GymnaxWrapper
 from .brax import BraxWrapper
-# from .navix import NavixWrapper
+from .navix import NavixWrapper
 
 
 @overload
@@ -68,9 +69,9 @@ def to_helx(env: brax.envs.Env) -> BraxWrapper:
     ...
 
 
-# @overload
-# def to_helx(env: nx.environments.Environment) -> NavixWrapper:
-#     ...
+@overload
+def to_helx(env: nx.environments.Environment) -> NavixWrapper:
+    ...
 
 
 def to_helx(env: Any) -> EnvironmentWrapper:
@@ -99,8 +100,8 @@ def to_helx(env: Any) -> EnvironmentWrapper:
         return GymnaxWrapper.wraps(env)
     elif isinstance(env_for_type, brax.envs.Env):
         return BraxWrapper.wraps(env)
-    # elif isinstance(env_for_type, nx.environments.Environment):
-    #     return NavixWrapper.wraps(env)
+    elif isinstance(env_for_type, nx.environments.Environment):
+        return NavixWrapper.wraps(env)
     else:
         raise TypeError(
             f"Environment type {type(env)} is not supported. "
