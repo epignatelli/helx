@@ -2,33 +2,26 @@
 [![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
 
-# Helx: Interoperating between Reinforcement Learning Experimental Protocols
+# HELX
 
-Helx provides a single **interface** to:
+The HELX ecosystem provides a standardised and ready to use framework for Reinforcement Learning experiments
 
-**a.** interoperate between a variety of Reinforcement Learning (RL) environments and
-**b.** interact with them through a unified agent interface.
-
-It is designed to be agnostic to both the environment library (e.g., `gym`, `dm_control`) and the agent library (e.g., `pytorch`, `jax`, `tensorflow`).
-
-Why using `helx`? It allows to easily switch between different RL libraries, and to easily test your agents on different environments.
+braries, and to easily test your agents on different environments.
 
 ## Installation
+
+- ### Stable
+Install the stable version of `helx` and its dependencies with:
+```bash
+pip install helx
+```
+
+- ### Nightly
+Or, if you prefer to install the latest version from source:
 ```bash
 pip install git+https://github.com/epignatelli/helx
 ```
 
-If you also want to download the binaries for `mujoco`, both `gym` and `dm_control`, and `atari`:
-```bash
-helx-download-extras
-```
-
-And then tell the system where the mujoco binaries are:
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/mujoco/lib
-export MJLIB_PATH=/path/to/home/.mujoco/mujoco210/bin/libmujoco210.so
-export MUJOCO_PY_MUJOCO_PATH=/path/to/home/.mujoco/mujoco210
-```
 
 ---
 ## Example
