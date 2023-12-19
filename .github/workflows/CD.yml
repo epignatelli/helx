@@ -10,6 +10,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      contents: write
       id-token: write
     steps:
       - uses: actions/checkout@v3
@@ -38,7 +39,7 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ env.HELX_VERSION }}
-          name: "HELX release v${{ env.HELX_VERSION }}"
+          name: "HELX-base release v${{ env.HELX_VERSION }}"
           body: ${{ steps.changelog.outputs.clean_changelog }}
 
       - uses: actions/setup-python@v4
