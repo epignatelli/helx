@@ -30,7 +30,6 @@ jobs:
         id: changelog
         uses: TriPSs/conventional-changelog-action@v3
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           output-file: false
           fallback-version: ${{ env.HELX_VERSION }}
           skip-commit: true
