@@ -22,3 +22,4 @@ gym_minigrid
 minigrid
 procgen
 gymnax
+brax
