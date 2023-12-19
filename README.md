@@ -1,8 +1,13 @@
+# HELX: The RL experiments framework
+
+[![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/wip.svg)](https://www.repostatus.org/#wip)
 [![CI](https://github.com/epignatelli/helx/actions/workflows/CI.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CI.yml)
 [![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
 
-# HELX
+**[Quickstart](#what-is-helx)** | **[Installation](#installation)** | **[Examples](#examples)** | **[Cite](#cite)**
+
+## What is HELX?
 
 HELX is a JAX-based ecosystem that provides a standardised and ready to use framework to run Reinforcement Learning experiments.
 
@@ -28,7 +33,7 @@ pip install git+https://github.com/epignatelli/helx
 
 
 ---
-## Example
+## Examples
 
 A typical use case is to design an agent, and toy-test it on `catch` before evaluating it on more complex environments, such as atari, procgen or mujoco.
 
