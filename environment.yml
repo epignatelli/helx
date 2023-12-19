@@ -1,13 +1,7 @@
 name: helx
 
 dependencies:
-  - python=3.10
-  # - conda-forge::glew
-  # - conda-forge::mesalib
-  # - conda-forge::libglvnd-glx-cos7-x86_64
-  # - conda-forge::xvfbwrapper
-  # - anaconda::mesa-libgl-cos6-x86_64
-  # - menpo::glfw3
+  - python=3.8
   - pip
   - pip:
     - -r requirements.txt
