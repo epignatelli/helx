@@ -21,3 +21,4 @@ dm_control
 gym_minigrid
 minigrid
 procgen
+gymnax
