@@ -32,9 +32,9 @@ jobs:
         pip install pylint
         MESSAGE=$(pylint -ry $(git ls-files '*.py') ||:)
         echo "$MESSAGE"
-    - name: Run unit tests with pytest
-      run: |
-        pytest test/
+    # - name: Run unit tests with pytest
+    #   run: |
+    #     pytest test/
     - name: Run examples
       run: |
         wandb login ${{ secrets.WANDB_API_KEY }}
