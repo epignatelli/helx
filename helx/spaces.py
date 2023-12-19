@@ -69,7 +69,7 @@ class Continuous(Space):
         assert jnp.issubdtype(self.dtype, jnp.floating)
         # see: https://github.com/google/jax/issues/14003
         lower = jnp.nan_to_num(self.minimum)
-        upper = upper = jnp.nan_to_num(self.maximum)
+        upper = jnp.nan_to_num(self.maximum)
         return jax.random.uniform(
             key, self.shape, minval=lower, maxval=upper, dtype=self.dtype
         )
