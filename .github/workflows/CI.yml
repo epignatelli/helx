@@ -34,7 +34,7 @@ jobs:
         echo "$MESSAGE"
     - name: Run unit tests with pytest
       run: |
-        python -c 'import helx'
+        python -c 'import helx_base'
 
   Compliance:
     runs-on: ubuntu-latest

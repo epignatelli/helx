@@ -16,8 +16,8 @@ jobs:
 
       - name: Get version from file
         run: |
-          VERSION_FILE="$/helx/_version.py"
-          HELX_VERSION="$(cat helx/_version.py | grep '__version__ = ' |  cut -d'=' -f2 | sed 's,\",,g' | sed "s,\',,g" | sed 's, ,,g')"
+          VERSION_FILE="$/helx_base/_version.py"
+          HELX_VERSION="$(cat helx_base/_version.py | grep '__version__ = ' |  cut -d'=' -f2 | sed 's,\",,g' | sed "s,\',,g" | sed 's, ,,g')"
           echo "Current version is:"
           echo "$HELX_VERSION"
 

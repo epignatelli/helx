@@ -12,10 +12,10 @@
 HELX is a JAX-based ecosystem that provides a standardised and ready to use framework to run Reinforcement Learning experiments.
 
 The ecosystem is made of three main nodes:
-- [Helx](https://github.com/epignatelli/helx), containing the base objects of the framework
-- [Agentx](https://github.com/epignatelli/agentx), containing the most common RL baselines
-- [Envx](https://github.com/epignatelli/envx), which provides a single API to the most common RL environments (gym, gymnax, dm_env, atari, ...)
-- [Expx](https://github.com/epignatelli/expx), which packs the other three nodes into a framework to run and manage experiments
+- [HELX-base](https://github.com/epignatelli/helx), containing the base objects of the framework
+- [HELX-agents](https://github.com/epignatelli/agentx), containing the most common RL baselines
+- [HELX-envs](https://github.com/epignatelli/envx), which provides a single API to the most common RL environments (gym, gymnax, dm_env, atari, ...)
+- Finally, [HELX](https://github.com/epignatelli/expx), which packs the other three nodes into a framework to run and manage experiments
 
 ## Installation
 
