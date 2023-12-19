@@ -61,7 +61,7 @@ def main(argv):
         backbone=backbone,
     )
 
-    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, budget=1000)
+    helx.experiment.jrun(seed=FLAGS.seed, agent=agent, env=env, budget=20)
 
 
 if __name__ == "__main__":
