@@ -5,7 +5,7 @@
 [![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
 
-**[Quickstart](#what-is-helx)** | **[Why helx?](#why-helx)**[Installation](#installation)** | **[Examples](#examples)** | **[Cite](#cite)**
+**[Quickstart](#what-is-helx)** | **[Why helx?](#why-helx)** | **[Installation](#installation)** | **[Examples](#examples)** | **[Cite](#cite)**
 
 ## What is HELX?
 
