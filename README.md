@@ -5,7 +5,7 @@
 [![CD](https://github.com/epignatelli/helx/actions/workflows/CD.yml/badge.svg)](https://github.com/epignatelli/helx/actions/workflows/CD.yml)
 ![GitHub release (latest by date)](https://img.shields.io/github/v/release/epignatelli/helx?color=%23216477&label=Release)
 
-**[Quickstart](#what-is-helx)** | **[Installation](#installation)** | **[Examples](#examples)** | **[Cite](#cite)**
+**[Quickstart](#what-is-helx)** | **[Why helx?](#why-helx)**[Installation](#installation)** | **[Examples](#examples)** | **[Cite](#cite)**
 
 ## What is HELX?
 
@@ -16,7 +16,14 @@ With HELX you easily can:
 - Use the `helx.experiment` namespace to run experiments on your local machine, on a cluster, or on the cloud
 - Use the `helx.base` namespace to access the most common RL data structures and functions (e.g., a Ring buffer)
 
+## Why HELX?
+HELX is designed to be easy to use, easy to extend, and easy to read.
+- No 2000 lines of code files
+- No multiple inheritance hierarchies where behaviours get lost in the middle
+- No complex abstractions that hide the underlying code
+
 Each namespace provides a single, standardised interface to all agents, environments and experiment runners.
+
 
 ## Installation
 
