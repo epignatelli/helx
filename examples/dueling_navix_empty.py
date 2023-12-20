@@ -30,7 +30,7 @@ def main(argv):
 
     # environment
     env = nx.environments.Room(5, 5, 100, observation_fn=nx.observations.categorical)
-    env = helx.environment.to_helx(env)  # type: ignore
+    env = helx.envs.interop.to_helx(env)
 
     # optimiser
     optimiser = optax.rmsprop(
