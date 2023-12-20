@@ -24,5 +24,5 @@ from . import (
     gymnasium,
     gymnax,
     interop,
-    # navix
+    navix
 )
