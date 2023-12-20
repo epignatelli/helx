@@ -9,13 +9,14 @@
 
 ## What is HELX?
 
-HELX is a JAX-based ecosystem that provides a standardised and ready to use framework to run Reinforcement Learning experiments.
+HELX is a JAX-based ecosystem that provides a standardised framework to run Reinforcement Learning experiments.
+With HELX you easily can:
+- Use the `helx.envs` namespace to use the most common RL environments (gym, gymnax, dm_env, atari, ...)
+- Use the `helx.agents` namespace to use the most common RL agents (DQN, PPO, SAC, ...)
+- Use the `helx.experiment` namespace to run experiments on your local machine, on a cluster, or on the cloud
+- Use the `helx.base` namespace to access the most common RL data structures and functions (e.g., a Ring buffer)
 
-The ecosystem is made of three main nodes:
-- [HELX-base](https://github.com/epignatelli/helx), containing the base objects of the framework
-- [HELX-agents](https://github.com/epignatelli/agentx), containing the most common RL baselines
-- [HELX-envs](https://github.com/epignatelli/envx), which provides a single API to the most common RL environments (gym, gymnax, dm_env, atari, ...)
-- Finally, [HELX](https://github.com/epignatelli/expx), which packs the other three nodes into a framework to run and manage experiments
+Each namespace provides a single, standardised interface to all agents, environments and experiment runners.
 
 ## Installation
 
@@ -32,7 +33,7 @@ pip install git+https://github.com/epignatelli/helx
 ```
 
 
----
+
 ## Examples
 
 A typical use case is to design an agent, and toy-test it on `catch` before evaluating it on more complex environments, such as atari, procgen or mujoco.
@@ -82,46 +83,47 @@ agent = helx.agents.Random(hparams)
 helx.experiment.run(env, agent, episodes=100)
 ```
 
----
-## Supported libraries
 
-We currently support these external environment models:
-- [dm_env](https://github.com/deepmind/dm_env)
-- [bsuite](https://github.com/deepmind/bsuite)
-- [dm_control](https://github.com/deepmind/dm_control), including
-  - [Mujoco](https://mujoco.org)
-- [gym](https://github.com/openai/gym) and [gymnasium](https://github.com/Farama-Foundation/Gymnasium), including
-  - The [minigrid]() family
-  - The [minihack]() family
-  - The [atari](https://github.com/mgbellemare/Arcade-Learning-Environment) family
-  - The legacy [mujoco](https://www.roboti.us/download.html) family
-  - And the standard gym family
-- [gym3](https://github.com/openai/gym3), including
-  - [procgen](https://github.com/openai/procgen)
 
-#### On the road:
-- [gymnax](https://github.com/RobertTLange/gymnax)
-- [ivy_gym](https://github.com/unifyai/gym)
----
-## Adding a new agent (`helx.agents.Agent`)
+## Joining development
+
+### Adding a new agent (`helx.agents.Agent`)
 
 An `helx` agent interface is designed as the minimal set of functions necessary to *(i)* interact with an environment and *(ii)* reinforcement learn.
 
 ```python
-class Agent(ABC):
-    """A minimal RL agent interface."""
+from typing import Any
+from jax import Array
 
-    @abstractmethod
-    def sample_action(self, timestep: Timestep) -> Array:
+from helx.base import Timestep
+from helx.agents import Agent
+
+
+class NewAgent(helx.agents.Agent):
+    """A new RL agent."""
+    def create(self, hparams: Any) -> None:
+        """Initialises the agent's internal state (knowledge), such as a table,
+        or some function parameters, e.g., the parameters of a neural network."""
+        # implement me
+
+    def init(self, key: KeyArray, timestep: Timestep) -> None:
+        """Initialises the agent's internal state (knowledge), such as a table,
+        or some function parameters, e.g., the parameters of a neural network."""
+        # implement me
+
+    def sample_action(
+        self, agent_state: AgentState, obs: Array, *, key: KeyArray, eval: bool = False
+    ):
         """Applies the agent's policy to the current timestep to sample an action."""
+        # implement me
 
-    @abstractmethod
     def update(self, timestep: Timestep) -> Any:
         """Updates the agent's internal state (knowledge), such as a table,
         or some function parameters, e.g., the parameters of a neural network."""
+        # implement me
 ```
 
----
+
 ## Adding a new environment library (`helx.environment.Environment`)
 
 To add a new library requires three steps:
@@ -148,7 +150,7 @@ If you use `helx` please consider citing it as:
   }
 ```
 
----
+
 ## A note on maintainance
 This repository was born as the recipient of personal research code that was developed over the years.
 Its maintainance is limited by the time and the resources of a research project resourced with a single person.

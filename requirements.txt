@@ -7,3 +7,18 @@ absl-py
 numpy<1.24  # bsuite 0.3.5 fails, see https://github.com/deepmind/bsuite/issues/47
 jax
 flax
+optax
+rlax
+flax
+helx-base
+dm_env
+bsuite
+gymnasium[all]>=0.26  # 0.26 introduced the termination/truncation API
+gym[all]>=0.26  # 0.26 introduced the termination/truncation API
+dm_control
+gym_minigrid
+minigrid
+procgen
+gymnax
+brax
+wandb
