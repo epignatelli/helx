@@ -12,14 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-from functools import partial
 
+from functools import partial
 from typing import Callable, Sequence, Tuple
 
-import flax.linen as nn
+from jax import Array
 import jax.numpy as jnp
 import jax.tree_util as jtu
-from jax import Array
+import flax.linen as nn
 
 
 class Split(nn.Module):

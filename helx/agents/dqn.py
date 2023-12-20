@@ -29,7 +29,6 @@ from optax import GradientTransformation
 from helx.base.mdp import TERMINATION, Timestep
 from helx.base.memory import ReplayBuffer
 from helx.base.spaces import Discrete
-from helx.base import losses
 from .agent import Agent, HParams, Log, AgentState
 
 

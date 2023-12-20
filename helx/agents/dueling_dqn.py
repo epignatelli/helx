@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import annotations
-from functools import partial
 
 import jax.numpy as jnp
 import optax
@@ -36,6 +35,9 @@ class DuelingDQNState(DQNState):
 
 
 class DuelingDQN(DQN):
+    """Dueling DQN agent as described in https://arxiv.org/abs/1511.06581
+    Uses the average operator version to combine the advantage and value functions."""
+
     hparams: DuelingDQNHParams = struct.field(pytree_node=True)
     optimiser: optax.GradientTransformation = struct.field(pytree_node=True)
     critic: nn.Module = struct.field(pytree_node=True)
@@ -52,7 +54,10 @@ class DuelingDQN(DQN):
                 backbone,
                 Split(2),
                 Parallel((nn.Dense(1), nn.Dense(hparams.action_space.maximum))),  # v, A
-                Merge(partial(jnp.sum, axis=-1)) # q = v + A
+                Merge(
+                    lambda inputs: inputs[0]
+                    + (inputs[1] - jnp.mean(inputs[1], axis=-1))
+                ),  # q = v + (A - mean(A))
             ]
         )
         return DuelingDQN(
