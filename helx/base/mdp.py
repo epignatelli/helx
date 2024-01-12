@@ -19,6 +19,7 @@ from typing import Any, Dict
 
 from jax import Array
 import jax.numpy as jnp
+import jax.tree_util as jtu
 from flax import struct
 
 
@@ -42,3 +43,9 @@ class Timestep(struct.PyTreeNode):
     """The true state of the MDP, $s_t$ before taking action `action`"""
     info: Dict[str, Any] = struct.field(default_factory=dict)
     """Additional information about the environment. Useful for accumulations (e.g. returns)"""
+
+    def __getitem__(self, key: Any) -> Timestep:
+        return jtu.tree_map(lambda x: x[key], self)
+
+    def __setitem__(self, key: Any, value: Any) -> Timestep:
+        return jtu.tree_map(lambda x: x.at[key].set(value), self)
