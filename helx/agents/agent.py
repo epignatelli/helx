@@ -21,7 +21,7 @@ from flax import struct
 from optax import GradientTransformation, OptState
 
 from helx.base.spaces import Space
-from helx.base.mdp import Timestep, TRANSITION
+from helx.base.mdp import Timestep, StepType
 
 
 class HParams(struct.PyTreeNode):
@@ -34,7 +34,7 @@ class HParams(struct.PyTreeNode):
 
 class Log(struct.PyTreeNode):
     iteration: Array = jnp.asarray(0)
-    step_type: Array = TRANSITION
+    step_type: Array = StepType.TRANSITION
     returns: Array = jnp.asarray(0.0)
 
 

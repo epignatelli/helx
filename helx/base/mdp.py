@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from jax import Array
 import jax.numpy as jnp
@@ -23,9 +23,11 @@ import jax.tree_util as jtu
 from flax import struct
 
 
-TRANSITION = jnp.asarray(0)
-TRUNCATION = jnp.asarray(1)
-TERMINATION = jnp.asarray(2)
+class StepType(struct.PyTreeNode):
+    """The type of a timestep in an MDP"""
+    TRANSITION = jnp.asarray(0)
+    TRUNCATION = jnp.asarray(1)
+    TERMINATION = jnp.asarray(2)
 
 
 class Timestep(struct.PyTreeNode):
