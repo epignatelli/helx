@@ -26,7 +26,7 @@ from jax import Array
 from jax.random import KeyArray
 from optax import GradientTransformation
 
-from helx.base.mdp import TERMINATION, Timestep
+from helx.base.mdp import StepType, Timestep
 from helx.base.memory import ReplayBuffer
 from helx.base.spaces import Discrete
 from .agent import Agent, HParams, Log, AgentState
@@ -142,7 +142,7 @@ class DQN(Agent):
         s_t = timesteps.observation[1:]
         a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
         r_t = timesteps.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
+        terminal_tm1 = timesteps.step_type[:-1] != StepType.TERMINATION
         discount_t = self.hparams.discount ** timesteps.t[:-1][0]  # [0] because scalar
 
         q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))

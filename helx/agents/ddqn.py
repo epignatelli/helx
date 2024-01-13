@@ -18,7 +18,7 @@ from jax import Array
 import jax.numpy as jnp
 import optax
 
-from helx.base.mdp import Timestep, TERMINATION
+from helx.base.mdp import Timestep, StepType
 
 from .dqn import DQNHParams, DQNLog, DQNState, DQN
 
@@ -51,7 +51,7 @@ class DDQN(DQN):
         s_t = timesteps.observation[1:]
         a_tm1 = timesteps.action[:-1][0]  # [0] because scalar
         r_t = timesteps.reward[:-1][0]  # [0] because scalar
-        terminal_tm1 = timesteps.step_type[:-1] != TERMINATION
+        terminal_tm1 = timesteps.step_type[:-1] != StepType.TERMINATION
         discount_t = self.hparams.discount ** timesteps.t[:-1][0]  # [0] because scalar
         q_tm1 = jnp.asarray(self.critic.apply(params, s_tm1))
 
