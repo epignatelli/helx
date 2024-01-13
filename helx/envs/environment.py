@@ -24,7 +24,7 @@ from flax import struct
 import jax
 from jax.random import KeyArray
 
-from helx.base.mdp import Timestep, TRANSITION
+from helx.base.mdp import Timestep, StepType
 from helx.base.spaces import Space
 
 
@@ -46,7 +46,7 @@ class Environment(struct.PyTreeNode):
     ) -> Timestep:
         # autoreset
         next_timestep = jax.lax.cond(
-            timestep.step_type == TRANSITION,
+            timestep.step_type == StepType.TRANSITION,
             lambda timestep: self._step(key, timestep, action),
             lambda timestep: self.reset(key),
             timestep,
@@ -57,7 +57,7 @@ class Environment(struct.PyTreeNode):
 class EnvironmentWrapper(Environment):
     env: Any = struct.field(pytree_node=False)
 
-    @abc.abstractclassmethod
+    @abc.abstractmethod
     def wraps(cls, env: Any) -> EnvironmentWrapper:
         raise NotImplementedError()
 

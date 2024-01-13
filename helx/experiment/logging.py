@@ -10,7 +10,7 @@ import jax.experimental.host_callback as hcb
 import flax.linen as nn
 
 from helx.agents import Log
-from helx.base.mdp import TRANSITION
+from helx.base.mdp import StepType
 
 
 T = TypeVar("T", bound=nn.Module)
@@ -40,7 +40,7 @@ def log_wandb(logs: Log) -> Log:
         if k == "returns":
             if not "step_type" in log_dict:
                 raise ValueError("Log must have step_type to log returns")
-            if log_dict["step_type"] == TRANSITION:
+            if log_dict["step_type"] == StepType.TRANSITION:
                 continue
         wandb.log({k: v}, commit=False)
     wandb.log({})  # commit flush

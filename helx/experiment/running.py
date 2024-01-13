@@ -17,7 +17,7 @@ from jax.random import KeyArray
 import jax.numpy as jnp
 import wandb
 
-from helx.base.mdp import Timestep, TRANSITION
+from helx.base.mdp import Timestep, StepType
 from helx.agents import Agent, AgentState
 from helx.envs.environment import Environment
 
@@ -35,7 +35,7 @@ def run_episode(
     key, k1 = jax.random.split(key)
     timestep = env.reset(k1)
     timesteps = [timestep]
-    while timestep.step_type == TRANSITION:
+    while timestep.step_type == StepType.TRANSITION:
         key, k1, k2 = jax.random.split(key, 3)
         action = agent.sample_action(
             agent_state, timestep.observation, key=k1, eval=eval

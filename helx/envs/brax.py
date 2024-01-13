@@ -19,7 +19,7 @@ import brax.envs
 from jax.random import KeyArray
 
 from helx.base.spaces import MAX_INT_ARR, Continuous
-from helx.base.mdp import Timestep, TRANSITION, TERMINATION
+from helx.base.mdp import Timestep, StepType
 from .environment import EnvironmentWrapper
 
 
@@ -46,7 +46,7 @@ class BraxWrapper(EnvironmentWrapper):
             t=jnp.asarray(0),
             observation=state.obs,
             reward=state.reward,
-            step_type=TRANSITION,
+            step_type=StepType.TRANSITION,
             action=self.action_space.sample(key),
             state=state.pipeline_state,
             info={**state.info, **state.metrics}
@@ -58,7 +58,7 @@ class BraxWrapper(EnvironmentWrapper):
             pipeline_state=timestep.state,
             obs=timestep.observation,
             reward=timestep.reward,
-            done=timestep.step_type == TERMINATION,
+            done=timestep.step_type == StepType.TERMINATION,
             info=timestep.info,
             metrics=timestep.info
         )

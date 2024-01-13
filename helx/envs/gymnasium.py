@@ -25,7 +25,7 @@ import numpy as np
 from gymnasium.utils.step_api_compatibility import (
     TerminatedTruncatedStepType as GymnasiumTimestep,
 )
-from helx.base.mdp import Timestep, TRANSITION, TERMINATION, TRUNCATION
+from helx.base.mdp import Timestep, StepType
 from helx.base.spaces import Continuous, Discrete, Space
 from .environment import EnvironmentWrapper
 
@@ -59,11 +59,11 @@ def timestep_from_gym(gym_step: GymnasiumTimestep, action: Array, t: Array) -> T
     obs, reward, terminated, truncated, _ = gym_step
 
     if terminated:
-        step_type = TERMINATION
+        step_type = StepType.TERMINATION
     elif truncated:
-        step_type = TRUNCATION
+        step_type = StepType.TRUNCATION
     else:
-        step_type = TRANSITION
+        step_type = StepType.TRANSITION
 
     obs = jnp.asarray(obs)
     reward = jnp.asarray(reward)
@@ -80,6 +80,7 @@ def timestep_from_gym(gym_step: GymnasiumTimestep, action: Array, t: Array) -> T
 
 class GymnasiumWrapper(EnvironmentWrapper):
     """Static class to convert between gymnasium and helx environments."""
+
     env: gymnasium.Env
 
     @classmethod
@@ -96,7 +97,7 @@ class GymnasiumWrapper(EnvironmentWrapper):
 
     def reset(self, seed: int | None = None) -> Timestep:
         timestep = self.env.reset(seed=seed)
-        return timestep_from_gym(timestep, action=jnp.asarray(-1), t=jnp.asarray(0))
+        return timestep_from_gym(timestep, action=jnp.asarray(-1), t=jnp.asarray(0))  # type: ignore
 
     def _step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
         next_step = self.env.step(np.asarray(action))
