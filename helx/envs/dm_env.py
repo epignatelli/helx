@@ -22,7 +22,7 @@ import jax
 import jax.numpy as jnp
 from jax.random import KeyArray
 
-from helx.base.mdp import Timestep, TERMINATION, TRANSITION, TRUNCATION
+from helx.base.mdp import Timestep, StepType
 from helx.base.spaces import Space, Discrete, Continuous
 from .environment import EnvironmentWrapper
 
@@ -68,11 +68,11 @@ def timestep_to_helx(
     discount = timestep.discount
 
     if timestep.step_type == dm_env.StepType.LAST:
-        step_type = TERMINATION
+        step_type = StepType.TERMINATION
     elif discount is not None and float(discount) == 0.0:
-        step_type = TRUNCATION
+        step_type = StepType.TRUNCATION
     else:
-        step_type = TRANSITION
+        step_type = StepType.TRANSITION
 
     return Timestep(
         observation=obs,

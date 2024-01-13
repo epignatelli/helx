@@ -20,7 +20,7 @@ import navix as nx
 from jax.random import KeyArray
 
 from helx.base.spaces import Continuous, Discrete, Space
-from helx.base.mdp import TRANSITION, Timestep
+from helx.base.mdp import StepType, Timestep
 from .environment import EnvironmentWrapper
 
 
@@ -73,7 +73,7 @@ class NavixWrapper(EnvironmentWrapper):
             t=jnp.asarray(0),
             observation=timestep.observation,
             reward=timestep.reward,
-            step_type=TRANSITION,
+            step_type=StepType.TRANSITION,
             action=jnp.asarray(-1),
             state=timestep.state,
             info=timestep.info
