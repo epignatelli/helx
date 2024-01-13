@@ -57,8 +57,8 @@ class Environment(struct.PyTreeNode):
 class EnvironmentWrapper(Environment):
     env: Any = struct.field(pytree_node=False)
 
-    @abc.abstractmethod
-    def wraps(self, env: Any) -> Timestep:
+    @abc.abstractclassmethod
+    def wraps(cls, env: Any) -> EnvironmentWrapper:
         raise NotImplementedError()
 
     def unwrapped(self) -> Any:
