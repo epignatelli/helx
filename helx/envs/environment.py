@@ -44,6 +44,14 @@ class Environment(struct.PyTreeNode):
     def step(
         self, key: KeyArray | int, timestep: Timestep, action: jax.Array
     ) -> Timestep:
+        return self._step(key, timestep, action)
+
+    def jreset(self, key: KeyArray) -> Timestep:
+        return self.reset(key)
+
+    def jstep(
+        self, key: KeyArray | int, timestep: Timestep, action: jax.Array
+    ) -> Timestep:
         # autoreset
         next_timestep = jax.lax.cond(
             timestep.step_type == StepType.TRANSITION,
