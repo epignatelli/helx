@@ -15,7 +15,7 @@
 
 from __future__ import annotations
 
-from typing import Tuple, overload
+from typing import overload
 
 import numpy as np
 import gym
@@ -112,7 +112,7 @@ class GymWrapper(EnvironmentWrapper):
 
     def reset(self, seed: int | None = None) -> Timestep:
         if isinstance(self.env, gym.vector.VectorEnv):
-            seed = [seed] * self.env.num_envs
+            seed = [seed] * self.env.num_envs  # type: ignore
         try:
             timestep = self.env.reset(seed=seed)
         except TypeError:
