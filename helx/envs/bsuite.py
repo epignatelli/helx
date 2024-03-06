@@ -72,6 +72,6 @@ class BsuiteWrapper(EnvironmentWrapper):
         next_step = self.env.reset()
         return timestep_to_helx(next_step, jnp.asarray(-1), jnp.asarray(0))
 
-    def _step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
+    def step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
         next_step = self.env.step(action.item())
         return timestep_to_helx(next_step, action, timestep.t + 1)

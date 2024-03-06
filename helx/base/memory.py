@@ -54,6 +54,9 @@ class ReplayBuffer(struct.PyTreeNode):
             idx=jnp.asarray(0),
         )
 
+    def __len__(self) -> jax.Array:
+        return self.idx
+
     def size(self) -> jax.Array:
         """Returns the number of elements currently stored in the buffer."""
         return self.idx
@@ -67,6 +70,18 @@ class ReplayBuffer(struct.PyTreeNode):
             idx=self.idx + 1,
             elements=elements,
         )
+
+    def add_range(self, items: List[Any]) -> ReplayBuffer:
+        """Adds more than one elements to the buffer. If the buffer is full,
+        the oldest elements are overwritten."""
+        start = self.idx % self.size
+        end = start + len(items)
+        # index updating requires jitting to guarantee in-place efficiency
+        # see https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html
+        elements = jax.tree_map(
+            lambda x, y: x.at[start:end].set(jnp.stack(y)), self.elements, items
+        )
+        return self.replace(elements=elements, idx=self.idx + len(items))
 
     def sample(self, key: KeyArray, n: int = 1) -> Any:
         """Samples `n` elements uniformly at random from the buffer,

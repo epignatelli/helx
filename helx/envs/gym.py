@@ -121,6 +121,6 @@ class GymWrapper(EnvironmentWrapper):
             timestep = self.env.reset()
         return timestep_from_gym(timestep, action=jnp.asarray(-1), t=jnp.asarray(0))  # type: ignore
 
-    def _step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
+    def step(self, key: KeyArray, timestep: Timestep, action: Array) -> Timestep:
         next_step = self.env.step(np.asarray(action))
         return timestep_from_gym(next_step, action, timestep.t + 1)

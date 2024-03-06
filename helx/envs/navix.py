@@ -79,7 +79,7 @@ class NavixWrapper(EnvironmentWrapper):
             info=timestep.info
         )
 
-    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
+    def step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         current_step = nx.environments.environment.Timestep(
             t=timestep.t,
             observation=timestep.observation,

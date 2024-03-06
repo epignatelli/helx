@@ -52,7 +52,7 @@ class BraxWrapper(EnvironmentWrapper):
             info={**state.info, **state.metrics}
         )
 
-    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
+    def step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         # unwrap
         state = brax.envs.State(
             pipeline_state=timestep.state,

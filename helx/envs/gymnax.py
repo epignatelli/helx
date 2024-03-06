@@ -77,7 +77,7 @@ class GymnaxWrapper(EnvironmentWrapper):
             state=state,
         )
 
-    def _step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
+    def step(self, key: KeyArray, timestep: Timestep, action: jax.Array) -> Timestep:
         obs, state, reward, done, info = self.env.step(
             key=key, state=timestep.state, action=action, params=self.params
         )
